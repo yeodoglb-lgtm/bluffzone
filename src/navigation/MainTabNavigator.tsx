@@ -1,10 +1,10 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { LayoutDashboard, CalendarDays, Layers, MapPin, Settings, MessageSquarePlus } from 'lucide-react-native';
+import { LayoutDashboard, CalendarDays, MapPin, Settings, MessageSquarePlus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, spacing, fontSize, fontWeight } from '../theme';
+import { colors, fontWeight } from '../theme';
 import type { MainTabParamList, BankrollStackParamList, HandsStackParamList, PlacesStackParamList } from './types';
 
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
@@ -96,7 +96,7 @@ export default function MainTabNavigator() {
         options={{
           tabBarLabel: 'AI',
           tabBarIcon: () => null,
-          tabBarButton: props => <AiTabButton onPress={props.onPress ?? undefined} />,
+          tabBarButton: props => <AiTabButton onPress={props.onPress ? () => props.onPress?.({} as never) : undefined} />,
         }}
       />
       <Tab.Screen

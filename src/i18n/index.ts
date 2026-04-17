@@ -18,7 +18,7 @@ i18n.use(initReactI18next).init({
   lng: defaultLang,
   fallbackLng: 'ko',
   interpolation: { escapeValue: false },
-  compatibilityJSON: 'v3',
+  compatibilityJSON: 'v4',
 });
 
 export default i18n;
