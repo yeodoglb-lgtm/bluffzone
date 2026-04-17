@@ -8,8 +8,19 @@ import type { RootStackParamList } from './types';
 
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import MainTabNavigator from './MainTabNavigator';
+import AIChatScreen from '../screens/ai/AIChatScreen';
+import HandReviewScreen from '../screens/ai/HandReviewScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
+
+// 모달 전환 애니메이션 설정
+const modalOptions = {
+  headerShown: false,
+  presentation: 'modal' as const,
+  cardStyle: { backgroundColor: 'transparent' },
+  cardOverlayEnabled: true,
+  gestureEnabled: true,
+};
 
 export default function RootNavigator() {
   const { session, isLoading } = useAuthStore();
@@ -26,7 +37,19 @@ export default function RootNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {session ? (
-          <Stack.Screen name="Main" component={MainTabNavigator} />
+          <>
+            <Stack.Screen name="Main" component={MainTabNavigator} />
+            <Stack.Screen
+              name="AIChat"
+              component={AIChatScreen}
+              options={modalOptions}
+            />
+            <Stack.Screen
+              name="HandReview"
+              component={HandReviewScreen}
+              options={modalOptions}
+            />
+          </>
         ) : (
           <Stack.Screen name="Auth" component={WelcomeScreen} />
         )}
