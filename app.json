@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "블러프존",
+    "slug": "bluffzone",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0A"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.bluffzone.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "핸드를 음성으로 기록하기 위해 마이크 접근이 필요합니다.",
+        "NSSpeechRecognitionUsageDescription": "음성을 텍스트로 변환하기 위해 음성 인식 접근이 필요합니다.",
+        "NSLocationWhenInUseUsageDescription": "내 주변 홀덤 플레이스를 찾기 위해 위치 접근이 필요합니다."
+      }
+    },
+    "android": {
+      "package": "com.bluffzone.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0A0A"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "PLACEHOLDER"
+      }
+    },
+    "plugins": [
+      "expo-localization"
+    ]
+  }
+}
