@@ -1,5 +1,4 @@
-import '../src/i18n';
-import { useEffect } from 'react';
+import './src/i18n';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -8,8 +7,7 @@ import { StyleSheet } from 'react-native';
 
 import { colors } from './src/theme';
 import RootNavigator from './src/navigation/RootNavigator';
-import { supabase } from './src/services/supabase';
-import { useAuthStore } from './src/store/authStore';
+import { useAuthInit } from './src/hooks/useAuth';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,28 +18,22 @@ const queryClient = new QueryClient({
   },
 });
 
+function AppContent() {
+  useAuthInit();
+  return (
+    <>
+      <StatusBar style="light" backgroundColor={colors.bg} />
+      <RootNavigator />
+    </>
+  );
+}
+
 export default function App() {
-  const { setSession, setLoading } = useAuthStore();
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [setSession, setLoading]);
-
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <StatusBar style="light" backgroundColor={colors.bg} />
-          <RootNavigator />
+          <AppContent />
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
