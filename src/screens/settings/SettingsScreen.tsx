@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useAuthStore } from '../../store/authStore';
+import { Platform } from 'react-native';
 import { signOut, updateProfile } from '../../services/auth';
 import { AI_MODELS, CURRENCIES, STT_ENGINES } from '../../constants/poker';
 import type { AiModel, Currency, SttEngine } from '../../constants/poker';
@@ -107,6 +108,14 @@ export default function SettingsScreen() {
   }
 
   async function handleSignOut() {
+    // 웹에서는 Alert.alert 동작 불안정 → window.confirm 사용
+    if (Platform.OS === 'web') {
+      if (!window.confirm('로그아웃하시겠습니까?')) return;
+      setSigningOut(true);
+      try { await signOut(); } catch (e) { console.error(e); }
+      finally { reset(); setSigningOut(false); }
+      return;
+    }
     Alert.alert('로그아웃', '정말 로그아웃하시겠습니까?', [
       { text: '취소', style: 'cancel' },
       {
@@ -114,14 +123,8 @@ export default function SettingsScreen() {
         style: 'destructive',
         onPress: async () => {
           setSigningOut(true);
-          try {
-            await signOut();
-          } catch (e) {
-            console.error(e);
-          } finally {
-            reset(); // onAuthStateChange가 안 발동해도 강제 초기화
-            setSigningOut(false);
-          }
+          try { await signOut(); } catch (e) { console.error(e); }
+          finally { reset(); setSigningOut(false); }
         },
       },
     ]);
