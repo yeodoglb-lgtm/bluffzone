@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'react';
+import { useLayoutEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import { useSessionsByDate, useDeleteSession, useUserNameMap } from '../../hooks
 import { useAuthStore } from '../../store/authStore';
 import { calcPeriodStats } from '../../services/sessions';
 import { formatProfit, formatCurrency } from '../../utils/currency';
-import { formatDate, formatTime, formatDuration } from '../../utils/date';
+import { formatDate, formatTime, formatDuration, dayjs } from '../../utils/date';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { BankrollStackParamList } from '../../navigation/types';
 import type { SessionWithProfit } from '../../types/database';
@@ -40,6 +40,12 @@ export default function DayDetailScreen({ route, navigation }: Props) {
       headerShown: false,
     });
   }, [navigation]);
+
+  // 이전/다음 날 이동 (replace로 스택 누적 방지)
+  const goDay = useCallback((offset: number) => {
+    const newDate = dayjs(date).add(offset, 'day').format('YYYY-MM-DD');
+    navigation.replace('DayDetail', { date: newDate });
+  }, [date, navigation]);
 
   function handleAdd() {
     navigation.navigate('SessionForm', { date });
@@ -146,7 +152,18 @@ export default function DayDetailScreen({ route, navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.backText}>{'<'}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{formatDate(date)}</Text>
+
+        {/* 날짜 + 이전/다음 화살표 */}
+        <View style={styles.dateNav}>
+          <TouchableOpacity style={styles.dayNavBtn} onPress={() => goDay(-1)}>
+            <Text style={styles.dayNavText}>{'‹'}</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{formatDate(date)}</Text>
+          <TouchableOpacity style={styles.dayNavBtn} onPress={() => goDay(1)}>
+            <Text style={styles.dayNavText}>{'›'}</Text>
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
           <Plus color={colors.primary} size={22} />
         </TouchableOpacity>
@@ -206,14 +223,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
-  backBtn: { padding: spacing.xs, marginRight: spacing.sm },
+  backBtn: { padding: spacing.xs },
   backText: { fontSize: fontSize.md, color: colors.primary, fontWeight: fontWeight.bold },
-  headerTitle: {
+  dateNav: {
     flex: 1,
-    textAlign: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  dayNavBtn: { padding: spacing.xs, paddingHorizontal: spacing.sm },
+  dayNavText: { fontSize: 24, color: colors.primary, lineHeight: 26 },
+  headerTitle: {
     fontSize: fontSize.base,
     fontWeight: fontWeight.semibold,
     color: colors.text,
+    textAlign: 'center',
   },
   addBtn: { padding: spacing.xs },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },

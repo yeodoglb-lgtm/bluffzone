@@ -52,6 +52,10 @@ export default function SessionFormScreen({ route, navigation }: Props) {
   const { currency } = useSettingsStore();
   const isEdit = !!sessionId;
 
+  // KRW는 만원 단위 입력 (저장 시 ×10000, 로드 시 ÷10000)
+  const isKRW = currency === 'KRW';
+  const UNIT = isKRW ? 10000 : 1;
+
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
 
@@ -91,8 +95,8 @@ export default function SessionFormScreen({ route, navigation }: Props) {
         place_name_snapshot: session.place_name_snapshot,
         game_type: session.game_type,
         stakes: session.stakes,
-        buy_in: session.buy_in,
-        cash_out: session.cash_out,
+        buy_in: session.buy_in / UNIT,
+        cash_out: session.cash_out / UNIT,
         note: session.note,
       });
     });
@@ -100,7 +104,8 @@ export default function SessionFormScreen({ route, navigation }: Props) {
 
   const buyIn = watch('buy_in') ?? 0;
   const cashOut = watch('cash_out') ?? 0;
-  const netProfit = Number(cashOut) - Number(buyIn);
+  // 미리보기는 실제 금액(×UNIT)으로 표시
+  const netProfit = (Number(cashOut) - Number(buyIn)) * UNIT;
   const netColor = netProfit > 0 ? colors.primary : netProfit < 0 ? colors.danger : colors.textMuted;
 
   function toTimestamp(date: string, time: string | null): string | null {
@@ -125,8 +130,8 @@ export default function SessionFormScreen({ route, navigation }: Props) {
         place_name_snapshot: values.place_name_snapshot,
         game_type: values.game_type,
         stakes: values.stakes,
-        buy_in: values.buy_in,
-        cash_out: values.cash_out,
+        buy_in: values.buy_in * UNIT,
+        cash_out: values.cash_out * UNIT,
         currency,
         note: values.note,
       };
@@ -322,7 +327,9 @@ export default function SessionFormScreen({ route, navigation }: Props) {
         {/* Buy-in / Cash-out */}
         <View style={styles.row}>
           <View style={[styles.fieldGroup, { flex: 1 }]}>
-            <Text style={styles.label}>바이인</Text>
+            <Text style={styles.label}>
+              바이인 {isKRW ? <Text style={styles.unitHint}>(만원)</Text> : null}
+            </Text>
             <Controller
               control={control}
               name="buy_in"
@@ -332,7 +339,7 @@ export default function SessionFormScreen({ route, navigation }: Props) {
                   value={value === 0 ? '' : String(value)}
                   onBlur={onBlur}
                   onChangeText={v => onChange(v === '' ? 0 : Number(v))}
-                  placeholder="0"
+                  placeholder={isKRW ? '예: 20' : '0'}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                 />
@@ -343,7 +350,9 @@ export default function SessionFormScreen({ route, navigation }: Props) {
             )}
           </View>
           <View style={[styles.fieldGroup, { flex: 1 }]}>
-            <Text style={styles.label}>아웃</Text>
+            <Text style={styles.label}>
+              아웃 {isKRW ? <Text style={styles.unitHint}>(만원)</Text> : null}
+            </Text>
             <Controller
               control={control}
               name="cash_out"
@@ -353,7 +362,7 @@ export default function SessionFormScreen({ route, navigation }: Props) {
                   value={value === 0 ? '' : String(value)}
                   onBlur={onBlur}
                   onChangeText={v => onChange(v === '' ? 0 : Number(v))}
-                  placeholder="0"
+                  placeholder={isKRW ? '예: 23' : '0'}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                 />
@@ -428,6 +437,7 @@ const styles = StyleSheet.create({
   netValue: { fontSize: fontSize.xl, fontWeight: fontWeight.bold },
   fieldGroup: { gap: spacing.xs },
   label: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.medium },
+  unitHint: { fontSize: fontSize.xs, color: colors.primary, fontWeight: fontWeight.medium },
   input: {
     backgroundColor: colors.surface,
     borderRadius: radius.input,
