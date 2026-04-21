@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import type { HandsStackParamList } from '../../navigation/types';
@@ -19,6 +19,7 @@ import { RANKS, SUITS, STREETS, ACTIONS, RESULT_TYPES, SUIT_COLORS, SUIT_SYMBOLS
 import type { Card, HandAction, GameType, Position9Max, ResultType, Street, Action } from '../../constants/poker';
 import { useHand, useCreateHand, useUpdateHand } from '../../hooks/useHands';
 import { useAuthStore } from '../../store/authStore';
+import { useSettingsStore } from '../../store/settingsStore';
 
 // ── 색상 ──────────────────────────────────────────────────────────────────────
 const HERO_COLOR = '#3b82f6';
@@ -64,11 +65,11 @@ function MiniCard({ card, faceDown }: { card?: Card; faceDown?: boolean }) {
   );
 }
 const mc = StyleSheet.create({
-  card:      { width: 40, height: 54, backgroundColor: '#fff', borderRadius: 6, borderWidth: 0.5, borderColor: '#bbb', alignItems: 'center', justifyContent: 'center' },
-  back:      { width: 40, height: 54, backgroundColor: '#1a56a0', borderRadius: 6, borderWidth: 0.5, borderColor: '#1245a0', alignItems: 'center', justifyContent: 'center' },
-  backInner: { width: 29, height: 40, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 3 },
-  rank:      { fontSize: 17, fontWeight: 'bold', lineHeight: 19 },
-  suit:      { fontSize: 16, lineHeight: 17 },
+  card:      { width: 22, height: 34, backgroundColor: '#fff', borderRadius: 3, borderWidth: 0.5, borderColor: '#bbb', alignItems: 'center', justifyContent: 'center' },
+  back:      { width: 22, height: 34, backgroundColor: '#1a56a0', borderRadius: 3, borderWidth: 0.5, borderColor: '#1245a0', alignItems: 'center', justifyContent: 'center' },
+  backInner: { width: 15, height: 24, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 2 },
+  rank:      { fontSize: 17, fontWeight: 'bold', lineHeight: 17 },
+  suit:      { fontSize: 14, lineHeight: 14 },
 });
 
 // ── 카드 피커 ────────────────────────────────────────────────────────────────
@@ -133,9 +134,9 @@ function CardBadge({ card, onRemove }: { card: Card; onRemove?: () => void }) {
   );
   return onRemove ? <TouchableOpacity onPress={onRemove} activeOpacity={0.7}>{inner}</TouchableOpacity> : inner;
 }
-function ActionRow({ action, villainNames, activeVillainCount, onChange, onRemove }: {
+function ActionRow({ action, villainNames, activeVillainCount, onChange, onRemove, amountUnit }: {
   action: HandAction; villainNames: [string, string, string]; activeVillainCount: number;
-  onChange: (p: Partial<HandAction>) => void; onRemove: () => void;
+  onChange: (p: Partial<HandAction>) => void; onRemove: () => void; amountUnit: number;
 }) {
   const opts = ['나', ...Array.from({ length: activeVillainCount }, (_, i) => villainNames[i] || `빌런 ${i + 1}`)];
   const cur = (action.actor as string) || '나';
@@ -146,6 +147,10 @@ function ActionRow({ action, villainNames, activeVillainCount, onChange, onRemov
     return VILLAIN_COLORS[vi >= 0 ? vi : 0];
   }
   const ac = actorColor(cur);
+  const showAmount = (['bet', 'raise', 'call', 'allin'] as Action[]).includes(action.action);
+  // 표시값: 저장값 ÷ amountUnit
+  const displayAmt = action.amount != null ? String(Math.round(action.amount / amountUnit)) : '';
+
   return (
     <View style={styles.actionRow}>
       <TouchableOpacity style={[styles.actorChip, { borderColor: ac }]} onPress={() => onChange({ actor: opts[(idx + 1) % opts.length] as any })}>
@@ -158,10 +163,10 @@ function ActionRow({ action, villainNames, activeVillainCount, onChange, onRemov
           </TouchableOpacity>
         ))}
       </ScrollView>
-      {(['bet', 'raise', 'call', 'allin'] as Action[]).includes(action.action) && (
+      {showAmount && (
         <TextInput style={styles.amountInput} placeholder="금액" placeholderTextColor={colors.textMuted}
-          keyboardType="numeric" value={action.amount != null ? String(action.amount) : ''}
-          onChangeText={v => onChange({ amount: v ? Number(v) : undefined })} />
+          keyboardType="numeric" value={displayAmt}
+          onChangeText={v => onChange({ amount: v ? Math.round(Number(v) * amountUnit) : undefined })} />
       )}
       <TouchableOpacity onPress={onRemove} style={styles.removeBtn}><Text style={styles.removeBtnText}>×</Text></TouchableOpacity>
     </View>
@@ -172,10 +177,16 @@ function ActionRow({ action, villainNames, activeVillainCount, onChange, onRemov
 export default function HandEditorScreen({ navigation, route }: Props) {
   const { handId, sessionId } = route.params ?? {};
   const { session } = useAuthStore();
+  const { currency } = useSettingsStore();
   const userId = session?.user.id ?? 'dev-user';
   const { data: existingHand, isLoading: loadingHand } = useHand(handId);
   const createHand = useCreateHand();
   const updateHand = useUpdateHand();
+
+  // 금액 단위: 1=원, 10000=만원 (KRW는 만원 기본)
+  const [amountUnit, setAmountUnit] = useState<1 | 10000>(currency === 'KRW' ? 10000 : 1);
+  // 팟 사이즈 자동계산 활성 여부
+  const [isAutoPot, setIsAutoPot] = useState(true);
 
   const [gameType, setGameType] = useState<GameType>('NLH');
   const [heroPos, setHeroPos] = useState<Position9Max | null>(null);
@@ -189,6 +200,19 @@ export default function HandEditorScreen({ navigation, route }: Props) {
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // ── 팟 자동계산: bet/raise/call/allin 합산 ─────────────────────────────────
+  const autoPot = useMemo(() =>
+    actions
+      .filter(a => (['bet', 'raise', 'call', 'allin'] as Action[]).includes(a.action) && a.amount != null)
+      .reduce((sum, a) => sum + (a.amount ?? 0), 0),
+    [actions]
+  );
+
+  useEffect(() => {
+    if (!isAutoPot) return;
+    setPotSize(autoPot > 0 ? String(Math.round(autoPot / amountUnit)) : '');
+  }, [autoPot, amountUnit, isAutoPot]);
+
   useEffect(() => {
     if (!existingHand) return;
     setGameType(existingHand.game_type);
@@ -197,9 +221,11 @@ export default function HandEditorScreen({ navigation, route }: Props) {
     setBoard(existingHand.board ?? []);
     setActions(existingHand.actions ?? []);
     setResult(existingHand.result);
-    setPotSize(existingHand.pot_size != null ? String(existingHand.pot_size) : '');
-    setHeroPl(existingHand.hero_pl != null ? String(existingHand.hero_pl) : '');
+    // 기존 핸드 로드 시 amountUnit으로 나눠서 표시
+    setPotSize(existingHand.pot_size != null ? String(Math.round(existingHand.pot_size / amountUnit)) : '');
+    setHeroPl(existingHand.hero_pl != null ? String(Math.round(existingHand.hero_pl / amountUnit)) : '');
     setNote(existingHand.note ?? '');
+    setIsAutoPot(false); // 기존 팟 값 유지 (자동 덮어쓰기 방지)
     const vd = (existingHand as any).villain_data;
     if (Array.isArray(vd) && vd.length > 0) {
       const loaded: [VillainState, VillainState, VillainState] = [emptyVillain(), emptyVillain(), emptyVillain()];
@@ -210,7 +236,7 @@ export default function HandEditorScreen({ navigation, route }: Props) {
     } else if (existingHand.villain_position) {
       setVillains([{ pos: existingHand.villain_position, cards: existingHand.villain_cards ?? [], cardsKnown: existingHand.villain_known, name: '' }, emptyVillain(), emptyVillain()]);
     }
-  }, [existingHand]);
+  }, [existingHand]); // amountUnit은 의도적으로 제외 (로드 시점의 단위 기준)
 
   const allUsedCards = [...heroCards, ...board, ...villains.flatMap(v => v.cards)];
   const activeVillainCount = villains.filter(v => v.pos !== null).length;
@@ -229,7 +255,8 @@ export default function HandEditorScreen({ navigation, route }: Props) {
         villain_data: av.map(v => ({ pos: v.pos, cards: v.cardsKnown ? v.cards : [], cardsKnown: v.cardsKnown, name: v.name })),
         hero_cards: heroCards, board: board.length > 0 ? board : null,
         actions, result,
-        pot_size: potSize ? Number(potSize) : null, hero_pl: heroPl ? Number(heroPl) : null,
+        pot_size: potSize ? Math.round(Number(potSize) * amountUnit) : null,
+        hero_pl: heroPl ? Math.round(Number(heroPl) * amountUnit) : null,
         note: note.trim() || null, raw_voice_text: null,
         review_status: 'none' as const, review: null, reviewed_at: null, review_model: null, share_id: null, is_public: false,
       };
@@ -262,6 +289,11 @@ export default function HandEditorScreen({ navigation, route }: Props) {
           <View style={styles.chipRow}>
             {EDITOR_GAME_TYPES.map(g => <Chip key={g.value} label={g.label} selected={gameType === g.value} onPress={() => setGameType(g.value)} />)}
           </View>
+          <Label text="금액 단위" />
+          <View style={styles.chipRow}>
+            <Chip label="원" selected={amountUnit === 1} onPress={() => setAmountUnit(1)} />
+            <Chip label="만원" selected={amountUnit === 10000} onPress={() => setAmountUnit(10000)} />
+          </View>
         </Section>
 
         <Section title="포지션 & 카드">
@@ -284,6 +316,7 @@ export default function HandEditorScreen({ navigation, route }: Props) {
                   <ActionRow key={idx} action={a} villainNames={villainNames} activeVillainCount={activeVillainCount}
                     onChange={patch => setActions(prev => prev.map((x, i) => i === idx ? { ...x, ...patch } : x))}
                     onRemove={() => setActions(prev => prev.filter((_, i) => i !== idx))}
+                    amountUnit={amountUnit}
                   />
                 );
               })}
@@ -305,10 +338,36 @@ export default function HandEditorScreen({ navigation, route }: Props) {
               />
             ))}
           </View>
-          <Label text="팟 사이즈" />
-          <TextInput style={styles.input} placeholder="0" placeholderTextColor={colors.textMuted} keyboardType="numeric" value={potSize} onChangeText={setPotSize} />
-          <Label text="손익" />
-          <TextInput style={styles.input} placeholder="예: -500, +1200" placeholderTextColor={colors.textMuted} keyboardType="numeric" value={heroPl} onChangeText={setHeroPl} />
+          {/* 팟 사이즈: 액션 합산 자동계산 */}
+          <View style={styles.labelRow}>
+            <Label text={`팟 사이즈${amountUnit === 10000 ? ' (만원)' : ''}`} />
+            {!isAutoPot && (
+              <TouchableOpacity onPress={() => setIsAutoPot(true)} style={styles.autoBtn}>
+                <Text style={styles.autoBtnText}>자동</Text>
+              </TouchableOpacity>
+            )}
+            {isAutoPot && autoPot > 0 && (
+              <Text style={styles.autoTag}>자동계산</Text>
+            )}
+          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="0"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="numeric"
+            value={potSize}
+            onChangeText={v => { setIsAutoPot(false); setPotSize(v); }}
+          />
+          {/* 손익 */}
+          <Label text={`손익${amountUnit === 10000 ? ' (만원)' : ''}`} />
+          <TextInput
+            style={styles.input}
+            placeholder={amountUnit === 10000 ? '예: -5, +12' : '예: -500, +1200'}
+            placeholderTextColor={colors.textMuted}
+            keyboardType="numeric"
+            value={heroPl}
+            onChangeText={setHeroPl}
+          />
         </Section>
 
         <Section title="메모">
@@ -390,7 +449,8 @@ function PokerTableEditor({
       const idx = parseInt(cardTarget[1]);
       if (villains[idx].cards.length < 2) {
         const next = [...villains] as [VillainState, VillainState, VillainState];
-        next[idx] = { ...next[idx], cards: [...next[idx].cards, card] };
+        // 카드 입력 시 자동으로 '카드 공개' 상태로 전환
+        next[idx] = { ...next[idx], cards: [...next[idx].cards, card], cardsKnown: true };
         onVillainsChange(next);
       }
     }
@@ -403,7 +463,9 @@ function PokerTableEditor({
     else {
       const vi = parseInt(target[1]);
       const next = [...villains] as [VillainState, VillainState, VillainState];
-      next[vi] = { ...next[vi], cards: next[vi].cards.filter((_, j) => j !== i) };
+      const newCards = next[vi].cards.filter((_, j) => j !== i);
+      // 카드 없으면 자동으로 '비공개'로 전환
+      next[vi] = { ...next[vi], cards: newCards, cardsKnown: newCards.length > 0 };
       onVillainsChange(next);
     }
   }
@@ -476,16 +538,16 @@ function PokerTableEditor({
             const info = getSeatInfo(pos);
             const isCardActive = info && cardTarget === info.target;
 
-            // 카드: 40×54, 두 카드 row = 84px (gap 4)
-            // UP: 카드(h=54) → 뱃지(top=58,h=22) → 칩(top=84,h=22), 전체높이=110
-            // DOWN: 칩(h=22) → 뱃지(top=26,h=22) → 카드(top=52,h=54), 전체높이=110
-            const groupH    = 110;
+            // 카드: 22×34, 두 카드 row = 47px (gap 3)
+            // UP:   카드(h=34)→뱃지(top=38,h=22)→칩(top=64,h=22), 전체높이=86
+            // DOWN: 칩(h=22)→뱃지(top=26,h=22)→카드(top=52,h=34), 전체높이=86
+            const groupH    = 86;
             const groupW    = 90;
-            const groupTop  = dir === 'up' ? cy - 95 : cy - 11;
+            const groupTop  = dir === 'up' ? cy - 75 : cy - 11;
             const groupLeft = cx - 45;
 
-            const chipLocalTop  = dir === 'up' ? 84 : 0;
-            const badgeLocalTop = dir === 'up' ? 58 : 26;
+            const chipLocalTop  = dir === 'up' ? 64 : 0;
+            const badgeLocalTop = dir === 'up' ? 38 : 26;
             const cardsLocalTop = dir === 'up' ? 0  : 52;
 
             return (
@@ -629,6 +691,10 @@ const styles = StyleSheet.create({
   removeBtnText: { fontSize: fontSize.md, color: colors.danger },
   addActionBtn: { paddingVertical: 4 },
   addActionText: { fontSize: fontSize.xs, color: colors.primary },
+  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
+  autoBtn: { paddingHorizontal: 8, paddingVertical: 2, backgroundColor: colors.primary, borderRadius: 8 },
+  autoBtnText: { fontSize: fontSize.xs, color: colors.text, fontWeight: fontWeight.medium },
+  autoTag: { fontSize: fontSize.xs, color: colors.primary, fontStyle: 'italic' },
   saveBtn: { backgroundColor: colors.primary, borderRadius: radius.button, paddingVertical: spacing.base, alignItems: 'center', marginTop: spacing.sm },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },

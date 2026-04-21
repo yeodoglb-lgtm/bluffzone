@@ -134,11 +134,11 @@ function MiniCard({ card, faceDown }: { card?: Card; faceDown?: boolean }) {
   );
 }
 const mc = StyleSheet.create({
-  card: { width: 40, height: 54, backgroundColor: '#fff', borderRadius: 6, borderWidth: 0.5, borderColor: '#bbb', alignItems: 'center', justifyContent: 'center' },
-  back: { width: 40, height: 54, backgroundColor: '#1a56a0', borderRadius: 6, borderWidth: 0.5, borderColor: '#1245a0', alignItems: 'center', justifyContent: 'center' },
-  backInner: { width: 29, height: 40, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 3 },
-  rank: { fontSize: 17, fontWeight: 'bold', lineHeight: 19 },
-  suit: { fontSize: 16, lineHeight: 17 },
+  card: { width: 22, height: 34, backgroundColor: '#fff', borderRadius: 3, borderWidth: 0.5, borderColor: '#bbb', alignItems: 'center', justifyContent: 'center' },
+  back: { width: 22, height: 34, backgroundColor: '#1a56a0', borderRadius: 3, borderWidth: 0.5, borderColor: '#1245a0', alignItems: 'center', justifyContent: 'center' },
+  backInner: { width: 15, height: 24, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 2 },
+  rank: { fontSize: 17, fontWeight: 'bold', lineHeight: 17 },
+  suit: { fontSize: 14, lineHeight: 14 },
 });
 
 // ── 포커 테이블 뷰 (읽기 전용 + 리플레이) ──────────────────────────────────
@@ -234,12 +234,12 @@ function HandTableView({
           const info = getSeatInfo(pos);
           const isActing = isReplaying && actorPos === pos;
 
-          const groupH    = 110;
+          const groupH    = 86;
           const groupW    = 90;
-          const groupTop  = dir === 'up' ? cy - 95 : cy - 11;
+          const groupTop  = dir === 'up' ? cy - 75 : cy - 11;
           const groupLeft = cx - 45;
-          const chipLocalTop  = dir === 'up' ? 84 : 0;
-          const badgeLocalTop = dir === 'up' ? 58 : 26;
+          const chipLocalTop  = dir === 'up' ? 64 : 0;
+          const badgeLocalTop = dir === 'up' ? 38 : 26;
           const cardsLocalTop = dir === 'up' ? 0  : 52;
 
           return (
