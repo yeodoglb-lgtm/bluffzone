@@ -8,12 +8,13 @@ import {
   Switch,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useAuthStore } from '../../store/authStore';
-import { signOut } from '../../services/auth';
+import { signOut, updateProfile } from '../../services/auth';
 import { AI_MODELS, CURRENCIES, STT_ENGINES } from '../../constants/poker';
 import type { AiModel, Currency, SttEngine } from '../../constants/poker';
 
@@ -27,15 +28,7 @@ function SectionHeader({ title }: { title: string }) {
   return <Text style={styles.sectionHeader}>{title}</Text>;
 }
 
-function SettingRow({
-  label,
-  sub,
-  right,
-}: {
-  label: string;
-  sub?: string;
-  right: React.ReactNode;
-}) {
+function SettingRow({ label, sub, right }: { label: string; sub?: string; right: React.ReactNode }) {
   return (
     <View style={styles.row}>
       <View style={styles.rowLeft}>
@@ -48,10 +41,7 @@ function SettingRow({
 }
 
 function ChipGroup<T extends string>({
-  options,
-  value,
-  onChange,
-  labels,
+  options, value, onChange, labels,
 }: {
   options: readonly T[];
   value: T;
@@ -86,13 +76,34 @@ export default function SettingsScreen() {
     lossProtect, setLossProtect,
   } = useSettingsStore();
 
-  const { profile } = useAuthStore();
+  const { profile, setProfile, reset } = useAuthStore();
   const [goalInput, setGoalInput] = useState(monthlyGoal?.toString() ?? '');
   const [signingOut, setSigningOut] = useState(false);
+
+  // 닉네임 편집 상태
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(profile?.display_name ?? '');
+  const [savingName, setSavingName] = useState(false);
 
   function handleGoalBlur() {
     const n = parseInt(goalInput, 10);
     setMonthlyGoal(isNaN(n) || n <= 0 ? null : n);
+  }
+
+  async function handleSaveName() {
+    const trimmed = nameInput.trim();
+    if (!trimmed) { Alert.alert('오류', '닉네임을 입력해주세요.'); return; }
+    if (!profile?.id) return;
+    setSavingName(true);
+    try {
+      const updated = await updateProfile(profile.id, { display_name: trimmed });
+      if (updated) setProfile(updated);
+      setEditingName(false);
+    } catch {
+      Alert.alert('오류', '닉네임 저장에 실패했습니다.');
+    } finally {
+      setSavingName(false);
+    }
   }
 
   async function handleSignOut() {
@@ -108,6 +119,7 @@ export default function SettingsScreen() {
           } catch (e) {
             console.error(e);
           } finally {
+            reset(); // onAuthStateChange가 안 발동해도 강제 초기화
             setSigningOut(false);
           }
         },
@@ -128,28 +140,58 @@ export default function SettingsScreen() {
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
-                {profile?.display_name?.[0]?.toUpperCase() ?? '?'}
+                {(editingName ? nameInput : profile?.display_name)?.[0]?.toUpperCase() ?? '?'}
               </Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.displayName}>{profile?.display_name ?? '닉네임 없음'}</Text>
+            <View style={{ flex: 1, gap: 4 }}>
+              {editingName ? (
+                <View style={styles.nameEditRow}>
+                  <TextInput
+                    style={styles.nameInput}
+                    value={nameInput}
+                    onChangeText={setNameInput}
+                    placeholder="닉네임 입력"
+                    placeholderTextColor={colors.textMuted}
+                    autoFocus
+                    maxLength={20}
+                    returnKeyType="done"
+                    onSubmitEditing={handleSaveName}
+                  />
+                  <TouchableOpacity style={styles.saveBtn} onPress={handleSaveName} disabled={savingName}>
+                    {savingName
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Text style={styles.saveBtnText}>저장</Text>
+                    }
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.cancelBtn} onPress={() => {
+                    setEditingName(false);
+                    setNameInput(profile?.display_name ?? '');
+                  }}>
+                    <Text style={styles.cancelBtnText}>취소</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity onPress={() => {
+                  setNameInput(profile?.display_name ?? '');
+                  setEditingName(true);
+                }}>
+                  <Text style={styles.displayName}>
+                    {profile?.display_name ?? '닉네임 없음'}{'  '}
+                    <Text style={styles.editHint}>✏️</Text>
+                  </Text>
+                </TouchableOpacity>
+              )}
               <Text style={styles.rowSub}>{profile?.role === 'admin' ? '관리자' : '일반 사용자'}</Text>
             </View>
           </View>
         </View>
 
-        {/* 통화 */}
+        {/* 일반 */}
         <SectionHeader title="일반" />
         <View style={styles.card}>
           <SettingRow
             label="통화"
-            right={
-              <ChipGroup<Currency>
-                options={CURRENCIES}
-                value={currency}
-                onChange={setCurrency}
-              />
-            }
+            right={<ChipGroup<Currency> options={CURRENCIES} value={currency} onChange={setCurrency} />}
           />
           <View style={styles.divider} />
           <SettingRow
@@ -249,11 +291,7 @@ export default function SettingsScreen() {
         {/* 계정 */}
         <SectionHeader title="계정" />
         <View style={styles.card}>
-          <TouchableOpacity
-            style={styles.dangerBtn}
-            onPress={handleSignOut}
-            disabled={signingOut}
-          >
+          <TouchableOpacity style={styles.dangerBtn} onPress={handleSignOut} disabled={signingOut}>
             <Text style={styles.dangerBtnText}>{signingOut ? '로그아웃 중...' : '로그아웃'}</Text>
           </TouchableOpacity>
         </View>
@@ -267,110 +305,74 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.base,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
+    paddingHorizontal: spacing.xl, paddingVertical: spacing.base,
+    borderBottomWidth: 1, borderBottomColor: colors.line,
   },
   headerTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
   content: { padding: spacing.base, gap: spacing.xs, paddingBottom: spacing.xxl },
   sectionHeader: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    color: colors.textMuted,
-    letterSpacing: 0.5,
-    paddingHorizontal: spacing.sm,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xs,
-    textTransform: 'uppercase',
+    fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: colors.textMuted,
+    letterSpacing: 0.5, paddingHorizontal: spacing.sm, paddingTop: spacing.md,
+    paddingBottom: spacing.xs, textTransform: 'uppercase',
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: spacing.base,
-    gap: spacing.base,
+    backgroundColor: colors.surface, borderRadius: radius.card,
+    borderWidth: 1, borderColor: colors.line, padding: spacing.base, gap: spacing.base,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.base,
-  },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.base },
   rowLeft: { flex: 1, gap: 2 },
   rowLabel: { fontSize: fontSize.base, color: colors.text, fontWeight: fontWeight.medium },
   rowSub: { fontSize: fontSize.xs, color: colors.textMuted },
   divider: { height: 1, backgroundColor: colors.line },
   profileRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.base },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
   },
   avatarText: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
   displayName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
+  editHint: { fontSize: fontSize.sm, color: colors.textMuted },
+  nameEditRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  nameInput: {
+    flex: 1, height: 36, backgroundColor: colors.surfaceAlt, borderRadius: radius.sm,
+    borderWidth: 1, borderColor: colors.primary, paddingHorizontal: spacing.sm,
+    color: colors.text, fontSize: fontSize.base,
+  },
+  saveBtn: {
+    paddingHorizontal: spacing.sm, paddingVertical: 6, backgroundColor: colors.primary,
+    borderRadius: radius.sm, minWidth: 44, alignItems: 'center',
+  },
+  saveBtnText: { fontSize: fontSize.sm, color: '#fff', fontWeight: fontWeight.bold },
+  cancelBtn: { paddingHorizontal: spacing.xs, paddingVertical: 6 },
+  cancelBtnText: { fontSize: fontSize.sm, color: colors.textMuted },
   chipGroup: { flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap' },
   chip: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.button,
+    borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surfaceAlt,
   },
   chipActive: { borderColor: colors.primary, backgroundColor: `${colors.primary}22` },
   chipText: { fontSize: fontSize.sm, color: colors.textMuted },
   chipTextActive: { color: colors.primary, fontWeight: fontWeight.semibold },
   inputWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   numInput: {
-    width: 80,
-    height: 36,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: spacing.sm,
-    color: colors.text,
-    fontSize: fontSize.base,
-    textAlign: 'right',
+    width: 80, height: 36, backgroundColor: colors.surfaceAlt, borderRadius: radius.button,
+    borderWidth: 1, borderColor: colors.line, paddingHorizontal: spacing.sm,
+    color: colors.text, fontSize: fontSize.base, textAlign: 'right',
   },
   unitText: { fontSize: fontSize.sm, color: colors.textMuted },
   modelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radius.base,
-    borderWidth: 1,
-    borderColor: colors.line,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm,
+    borderRadius: radius.base, borderWidth: 1, borderColor: colors.line,
   },
   modelRowActive: { borderColor: colors.primary, backgroundColor: `${colors.primary}11` },
-  radio: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: colors.textMuted,
-  },
+  radio: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: colors.textMuted },
   radioActive: { borderColor: colors.primary, backgroundColor: colors.primary },
   modelLabel: { fontSize: fontSize.sm, color: colors.textMuted },
   modelLabelActive: { color: colors.text, fontWeight: fontWeight.medium },
   dangerBtn: {
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.danger,
+    paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.button,
+    borderWidth: 1, borderColor: colors.danger,
   },
   dangerBtnText: { fontSize: fontSize.base, color: colors.danger, fontWeight: fontWeight.semibold },
-  version: {
-    textAlign: 'center',
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
-    paddingTop: spacing.md,
-  },
+  version: { textAlign: 'center', fontSize: fontSize.xs, color: colors.textMuted, paddingTop: spacing.md },
 });
