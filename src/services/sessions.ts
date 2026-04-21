@@ -2,56 +2,63 @@ import { supabase } from './supabase';
 import type { Session, SessionWithProfit } from '../types/database';
 
 // ── 월별 세션 조회 (캘린더용) ────────────────────────────────────────────────
+// userId: null 이면 어드민 전체 조회
 export async function fetchSessionsByMonth(
-  userId: string,
+  userId: string | null,
   year: number,
   month: number
 ): Promise<SessionWithProfit[]> {
   const start = `${year}-${String(month).padStart(2, '0')}-01`;
-  const end = new Date(year, month, 0).toISOString().split('T')[0]; // 월 말일
+  const end = new Date(year, month, 0).toISOString().split('T')[0];
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('v_sessions')
     .select('*')
-    .eq('user_id', userId)
     .gte('played_on', start)
     .lte('played_on', end)
     .order('played_on', { ascending: true });
 
+  if (userId) query = query.eq('user_id', userId);
+
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as SessionWithProfit[];
 }
 
 // ── 특정 날짜 세션 조회 ────────────────────────────────────────────────────────
 export async function fetchSessionsByDate(
-  userId: string,
+  userId: string | null,
   date: string
 ): Promise<SessionWithProfit[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('v_sessions')
     .select('*')
-    .eq('user_id', userId)
     .eq('played_on', date)
     .order('started_at', { ascending: true });
 
+  if (userId) query = query.eq('user_id', userId);
+
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as SessionWithProfit[];
 }
 
 // ── 기간별 세션 조회 (통계용) ──────────────────────────────────────────────────
 export async function fetchSessionsByRange(
-  userId: string,
+  userId: string | null,
   from: string,
   to: string
 ): Promise<SessionWithProfit[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('v_sessions')
     .select('*')
-    .eq('user_id', userId)
     .gte('played_on', from)
     .lte('played_on', to)
     .order('played_on', { ascending: true });
 
+  if (userId) query = query.eq('user_id', userId);
+
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as SessionWithProfit[];
 }
@@ -105,6 +112,20 @@ export async function updateSession(
 export async function deleteSession(id: string): Promise<void> {
   const { error } = await supabase.from('sessions').delete().eq('id', id);
   if (error) throw error;
+}
+
+// ── 어드민: 유저 프로필 맵 조회 (uid → display_name) ──────────────────────────
+export async function fetchUserNameMap(): Promise<Record<string, string>> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, display_name');
+
+  if (error) return {};
+  const map: Record<string, string> = {};
+  (data ?? []).forEach((p: any) => {
+    map[p.id] = p.display_name ?? p.id.slice(0, 6);
+  });
+  return map;
 }
 
 // ── 날짜별 집계 (캘린더 dot 데이터) ───────────────────────────────────────────

@@ -39,6 +39,27 @@ export interface Hand {
 
 export type HandInsert = Omit<Hand, 'id' | 'created_at' | 'updated_at'>;
 
+// 핸드에 작성자 닉네임을 포함한 타입 (어드민 전용)
+export interface HandWithUser extends Hand {
+  display_name: string | null;
+}
+
+// ── 어드민 전용: 전체 유저 핸드 + 작성자 닉네임 조회 ─────────────────────────
+export async function fetchAllHandsAdmin(limit = 200): Promise<HandWithUser[]> {
+  const { data, error } = await supabase
+    .from('hands')
+    .select('*, profiles(display_name)')
+    .order('played_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []).map((h: any) => ({
+    ...h,
+    display_name: h.profiles?.display_name ?? null,
+    profiles: undefined,
+  })) as HandWithUser[];
+}
+
 export async function fetchHands(limit = 50, offset = 0): Promise<Hand[]> {
   const { data, error } = await supabase
     .from('hands')

@@ -12,7 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { Plus } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
-import { useSessionsByDate, useDeleteSession } from '../../hooks/useSessions';
+import { useSessionsByDate, useDeleteSession, useUserNameMap } from '../../hooks/useSessions';
+import { useAuthStore } from '../../store/authStore';
 import { calcPeriodStats } from '../../services/sessions';
 import { formatProfit, formatCurrency } from '../../utils/currency';
 import { formatDate, formatTime, formatDuration } from '../../utils/date';
@@ -26,7 +27,10 @@ export default function DayDetailScreen({ route, navigation }: Props) {
   const { date } = route.params;
   const { currency } = useSettingsStore();
 
+  const { profile } = useAuthStore();
+  const isAdmin = profile?.role === 'admin';
   const { data: sessions = [], isLoading } = useSessionsByDate(date);
+  const { data: userNameMap = {} } = useUserNameMap();
   const deleteSession = useDeleteSession();
 
   const stats = calcPeriodStats(sessions);
@@ -83,9 +87,16 @@ export default function DayDetailScreen({ route, navigation }: Props) {
         activeOpacity={0.8}
       >
         <View style={styles.cardTop}>
-          <Text style={styles.placeName} numberOfLines={1}>
-            {item.place_name_snapshot ?? '장소 미지정'}
-          </Text>
+          <View style={{ flex: 1, marginRight: spacing.sm }}>
+            <Text style={styles.placeName} numberOfLines={1}>
+              {item.place_name_snapshot ?? '장소 미지정'}
+            </Text>
+            {isAdmin && userNameMap[item.user_id] && (
+              <View style={styles.userBadge}>
+                <Text style={styles.userBadgeText}>👤 {userNameMap[item.user_id]}</Text>
+              </View>
+            )}
+          </View>
           <Text style={[styles.netProfit, { color: profitColor }]}>
             {formatProfit(net, currency)}
           </Text>
@@ -261,6 +272,17 @@ const styles = StyleSheet.create({
   },
   tagText: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.medium },
   inout: { fontSize: fontSize.sm, color: colors.textMuted },
+  userBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: `${colors.primary}22`,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: `${colors.primary}55`,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    marginTop: 2,
+  },
+  userBadgeText: { fontSize: 10, color: colors.primary, fontWeight: fontWeight.medium },
   summaryBar: {
     flexDirection: 'row',
     backgroundColor: colors.surface,

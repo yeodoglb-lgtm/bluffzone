@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import {
   fetchHands,
   fetchHand,
+  fetchAllHandsAdmin,
   createHand,
   updateHand,
   deleteHand,
@@ -16,6 +17,18 @@ export function useHands(limit = 50) {
     queryKey: ['hands', uid, limit],
     queryFn: () => fetchHands(limit),
     enabled: !!uid,
+    staleTime: 1000 * 60 * 2,
+  });
+}
+
+// 어드민 전용: 전체 유저 핸드 + 작성자 닉네임
+export function useAllHandsAdmin() {
+  const { profile } = useAuthStore();
+  const isAdmin = profile?.role === 'admin';
+  return useQuery({
+    queryKey: ['hands', 'admin', 'all'],
+    queryFn: () => fetchAllHandsAdmin(200),
+    enabled: isAdmin,
     staleTime: 1000 * 60 * 2,
   });
 }

@@ -10,8 +10,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import type { HandsStackParamList } from '../../navigation/types';
-import { useHands } from '../../hooks/useHands';
-import type { Hand } from '../../services/hands';
+import { useHands, useAllHandsAdmin } from '../../hooks/useHands';
+import { useAuthStore } from '../../store/authStore';
+import type { Hand, HandWithUser } from '../../services/hands';
 import { SUIT_COLORS, SUIT_SYMBOLS } from '../../constants/poker';
 import type { Card } from '../../constants/poker';
 
@@ -43,7 +44,7 @@ const RESULT_LABELS: Record<string, string> = {
   folded: '폴드',
 };
 
-function HandCard({ hand, onPress }: { hand: Hand; onPress: () => void }) {
+function HandCard({ hand, onPress, showUser }: { hand: HandWithUser; onPress: () => void; showUser?: boolean }) {
   const date = new Date(hand.played_at).toLocaleDateString('ko-KR', {
     month: 'short',
     day: 'numeric',
@@ -76,6 +77,13 @@ function HandCard({ hand, onPress }: { hand: Hand; onPress: () => void }) {
 
       <View style={styles.cardMid}>
         <Text style={styles.dateText}>{date}</Text>
+        {showUser && (hand as HandWithUser).display_name != null && (
+          <View style={styles.userBadge}>
+            <Text style={styles.userBadgeText}>
+              👤 {(hand as HandWithUser).display_name}
+            </Text>
+          </View>
+        )}
         <Text style={styles.posText}>
           {hand.hero_position ?? '?'} vs {hand.villain_position ?? '?'}
         </Text>
@@ -98,12 +106,22 @@ function HandCard({ hand, onPress }: { hand: Hand; onPress: () => void }) {
 }
 
 export default function HandListScreen({ navigation }: Props) {
-  const { data: hands, isLoading } = useHands();
+  const { profile } = useAuthStore();
+  const isAdmin = profile?.role === 'admin';
+
+  // 어드민이면 전체 유저 핸드(유저 이름 포함), 일반 유저면 본인 핸드만
+  const { data: myHands, isLoading: loadingMy } = useHands();
+  const { data: adminHands, isLoading: loadingAdmin } = useAllHandsAdmin();
+
+  const hands = isAdmin ? adminHands : myHands;
+  const isLoading = isAdmin ? loadingAdmin : loadingMy;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>핸드 기록</Text>
+        <Text style={styles.title}>
+          {isAdmin ? '핸드 기록 (전체)' : '핸드 기록'}
+        </Text>
         <TouchableOpacity
           style={styles.addBtn}
           onPress={() => navigation.push('HandEditor', {})}
@@ -124,7 +142,8 @@ export default function HandListScreen({ navigation }: Props) {
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <HandCard
-              hand={item}
+              hand={item as HandWithUser}
+              showUser={isAdmin}
               onPress={() => navigation.push('HandDetail', { handId: item.id })}
             />
           )}
@@ -187,6 +206,16 @@ const styles = StyleSheet.create({
   dateText: { fontSize: fontSize.xs, color: colors.textMuted },
   posText: { fontSize: fontSize.sm, color: colors.text, fontWeight: fontWeight.medium },
   gameText: { fontSize: fontSize.xs, color: colors.textMuted },
+  userBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: `${colors.primary}22`,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: `${colors.primary}55`,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  userBadgeText: { fontSize: 10, color: colors.primary, fontWeight: fontWeight.medium },
   cardRight: { alignItems: 'flex-end', gap: 4 },
   resultBadge: {
     borderWidth: 1,
