@@ -34,13 +34,16 @@ export function useAuthInit() {
   useEffect(() => {
     let loadingDone = false;
 
-    // 3초 안에 인증이 완료되지 않으면 강제로 로딩 해제 (Web Locks 데드락 방지)
+    // 2초 안에 인증이 완료되지 않으면 강제로 로딩 해제 (Web Locks 데드락 방지)
     const fallback = setTimeout(() => {
       if (!loadingDone) {
         loadingDone = true;
         setLoading(false);
       }
-    }, 3000);
+    }, 2000);
+
+    // Supabase 프리 티어 슬립 대응: 가벼운 ping으로 DB 깨우기
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).limit(1).then(() => {}).catch(() => {});
 
     // onAuthStateChange만 사용 (getSession + onAuthStateChange 동시 호출 시 데드락 발생)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

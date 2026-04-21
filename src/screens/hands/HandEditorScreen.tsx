@@ -64,11 +64,11 @@ function MiniCard({ card, faceDown }: { card?: Card; faceDown?: boolean }) {
   );
 }
 const mc = StyleSheet.create({
-  card:      { width: 26, height: 36, backgroundColor: '#fff', borderRadius: 4, borderWidth: 0.5, borderColor: '#bbb', alignItems: 'center', justifyContent: 'center' },
-  back:      { width: 26, height: 36, backgroundColor: '#1a56a0', borderRadius: 4, borderWidth: 0.5, borderColor: '#1245a0', alignItems: 'center', justifyContent: 'center' },
-  backInner: { width: 19, height: 27, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 2 },
-  rank:      { fontSize: 12, fontWeight: 'bold', lineHeight: 14 },
-  suit:      { fontSize: 12, lineHeight: 13 },
+  card:      { width: 40, height: 54, backgroundColor: '#fff', borderRadius: 6, borderWidth: 0.5, borderColor: '#bbb', alignItems: 'center', justifyContent: 'center' },
+  back:      { width: 40, height: 54, backgroundColor: '#1a56a0', borderRadius: 6, borderWidth: 0.5, borderColor: '#1245a0', alignItems: 'center', justifyContent: 'center' },
+  backInner: { width: 29, height: 40, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 3 },
+  rank:      { fontSize: 17, fontWeight: 'bold', lineHeight: 19 },
+  suit:      { fontSize: 16, lineHeight: 17 },
 });
 
 // ── 카드 피커 ────────────────────────────────────────────────────────────────
@@ -362,20 +362,24 @@ function PokerTableEditor({
     return null;
   }
 
-  function handleSeatPress(pos: Position9Max) {
-    if (mainMode === 'pos') {
-      if (posSubMode === 'hero') {
-        onHeroSelect(heroPos === pos ? null : pos);
-      } else {
-        const idx = parseInt(posSubMode[1]);
-        const next = [...villains] as [VillainState, VillainState, VillainState];
-        next[idx] = { ...next[idx], pos: next[idx].pos === pos ? null : pos };
-        onVillainsChange(next);
-      }
+  // 포지션 칩 탭 → 포지션 배정
+  function handleSeatPosPress(pos: Position9Max) {
+    if (posSubMode === 'hero') {
+      onHeroSelect(heroPos === pos ? null : pos);
     } else {
-      const info = getSeatInfo(pos);
-      if (info) setCardTarget(ct => ct === info.target ? null : info.target);
+      const idx = parseInt(posSubMode[1]);
+      const next = [...villains] as [VillainState, VillainState, VillainState];
+      next[idx] = { ...next[idx], pos: next[idx].pos === pos ? null : pos };
+      onVillainsChange(next);
     }
+  }
+
+  // 카드 영역 탭 → 항상 카드 입력 (모드 무관)
+  function handleSeatCardPress(pos: Position9Max) {
+    const info = getSeatInfo(pos);
+    if (!info) return;
+    setMainMode('card');
+    setCardTarget(ct => ct === info.target ? null : info.target);
   }
 
   function addCard(card: Card) {
@@ -467,38 +471,40 @@ function PokerTableEditor({
           {/* 딜러 칩 */}
           <View style={ts.dealerChip}><Text style={ts.dealerText}>D</Text></View>
 
-          {/* 시트 — 각각 독립된 TouchableOpacity로 올바른 위치에만 hit area */}
+          {/* 시트 — 카드 영역·포지션칩 독립 TouchableOpacity */}
           {SEAT_DEFS.map(({ pos, cx, cy, dir }) => {
             const info = getSeatInfo(pos);
-            const isCardActive = mainMode === 'card' && info && cardTarget === info.target;
+            const isCardActive = info && cardTarget === info.target;
 
-            // 카드: 26×36, 두 카드 row = 56px
-            // UP: 카드(top=0,h=36) → 뱃지(top=40,h=22) → 칩(top=66,h=22), 전체높이=90
-            // DOWN: 칩(top=0,h=22) → 뱃지(top=26,h=22) → 카드(top=52,h=36), 전체높이=90
-            const groupTop  = dir === 'up' ? cy - 79 : cy - 11;
-            const groupLeft = cx - 28;
-            const groupW    = 56;
-            const groupH    = 90;
+            // 카드: 40×54, 두 카드 row = 84px (gap 4)
+            // UP: 카드(h=54) → 뱃지(top=58,h=22) → 칩(top=84,h=22), 전체높이=110
+            // DOWN: 칩(h=22) → 뱃지(top=26,h=22) → 카드(top=52,h=54), 전체높이=110
+            const groupH    = 110;
+            const groupW    = 90;
+            const groupTop  = dir === 'up' ? cy - 95 : cy - 11;
+            const groupLeft = cx - 45;
 
-            const chipLocalTop  = dir === 'up' ? 66 : 0;
-            const badgeLocalTop = dir === 'up' ? 40 : 26;
+            const chipLocalTop  = dir === 'up' ? 84 : 0;
+            const badgeLocalTop = dir === 'up' ? 58 : 26;
             const cardsLocalTop = dir === 'up' ? 0  : 52;
 
             return (
-              <TouchableOpacity
+              <View
                 key={pos}
-                onPress={() => handleSeatPress(pos)}
-                activeOpacity={0.75}
                 style={[ts.seatGroup, { left: groupLeft, top: groupTop, width: groupW, height: groupH }]}
               >
-                {/* 카드 */}
+                {/* 카드 영역 — 항상 탭 가능, 카드 입력 열기 */}
                 {info ? (
-                  <View style={[ts.cardsRowAbs, { top: cardsLocalTop, left: 2 }, isCardActive && ts.activeGlow]}>
+                  <TouchableOpacity
+                    style={[ts.cardsRowAbs, { top: cardsLocalTop, left: 2 }, isCardActive && ts.activeGlow]}
+                    onPress={() => handleSeatCardPress(pos)}
+                    activeOpacity={0.7}
+                  >
                     {info.cards.length > 0
                       ? info.cards.map((c, i) => <MiniCard key={i} card={c} />)
                       : [0, 1].map(i => <MiniCard key={i} faceDown />)
                     }
-                  </View>
+                  </TouchableOpacity>
                 ) : null}
                 {/* 플레이어 뱃지 */}
                 {info && (
@@ -506,11 +512,15 @@ function PokerTableEditor({
                     <Text style={ts.playerBadgeText} numberOfLines={1}>{info.player}</Text>
                   </View>
                 )}
-                {/* 포지션 칩 */}
-                <View style={[ts.posChip, { top: chipLocalTop, left: 4 }, info && { borderColor: info.color }]}>
+                {/* 포지션 칩 — 포지션 배정 */}
+                <TouchableOpacity
+                  style={[ts.posChip, { top: chipLocalTop, left: 4 }, info && { borderColor: info.color }]}
+                  onPress={() => handleSeatPosPress(pos)}
+                  activeOpacity={0.75}
+                >
                   <Text style={[ts.posChipText, info && { color: info.color }]}>{pos}</Text>
-                </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              </View>
             );
           })}
         </View>

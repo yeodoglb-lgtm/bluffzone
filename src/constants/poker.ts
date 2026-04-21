@@ -30,7 +30,7 @@ export interface HandAction {
 }
 
 export const SUIT_COLORS: Record<Suit, string> = {
-  s: '#1a1a1a',
+  s: '#EAB308',  // 스페이드: 노란색 (검정은 다크 배경에서 안 보임)
   h: '#EF4444',
   d: '#3B82F6',
   c: '#22C55E',
