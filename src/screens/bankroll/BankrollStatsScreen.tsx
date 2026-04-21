@@ -15,6 +15,8 @@ import { calcPeriodStats } from '../../services/sessions';
 import { formatProfit } from '../../utils/currency';
 import { dayjs, today, weekRange, monthRange, quarterRange, yearRange } from '../../utils/date';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useAuthStore } from '../../store/authStore';
+import AdminUserFilter from '../../components/AdminUserFilter';
 import type { GameType } from '../../constants/poker';
 
 type ChartDatum = { x: number; y: number };
@@ -102,13 +104,22 @@ function formatRangeLabel(tab: TabKey, start: string, end: string): string {
 
 export default function BankrollStatsScreen() {
   const { currency } = useSettingsStore();
+  const { profile } = useAuthStore();
+  const isAdmin = profile?.role === 'admin';
   const [activeTab, setActiveTab] = useState<TabKey>('month');
   const [offset, setOffset] = useState(0);
+  const [filterUid, setFilterUid] = useState<string | null>(null);
 
   const { start, end } = useMemo(() => getRangeForTab(activeTab, offset), [activeTab, offset]);
   const rangeLabel = useMemo(() => formatRangeLabel(activeTab, start, end), [activeTab, start, end]);
 
-  const { data: sessions = [], isLoading } = useSessionsByRange(start, end);
+  const { data: allSessions = [], isLoading } = useSessionsByRange(start, end);
+
+  // 어드민: 선택 유저로 클라이언트 필터링
+  const sessions = useMemo(() =>
+    isAdmin && filterUid ? allSessions.filter(s => s.user_id === filterUid) : allSessions,
+    [allSessions, isAdmin, filterUid]
+  );
 
   const stats = useMemo(() => calcPeriodStats(sessions), [sessions]);
 
@@ -154,6 +165,9 @@ export default function BankrollStatsScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>통계</Text>
       </View>
+
+      {/* 어드민 유저 필터 */}
+      <AdminUserFilter selectedUid={filterUid} onChange={setFilterUid} />
 
       {/* Tabs */}
       <View style={styles.tabRow}>

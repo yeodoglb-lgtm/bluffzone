@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +13,7 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import type { HandsStackParamList } from '../../navigation/types';
 import { useHands, useAllHandsAdmin } from '../../hooks/useHands';
 import { useAuthStore } from '../../store/authStore';
+import AdminUserFilter from '../../components/AdminUserFilter';
 import type { Hand, HandWithUser } from '../../services/hands';
 import { SUIT_COLORS, SUIT_SYMBOLS } from '../../constants/poker';
 import type { Card } from '../../constants/poker';
@@ -108,20 +110,32 @@ function HandCard({ hand, onPress, showUser }: { hand: HandWithUser; onPress: ()
 export default function HandListScreen({ navigation }: Props) {
   const { profile } = useAuthStore();
   const isAdmin = profile?.role === 'admin';
+  const [filterUid, setFilterUid] = useState<string | null>(null);
 
   // 어드민이면 전체 유저 핸드(유저 이름 포함), 일반 유저면 본인 핸드만
   const { data: myHands, isLoading: loadingMy } = useHands();
   const { data: adminHands, isLoading: loadingAdmin } = useAllHandsAdmin();
 
-  const hands = isAdmin ? adminHands : myHands;
   const isLoading = isAdmin ? loadingAdmin : loadingMy;
+
+  // 어드민: 선택된 유저로 클라이언트 필터링
+  const hands = useMemo(() => {
+    const raw = isAdmin ? adminHands : myHands;
+    if (!isAdmin || filterUid === null) return raw ?? [];
+    return (raw ?? []).filter(h => h.user_id === filterUid);
+  }, [isAdmin, adminHands, myHands, filterUid]);
+
+  // 타이틀: 어드민 + 필터 유저 이름 표시
+  const titleSuffix = isAdmin
+    ? filterUid === null
+      ? ' (전체)'
+      : ` (필터)`
+    : '';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>
-          {isAdmin ? '핸드 기록 (전체)' : '핸드 기록'}
-        </Text>
+        <Text style={styles.title}>핸드 기록{titleSuffix}</Text>
         <TouchableOpacity
           style={styles.addBtn}
           onPress={() => navigation.push('HandEditor', {})}
@@ -131,19 +145,22 @@ export default function HandListScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
+      {/* 어드민 유저 필터 */}
+      <AdminUserFilter selectedUid={filterUid} onChange={setFilterUid} />
+
       {isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : (
         <FlatList
-          data={hands ?? []}
+          data={hands}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <HandCard
               hand={item as HandWithUser}
-              showUser={isAdmin}
+              showUser={isAdmin && filterUid === null}
               onPress={() => navigation.push('HandDetail', { handId: item.id })}
             />
           )}

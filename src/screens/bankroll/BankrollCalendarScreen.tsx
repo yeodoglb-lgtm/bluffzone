@@ -14,8 +14,10 @@ import { useSessionsByMonth, useSessionsByRange } from '../../hooks/useSessions'
 import { aggregateByDay, calcPeriodStats } from '../../services/sessions';
 import { formatProfit } from '../../utils/currency';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useAuthStore } from '../../store/authStore';
 import { dayjs, today, weekRange, yearRange } from '../../utils/date';
 import type { BankrollStackParamList } from '../../navigation/types';
+import AdminUserFilter from '../../components/AdminUserFilter';
 
 type Nav = StackNavigationProp<BankrollStackParamList, 'BankrollCalendar'>;
 type PeriodTab = 'week' | 'month' | 'year';
@@ -31,6 +33,8 @@ const MONTH_LABELS = ['1월','2월','3월','4월','5월','6월','7월','8월','9
 export default function BankrollCalendarScreen() {
   const navigation = useNavigation<Nav>();
   const { currency, lossProtect } = useSettingsStore();
+  const { profile } = useAuthStore();
+  const isAdmin = profile?.role === 'admin';
   const now = dayjs();
   const [year, setYear] = useState(now.year());
   const [month, setMonth] = useState(now.month() + 1);
@@ -39,9 +43,14 @@ export default function BankrollCalendarScreen() {
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [pickerYear, setPickerYear] = useState(now.year());
   const [showHourlyDetail, setShowHourlyDetail] = useState(false);
+  const [filterUid, setFilterUid] = useState<string | null>(null);
 
-  // 월별 데이터 (캘린더용)
-  const { data: monthSessions = [], isLoading } = useSessionsByMonth(year, month);
+  // 월별 데이터 (캘린더용) — 어드민은 전체 fetch 후 클라이언트 필터링
+  const { data: allMonthSessions = [], isLoading } = useSessionsByMonth(year, month);
+  const monthSessions = useMemo(() =>
+    isAdmin && filterUid ? allMonthSessions.filter(s => s.user_id === filterUid) : allMonthSessions,
+    [allMonthSessions, isAdmin, filterUid]
+  );
   const dayStats = useMemo(() => aggregateByDay(monthSessions), [monthSessions]);
 
   // 기간별 데이터 (상단 통계용)
@@ -56,7 +65,11 @@ export default function BankrollCalendarScreen() {
     }
   }, [periodTab, year, month]);
 
-  const { data: periodSessions = [] } = useSessionsByRange(periodRange.start, periodRange.end);
+  const { data: allPeriodSessions = [] } = useSessionsByRange(periodRange.start, periodRange.end);
+  const periodSessions = useMemo(() =>
+    isAdmin && filterUid ? allPeriodSessions.filter(s => s.user_id === filterUid) : allPeriodSessions,
+    [allPeriodSessions, isAdmin, filterUid]
+  );
   const stats = useMemo(() => calcPeriodStats(periodSessions), [periodSessions]);
 
   function handleDayPress(day: DateData) {
@@ -92,6 +105,9 @@ export default function BankrollCalendarScreen() {
           <BarChart2 color={colors.primary} size={22} />
         </TouchableOpacity>
       </View>
+
+      {/* 어드민 유저 필터 */}
+      <AdminUserFilter selectedUid={filterUid} onChange={setFilterUid} />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* 기간 탭 */}
