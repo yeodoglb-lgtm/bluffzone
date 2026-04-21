@@ -13,8 +13,9 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import type { HandsStackParamList } from '../../navigation/types';
 import { useHands, useAllHandsAdmin } from '../../hooks/useHands';
 import { useAuthStore } from '../../store/authStore';
+import { useUserNameMap } from '../../hooks/useSessions';
 import AdminUserFilter from '../../components/AdminUserFilter';
-import type { Hand, HandWithUser } from '../../services/hands';
+import type { HandWithUser } from '../../services/hands';
 import { SUIT_COLORS, SUIT_SYMBOLS } from '../../constants/poker';
 import type { Card } from '../../constants/poker';
 
@@ -112,18 +113,24 @@ export default function HandListScreen({ navigation }: Props) {
   const isAdmin = profile?.role === 'admin';
   const [filterUid, setFilterUid] = useState<string | null>(null);
 
-  // 어드민이면 전체 유저 핸드(유저 이름 포함), 일반 유저면 본인 핸드만
+  // 어드민이면 전체 유저 핸드, 일반 유저면 본인 핸드만
   const { data: myHands, isLoading: loadingMy } = useHands();
   const { data: adminHands, isLoading: loadingAdmin } = useAllHandsAdmin();
+  // 어드민: uid → 닉네임 맵 (display_name 주입용)
+  const { data: userNameMap = {} } = useUserNameMap();
 
   const isLoading = isAdmin ? loadingAdmin : loadingMy;
 
-  // 어드민: 선택된 유저로 클라이언트 필터링
-  const hands = useMemo(() => {
-    const raw = isAdmin ? adminHands : myHands;
-    if (!isAdmin || filterUid === null) return raw ?? [];
-    return (raw ?? []).filter(h => h.user_id === filterUid);
-  }, [isAdmin, adminHands, myHands, filterUid]);
+  // 어드민: userNameMap 으로 display_name 주입 + 유저 필터링
+  const hands = useMemo<HandWithUser[]>(() => {
+    const raw = (isAdmin ? adminHands : myHands) ?? [];
+    const withNames: HandWithUser[] = raw.map(h => ({
+      ...h,
+      display_name: isAdmin ? (userNameMap[h.user_id] ?? null) : null,
+    }));
+    if (!isAdmin || filterUid === null) return withNames;
+    return withNames.filter(h => h.user_id === filterUid);
+  }, [isAdmin, adminHands, myHands, filterUid, userNameMap]);
 
   // 타이틀: 어드민 + 필터 유저 이름 표시
   const titleSuffix = isAdmin

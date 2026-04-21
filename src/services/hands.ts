@@ -44,20 +44,17 @@ export interface HandWithUser extends Hand {
   display_name: string | null;
 }
 
-// ── 어드민 전용: 전체 유저 핸드 + 작성자 닉네임 조회 ─────────────────────────
-export async function fetchAllHandsAdmin(limit = 200): Promise<HandWithUser[]> {
+// ── 어드민 전용: 전체 유저 핸드 조회 (프로필 조인 없이 단순 조회)
+// display_name 은 호출 측에서 userNameMap 으로 주입
+export async function fetchAllHandsAdmin(limit = 200): Promise<Hand[]> {
   const { data, error } = await supabase
     .from('hands')
-    .select('*, profiles(display_name)')
+    .select('*')
     .order('played_at', { ascending: false })
     .limit(limit);
 
   if (error) throw error;
-  return (data ?? []).map((h: any) => ({
-    ...h,
-    display_name: h.profiles?.display_name ?? null,
-    profiles: undefined,
-  })) as HandWithUser[];
+  return (data ?? []) as Hand[];
 }
 
 export async function fetchHands(limit = 50, offset = 0): Promise<Hand[]> {

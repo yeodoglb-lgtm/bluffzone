@@ -12,7 +12,8 @@ import { useAuthInit } from './src/hooks/useAuth';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
+      retry: 1,           // 실패 시 1회만 재시도 (기본 2→1, 불안정 체감 감소)
+      retryDelay: 1000,   // 재시도 전 1초 대기
       staleTime: 1000 * 60 * 5,
     },
   },

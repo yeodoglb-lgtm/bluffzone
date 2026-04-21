@@ -7,6 +7,7 @@ import {
   createHand,
   updateHand,
   deleteHand,
+  type Hand,
   type HandInsert,
 } from '../services/hands';
 
@@ -21,11 +22,11 @@ export function useHands(limit = 50) {
   });
 }
 
-// 어드민 전용: 전체 유저 핸드 + 작성자 닉네임
+// 어드민 전용: 전체 유저 핸드 (단순 조회, display_name 은 userNameMap 으로 별도 주입)
 export function useAllHandsAdmin() {
   const { profile } = useAuthStore();
   const isAdmin = profile?.role === 'admin';
-  return useQuery({
+  return useQuery<Hand[]>({
     queryKey: ['hands', 'admin', 'all'],
     queryFn: () => fetchAllHandsAdmin(200),
     enabled: isAdmin,
