@@ -9,12 +9,14 @@ export type MainTabParamList = {
   HandsTab: NavigatorScreenParams<HandsStackParamList>;
   PlacesTab: NavigatorScreenParams<PlacesStackParamList>;
   SettingsTab: undefined;
+  AdminTab: undefined;
 };
 
 // ── Bankroll Stack ─────────────────────────────────────────────────────────────
 export type BankrollStackParamList = {
   BankrollCalendar: undefined;
   DayDetail: { date: string };
+  SessionDetail: { sessionId: string };
   SessionForm: { sessionId?: string; date?: string };
   BankrollStats: undefined;
 };

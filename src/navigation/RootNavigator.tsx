@@ -22,6 +22,8 @@ const modalOptions = {
   gestureEnabled: true,
 };
 
+const DEV_SKIP_AUTH = false;
+
 export default function RootNavigator() {
   const { session, isLoading } = useAuthStore();
 
@@ -36,7 +38,7 @@ export default function RootNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {session ? (
+        {session || DEV_SKIP_AUTH ? (
           <>
             <Stack.Screen name="Main" component={MainTabNavigator} />
             <Stack.Screen

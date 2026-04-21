@@ -77,6 +77,7 @@ export default function DayDetailScreen({ route, navigation }: Props) {
     return (
       <TouchableOpacity
         style={styles.card}
+        onPress={() => navigation.navigate('SessionDetail', { sessionId: item.id })}
         onLongPress={() => handleLongPress(item)}
         delayLongPress={400}
         activeOpacity={0.8}

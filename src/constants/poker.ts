@@ -30,7 +30,7 @@ export interface HandAction {
 }
 
 export const SUIT_COLORS: Record<Suit, string> = {
-  s: '#FFFFFF',
+  s: '#1a1a1a',
   h: '#EF4444',
   d: '#3B82F6',
   c: '#22C55E',

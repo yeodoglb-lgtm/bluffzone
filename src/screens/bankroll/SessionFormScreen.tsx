@@ -19,18 +19,26 @@ import { useCreateSession, useUpdateSession } from '../../hooks/useSessions';
 import { formatProfit } from '../../utils/currency';
 import { today } from '../../utils/date';
 import { useSettingsStore } from '../../store/settingsStore';
-import { GAME_TYPES } from '../../constants/poker';
 import type { BankrollStackParamList } from '../../navigation/types';
 import { fetchSession } from '../../services/sessions';
 
 type Props = StackScreenProps<BankrollStackParamList, 'SessionForm'>;
+
+const SESSION_GAME_TYPES = [
+  { label: "Hold'em", value: 'NLH' },
+  { label: 'Omaha', value: 'PLO' },
+  { label: 'Tournament', value: 'Tournament' },
+  { label: '기타', value: 'Mixed' },
+] as const;
+
+type SessionGameType = (typeof SESSION_GAME_TYPES)[number]['value'];
 
 const schema = z.object({
   played_on: z.string().min(1, '날짜를 입력하세요'),
   started_at: z.string().nullable(),
   ended_at: z.string().nullable(),
   place_name_snapshot: z.string().nullable(),
-  game_type: z.enum(['NLH', 'PLO', 'Tournament', 'PLO5', 'Mixed']).nullable(),
+  game_type: z.enum(['NLH', 'PLO', 'Tournament', 'Mixed']).nullable(),
   stakes: z.string().nullable(),
   buy_in: z.number({ error: '숫자를 입력하세요' }).min(0, '0 이상이어야 합니다'),
   cash_out: z.number({ error: '숫자를 입력하세요' }).min(0, '0 이상이어야 합니다'),
@@ -95,12 +103,24 @@ export default function SessionFormScreen({ route, navigation }: Props) {
   const netProfit = Number(cashOut) - Number(buyIn);
   const netColor = netProfit > 0 ? colors.primary : netProfit < 0 ? colors.danger : colors.textMuted;
 
+  function toTimestamp(date: string, time: string | null): string | null {
+    if (!time) return null;
+    const digits = time.replace(/\D/g, '').padStart(4, '0');
+    const hh = digits.slice(0, 2);
+    const mm = digits.slice(2, 4);
+    const offset = -new Date().getTimezoneOffset();
+    const sign = offset >= 0 ? '+' : '-';
+    const oh = String(Math.floor(Math.abs(offset) / 60)).padStart(2, '0');
+    const om = String(Math.abs(offset) % 60).padStart(2, '0');
+    return `${date}T${hh}:${mm}:00${sign}${oh}:${om}`;
+  }
+
   async function onSubmit(values: FormValues) {
     try {
       const input = {
         played_on: values.played_on,
-        started_at: values.started_at,
-        ended_at: values.ended_at,
+        started_at: toTimestamp(values.played_on, values.started_at),
+        ended_at: toTimestamp(values.played_on, values.ended_at),
         place_id: null,
         place_name_snapshot: values.place_name_snapshot,
         game_type: values.game_type,
@@ -117,8 +137,8 @@ export default function SessionFormScreen({ route, navigation }: Props) {
         await createSession.mutateAsync(input);
       }
       navigation.goBack();
-    } catch (e) {
-      Alert.alert('오류', '저장 중 오류가 발생했습니다.');
+    } catch (e: any) {
+      Alert.alert('오류', e?.message ?? JSON.stringify(e) ?? '저장 중 오류가 발생했습니다.');
     }
   }
 
@@ -190,9 +210,17 @@ export default function SessionFormScreen({ route, navigation }: Props) {
                   style={styles.input}
                   value={value ?? ''}
                   onBlur={onBlur}
-                  onChangeText={v => onChange(v || null)}
-                  placeholder="HH:MM"
+                  onChangeText={v => {
+                    const digits = v.replace(/\D/g, '').slice(0, 4);
+                    const formatted = digits.length > 2
+                      ? `${digits.slice(0, 2)}:${digits.slice(2)}`
+                      : digits;
+                    onChange(formatted || null);
+                  }}
+                  placeholder="0000"
                   placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
+                  maxLength={5}
                 />
               )}
             />
@@ -207,9 +235,17 @@ export default function SessionFormScreen({ route, navigation }: Props) {
                   style={styles.input}
                   value={value ?? ''}
                   onBlur={onBlur}
-                  onChangeText={v => onChange(v || null)}
-                  placeholder="HH:MM"
+                  onChangeText={v => {
+                    const digits = v.replace(/\D/g, '').slice(0, 4);
+                    const formatted = digits.length > 2
+                      ? `${digits.slice(0, 2)}:${digits.slice(2)}`
+                      : digits;
+                    onChange(formatted || null);
+                  }}
+                  placeholder="0000"
                   placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
+                  maxLength={5}
                 />
               )}
             />
@@ -243,19 +279,19 @@ export default function SessionFormScreen({ route, navigation }: Props) {
             name="game_type"
             render={({ field: { value, onChange } }) => (
               <View style={styles.gameTypeRow}>
-                {GAME_TYPES.map(gt => (
+                {SESSION_GAME_TYPES.map(gt => (
                   <TouchableOpacity
-                    key={gt}
-                    style={[styles.gameTypeBtn, value === gt && styles.gameTypeBtnActive]}
-                    onPress={() => onChange(value === gt ? null : gt)}
+                    key={gt.value}
+                    style={[styles.gameTypeBtn, value === gt.value && styles.gameTypeBtnActive]}
+                    onPress={() => onChange(value === gt.value ? null : gt.value)}
                   >
                     <Text
                       style={[
                         styles.gameTypeBtnText,
-                        value === gt && styles.gameTypeBtnTextActive,
+                        value === gt.value && styles.gameTypeBtnTextActive,
                       ]}
                     >
-                      {gt}
+                      {gt.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -266,7 +302,7 @@ export default function SessionFormScreen({ route, navigation }: Props) {
 
         {/* Stakes */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>스테이크</Text>
+          <Text style={styles.label}>블라인드</Text>
           <Controller
             control={control}
             name="stakes"
@@ -276,7 +312,7 @@ export default function SessionFormScreen({ route, navigation }: Props) {
                 value={value ?? ''}
                 onBlur={onBlur}
                 onChangeText={v => onChange(v || null)}
-                placeholder="예: 1/2, 2/5"
+                placeholder="예: 1/2, 2/5 (만원)"
                 placeholderTextColor={colors.textMuted}
               />
             )}

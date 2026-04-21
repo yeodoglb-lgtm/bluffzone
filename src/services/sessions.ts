@@ -131,16 +131,25 @@ export type PeriodStats = {
   winCount: number;
   winRate: number;
   avgProfit: number;
+  totalHours: number;
+  hourlyProfit: number | null;
 };
 
 export function calcPeriodStats(sessions: SessionWithProfit[]): PeriodStats {
   const totalProfit = sessions.reduce((sum, s) => sum + Number(s.net_profit), 0);
   const winCount = sessions.filter(s => Number(s.net_profit) > 0).length;
+  const totalHours = sessions.reduce((sum, s) => {
+    if (!s.started_at || !s.ended_at) return sum;
+    const mins = (new Date(s.ended_at).getTime() - new Date(s.started_at).getTime()) / 60000;
+    return sum + Math.max(0, mins) / 60;
+  }, 0);
   return {
     totalProfit,
     sessionCount: sessions.length,
     winCount,
     winRate: sessions.length > 0 ? (winCount / sessions.length) * 100 : 0,
     avgProfit: sessions.length > 0 ? totalProfit / sessions.length : 0,
+    totalHours,
+    hourlyProfit: totalHours > 0 ? totalProfit / totalHours : null,
   };
 }

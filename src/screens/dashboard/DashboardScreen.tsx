@@ -1,15 +1,20 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { User } from 'lucide-react-native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import { User, Bot } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import Logo from '../../components/common/Logo';
 import { useAuthStore } from '../../store/authStore';
-import type { MainTabParamList } from '../../navigation/types';
+import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
 
-type DashboardNav = BottomTabNavigationProp<MainTabParamList, 'DashboardTab'>;
+type DashboardNav = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabParamList, 'DashboardTab'>,
+  StackNavigationProp<RootStackParamList>
+>;
 
 export default function DashboardScreen() {
   const navigation = useNavigation<DashboardNav>();
@@ -44,35 +49,31 @@ export default function DashboardScreen() {
           <Text style={styles.sectionSub}>아래 기능으로 포커 실력을 키워보세요</Text>
         </View>
 
-        {/* 온보딩 카드 3개 */}
+        {/* 메뉴 카드 3개 */}
         {[
           {
             icon: '💰',
             title: '뱅크롤 관리',
             desc: '매 세션을 기록하고\n수익 추이를 한눈에',
-            tab: 'BankrollTab' as const,
+            onPress: () => navigation.navigate('BankrollTab', { screen: 'BankrollCalendar' }),
           },
           {
-            icon: '🤖',
-            title: 'AI 핸드 리뷰',
-            desc: '어려웠던 핸드를 기록하고\nAI 코치의 피드백 수령',
-            tab: 'HandsTab' as const,
+            icon: '🃏',
+            title: '핸드 기록',
+            desc: '어려웠던 핸드를 기록하고\n패턴을 분석해보세요',
+            onPress: () => navigation.navigate('HandsTab', { screen: 'HandList' }),
           },
           {
             icon: '📍',
             title: '홀덤 플레이스',
             desc: '내 주변 홀덤 클럽을\n지도에서 쉽게 찾기',
-            tab: 'PlacesTab' as const,
+            onPress: () => navigation.navigate('PlacesTab', { screen: 'PlacesMap' }),
           },
         ].map(card => (
           <TouchableOpacity
             key={card.title}
             style={styles.card}
-            onPress={() => {
-              if (card.tab === 'BankrollTab') navigation.navigate('BankrollTab', { screen: 'BankrollCalendar' });
-              else if (card.tab === 'HandsTab') navigation.navigate('HandsTab', { screen: 'HandList' });
-              else navigation.navigate('PlacesTab', { screen: 'PlacesMap' });
-            }}
+            onPress={card.onPress}
             activeOpacity={0.75}
           >
             <Text style={styles.cardIcon}>{card.icon}</Text>
@@ -84,34 +85,15 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         ))}
 
-        {/* 퀵 액션 */}
-        <Text style={styles.sectionTitle2}>빠른 기록</Text>
-        <View style={styles.quickActions}>
-          <TouchableOpacity
-            style={styles.quickBtn}
-            onPress={() => navigation.navigate('BankrollTab', { screen: 'BankrollCalendar' })}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.quickBtnIcon}>＋</Text>
-            <Text style={styles.quickBtnText}>세션 기록</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.quickBtn}
-            onPress={() => navigation.navigate('HandsTab', { screen: 'HandList' })}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.quickBtnIcon}>＋</Text>
-            <Text style={styles.quickBtnText}>핸드 기록</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.quickBtn}
-            onPress={() => navigation.navigate('PlacesTab', { screen: 'PlacesMap' })}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.quickBtnIcon}>📍</Text>
-            <Text style={styles.quickBtnText}>주변 플레이스</Text>
-          </TouchableOpacity>
-        </View>
+        {/* 홀덤 알파고 리뷰 버튼 */}
+        <TouchableOpacity
+          style={styles.aiBtn}
+          onPress={() => navigation.navigate('AIChat', {})}
+          activeOpacity={0.85}
+        >
+          <Bot color={colors.bg} size={22} strokeWidth={2} />
+          <Text style={styles.aiBtnText}>홀덤 알파고 리뷰</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -182,31 +164,19 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginRight: -4,
   },
-  sectionTitle2: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
+  aiBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: radius.button,
+    paddingVertical: spacing.base,
+    gap: spacing.sm,
     marginTop: spacing.sm,
   },
-  quickActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  quickBtn: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.button,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    gap: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  quickBtnIcon: { fontSize: 20 },
-  quickBtnText: {
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
-    fontWeight: fontWeight.medium,
-    textAlign: 'center',
+  aiBtnText: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.bold,
+    color: colors.bg,
   },
 });

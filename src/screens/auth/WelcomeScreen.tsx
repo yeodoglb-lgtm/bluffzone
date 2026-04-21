@@ -6,246 +6,189 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  TextInput,
+  KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
-import { signInWithGoogle, signInWithKakao, signInWithApple } from '../../services/socialAuth';
+import { supabase } from '../../services/supabase';
 
-type Provider = 'kakao' | 'google' | 'apple' | null;
+type Mode = 'login' | 'signup';
 
 export default function WelcomeScreen() {
-  const [loading, setLoading] = useState<Provider>(null);
+  const [mode, setMode] = useState<Mode>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  async function handleLogin(provider: Provider, fn: () => Promise<{ error: string | null }>) {
-    setLoading(provider);
+  async function handleSubmit() {
+    if (!email || !password) {
+      Alert.alert('입력 오류', '이메일과 비밀번호를 입력해주세요.');
+      return;
+    }
+    setLoading(true);
     try {
-      const { error } = await fn();
-      if (error) Alert.alert('로그인 실패', error);
+      if (mode === 'login') {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) Alert.alert('로그인 실패', error.message);
+      } else {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) Alert.alert('회원가입 실패', error.message);
+        else Alert.alert('회원가입 완료', '이메일을 확인해주세요. (확인 후 로그인)');
+      }
     } finally {
-      setLoading(null);
+      setLoading(false);
     }
   }
 
-  const isLoading = (p: Provider) => loading === p;
-  const anyLoading = loading !== null;
-
   return (
     <SafeAreaView style={styles.container}>
-      {/* 배경 그라디언트 */}
       <LinearGradient
         colors={['#1A0A00', colors.bg]}
         style={StyleSheet.absoluteFill}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 0.6 }}
       />
-
-      {/* 상단 로고 영역 */}
-      <View style={styles.hero}>
-        {/* 스페이드 아이콘 + BZ 텍스트 로고 (SVG 없이 텍스트로 표현) */}
-        <View style={styles.logoIcon}>
-          <Text style={styles.spade}>♠</Text>
-        </View>
-        <Text style={styles.logoText}>BluffZone</Text>
-        <Text style={styles.logoKr}>블러프존</Text>
-        <Text style={styles.tagline}>홀덤 플레이어를 위한{'\n'}스마트 포커 매니저</Text>
-
-        {/* 특징 3개 */}
-        <View style={styles.features}>
-          {[
-            { icon: '💰', label: '뱅크롤 관리' },
-            { icon: '🤖', label: 'AI 핸드 리뷰' },
-            { icon: '📍', label: '주변 홀덤 플레이스' },
-          ].map(f => (
-            <View key={f.label} style={styles.featureItem}>
-              <Text style={styles.featureIcon}>{f.icon}</Text>
-              <Text style={styles.featureLabel}>{f.label}</Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          {/* 로고 */}
+          <View style={styles.hero}>
+            <View style={styles.logoIcon}>
+              <Text style={styles.spade}>♠</Text>
             </View>
-          ))}
-        </View>
-      </View>
+            <Text style={styles.logoText}>BluffZone</Text>
+            <Text style={styles.tagline}>홀덤 플레이어를 위한 스마트 포커 매니저</Text>
+          </View>
 
-      {/* 로그인 버튼 영역 */}
-      <View style={styles.buttons}>
-        {/* 카카오 로그인 */}
-        <TouchableOpacity
-          style={[styles.btn, styles.kakaoBtn]}
-          onPress={() => handleLogin('kakao', signInWithKakao)}
-          disabled={anyLoading}
-          activeOpacity={0.8}
-        >
-          {isLoading('kakao') ? (
-            <ActivityIndicator color="#000" size="small" />
-          ) : (
-            <>
-              <Text style={styles.kakaoIcon}>💬</Text>
-              <Text style={[styles.btnText, { color: '#191919' }]}>카카오로 로그인</Text>
-            </>
-          )}
-        </TouchableOpacity>
+          {/* 폼 */}
+          <View style={styles.form}>
+            <View style={styles.tabRow}>
+              <TouchableOpacity
+                style={[styles.tab, mode === 'login' && styles.tabActive]}
+                onPress={() => setMode('login')}
+              >
+                <Text style={[styles.tabText, mode === 'login' && styles.tabTextActive]}>로그인</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tab, mode === 'signup' && styles.tabActive]}
+                onPress={() => setMode('signup')}
+              >
+                <Text style={[styles.tabText, mode === 'signup' && styles.tabTextActive]}>회원가입</Text>
+              </TouchableOpacity>
+            </View>
 
-        {/* 구글 로그인 */}
-        <TouchableOpacity
-          style={[styles.btn, styles.googleBtn]}
-          onPress={() => handleLogin('google', signInWithGoogle)}
-          disabled={anyLoading}
-          activeOpacity={0.8}
-        >
-          {isLoading('google') ? (
-            <ActivityIndicator color={colors.text} size="small" />
-          ) : (
-            <>
-              <Text style={styles.googleG}>G</Text>
-              <Text style={[styles.btnText, { color: colors.text }]}>구글로 로그인</Text>
-            </>
-          )}
-        </TouchableOpacity>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="이메일"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="비밀번호 (6자 이상)"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+            />
 
-        {/* 애플 로그인 — iOS 전용 */}
-        {Platform.OS === 'ios' && (
-          <TouchableOpacity
-            style={[styles.btn, styles.appleBtn]}
-            onPress={() => handleLogin('apple', signInWithApple)}
-            disabled={anyLoading}
-            activeOpacity={0.8}
-          >
-            {isLoading('apple') ? (
-              <ActivityIndicator color="#000" size="small" />
-            ) : (
-              <>
-                <Text style={styles.appleLogo}></Text>
-                <Text style={[styles.btnText, { color: '#000' }]}>Apple로 로그인</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
-
-        <Text style={styles.disclaimer}>
-          로그인 시 서비스{' '}
-          <Text style={styles.link}>이용약관</Text> 및{' '}
-          <Text style={styles.link}>개인정보 처리방침</Text>에 동의합니다.
-        </Text>
-      </View>
+            <TouchableOpacity
+              style={styles.submitBtn}
+              onPress={handleSubmit}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.bg} size="small" />
+              ) : (
+                <Text style={styles.submitText}>
+                  {mode === 'login' ? '로그인' : '회원가입'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  hero: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    gap: spacing.base,
-  },
+  container: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.xl },
+  hero: { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xxl },
   logoIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
+    width: 72,
+    height: 72,
+    borderRadius: 18,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.sm,
   },
-  spade: {
-    fontSize: 44,
-    color: colors.bg,
-  },
+  spade: { fontSize: 40, color: colors.bg },
   logoText: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: fontWeight.extrabold,
     color: colors.primary,
-    letterSpacing: -0.5,
-  },
-  logoKr: {
-    fontSize: fontSize.sm,
-    color: colors.textMuted,
-    letterSpacing: 6,
-    marginTop: -spacing.sm,
   },
   tagline: {
-    fontSize: fontSize.md,
+    fontSize: fontSize.sm,
     color: colors.textMuted,
     textAlign: 'center',
-    lineHeight: 26,
-    marginTop: spacing.sm,
   },
-  features: {
-    flexDirection: 'row',
-    gap: spacing.base,
-    marginTop: spacing.base,
-  },
-  featureItem: {
-    alignItems: 'center',
-    gap: spacing.xs,
-    flex: 1,
+  form: {
     backgroundColor: colors.surface,
     borderRadius: radius.card,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
     borderWidth: 1,
     borderColor: colors.line,
-  },
-  featureIcon: { fontSize: 22 },
-  featureLabel: {
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  buttons: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xl,
+    padding: spacing.base,
     gap: spacing.md,
   },
-  btn: {
+  tabRow: {
     flexDirection: 'row',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.sm,
+    padding: 3,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.button,
-    paddingVertical: 15,
-    gap: spacing.sm,
-    minHeight: 52,
+    borderRadius: radius.sm - 2,
   },
-  btnText: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
-  },
-  kakaoBtn: {
-    backgroundColor: '#FEE500',
-  },
-  kakaoIcon: { fontSize: 18 },
-  googleBtn: {
-    backgroundColor: colors.surface,
+  tabActive: { backgroundColor: colors.primary },
+  tabText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.medium },
+  tabTextActive: { color: colors.bg },
+  input: {
+    backgroundColor: colors.bg,
     borderWidth: 1,
     borderColor: colors.line,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
+    fontSize: fontSize.base,
+    color: colors.text,
   },
-  googleG: {
-    fontSize: 18,
+  submitBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.button,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  submitText: {
+    fontSize: fontSize.base,
     fontWeight: fontWeight.bold,
-    color: '#4285F4',
-  },
-  appleBtn: {
-    backgroundColor: '#FFFFFF',
-  },
-  appleLogo: {
-    fontSize: 20,
-    color: '#000',
-  },
-  disclaimer: {
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 18,
-    marginTop: spacing.xs,
-  },
-  link: {
-    color: colors.primary,
-    textDecorationLine: 'underline',
+    color: colors.bg,
   },
 });

@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -40,25 +40,12 @@
     },
     "extra": {
       "eas": {
-        "projectId": "PLACEHOLDER"
+        "projectId": "8d569790-5f13-4f6a-92ef-ac69c47f7ae7"
       }
     },
     "plugins": [
       "expo-localization",
-      "expo-apple-authentication",
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps.PLACEHOLDER"
-        }
-      ],
-      [
-        "@react-native-seoul/kakao-login",
-        {
-          "kakaoAppKey": "PLACEHOLDER_KAKAO_NATIVE_KEY",
-          "kotlinVersion": "1.9.0"
-        }
-      ]
+      "expo-web-browser"
     ]
   }
 }

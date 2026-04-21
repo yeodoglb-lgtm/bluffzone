@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CartesianChart, Line } from 'victory-native';
+import Svg, { Polyline, Line as SvgLine, Text as SvgText } from 'react-native-svg';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import { useSessionsByRange } from '../../hooks/useSessions';
 import { calcPeriodStats } from '../../services/sessions';
@@ -16,6 +16,36 @@ import { formatProfit } from '../../utils/currency';
 import { dayjs, today, weekRange, monthRange, quarterRange, yearRange } from '../../utils/date';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { GameType } from '../../constants/poker';
+
+type ChartDatum = { x: number; y: number };
+
+function SimpleLine({ data }: { data: ChartDatum[] }) {
+  const W = 320, H = 160, PAD = 24;
+  const xs = data.map(d => d.x);
+  const ys = data.map(d => d.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const rangeX = maxX - minX || 1;
+  const rangeY = maxY - minY || 1;
+  const toSvg = (d: ChartDatum) => ({
+    sx: PAD + ((d.x - minX) / rangeX) * (W - PAD * 2),
+    sy: PAD + (1 - (d.y - minY) / rangeY) * (H - PAD * 2),
+  });
+  const pts = data.map(d => { const { sx, sy } = toSvg(d); return `${sx},${sy}`; }).join(' ');
+  const zeroY = PAD + (1 - (0 - minY) / rangeY) * (H - PAD * 2);
+  const clampedZero = Math.max(PAD, Math.min(H - PAD, zeroY));
+  return (
+    <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`}>
+      <SvgLine x1={PAD} y1={clampedZero} x2={W - PAD} y2={clampedZero} stroke={colors.line} strokeWidth={1} />
+      <Polyline points={pts} fill="none" stroke={colors.primary} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+      {[minY, (minY + maxY) / 2, maxY].map((v, i) => (
+        <SvgText key={i} x={PAD - 4} y={toSvg({ x: minX, y: v }).sy + 4} fontSize={9} fill={colors.textMuted} textAnchor="end">
+          {v >= 10000 ? `${(v / 10000).toFixed(0)}만` : v.toFixed(0)}
+        </SvgText>
+      ))}
+    </Svg>
+  );
+}
 
 type TabKey = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
@@ -69,8 +99,6 @@ function formatRangeLabel(tab: TabKey, start: string, end: string): string {
       return `${dayjs(start).year()}년`;
   }
 }
-
-type ChartDatum = { x: number; y: number };
 
 export default function BankrollStatsScreen() {
   const { currency } = useSettingsStore();
@@ -181,20 +209,30 @@ export default function BankrollStatsScreen() {
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statLabel}>평균 수익</Text>
-              <Text
-                style={[
-                  styles.statValue,
-                  {
-                    color:
-                      stats.avgProfit > 0
-                        ? colors.primary
-                        : stats.avgProfit < 0
-                        ? colors.danger
-                        : colors.textMuted,
-                  },
-                ]}
-              >
+              <Text style={[styles.statValue, { color: stats.avgProfit > 0 ? colors.primary : stats.avgProfit < 0 ? colors.danger : colors.textMuted }]}>
                 {formatProfit(stats.avgProfit, currency)}
+              </Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>총 플레이 시간</Text>
+              <Text style={styles.statValue}>
+                {stats.totalHours >= 1
+                  ? `${Math.floor(stats.totalHours)}시간 ${Math.round((stats.totalHours % 1) * 60)}분`
+                  : stats.totalHours > 0
+                  ? `${Math.round(stats.totalHours * 60)}분`
+                  : '-'}
+              </Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>시간당 수익</Text>
+              <Text style={[styles.statValue, {
+                color: stats.hourlyProfit == null
+                  ? colors.textMuted
+                  : stats.hourlyProfit > 0 ? colors.primary
+                  : stats.hourlyProfit < 0 ? colors.danger
+                  : colors.textMuted,
+              }]}>
+                {stats.hourlyProfit != null ? formatProfit(stats.hourlyProfit, currency) + '/h' : '-'}
               </Text>
             </View>
           </View>
@@ -204,25 +242,7 @@ export default function BankrollStatsScreen() {
             <View style={styles.chartCard}>
               <Text style={styles.sectionTitle}>누적 뱅크롤 추이</Text>
               <View style={styles.chartContainer}>
-                <CartesianChart
-                  data={chartData}
-                  xKey="x"
-                  yKeys={['y']}
-                  axisOptions={{
-                    tickCount: { x: 4, y: 4 },
-                    labelColor: colors.textMuted,
-                    lineColor: colors.line,
-                  }}
-                >
-                  {({ points }) => (
-                    <Line
-                      points={points.y}
-                      color={colors.primary}
-                      strokeWidth={2}
-                      curveType="linear"
-                    />
-                  )}
-                </CartesianChart>
+                <SimpleLine data={chartData} />
               </View>
             </View>
           ) : sessions.length > 0 ? (

@@ -32,26 +32,41 @@ export function useAuthInit() {
   );
 
   useEffect(() => {
-    // 앱 시작 시 기존 세션 복원
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) await syncProfile(session.user.id);
-      setLoading(false);
-    });
+    let loadingDone = false;
 
-    // 인증 상태 변경 리스너
+    // 3초 안에 인증이 완료되지 않으면 강제로 로딩 해제 (Web Locks 데드락 방지)
+    const fallback = setTimeout(() => {
+      if (!loadingDone) {
+        loadingDone = true;
+        setLoading(false);
+      }
+    }, 3000);
+
+    // onAuthStateChange만 사용 (getSession + onAuthStateChange 동시 호출 시 데드락 발생)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setSession(session);
-        if (session?.user) {
-          await syncProfile(session.user.id);
-        } else {
-          setProfile(null);
+        try {
+          setSession(session);
+          if (session?.user) {
+            await syncProfile(session.user.id);
+          } else {
+            setProfile(null);
+          }
+        } catch (err) {
+          console.error('Auth state change error:', err);
+        } finally {
+          if (!loadingDone) {
+            loadingDone = true;
+            clearTimeout(fallback);
+            setLoading(false);
+          }
         }
-        if (event === 'INITIAL_SESSION') setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(fallback);
+    };
   }, [setSession, setProfile, setLoading, syncProfile]);
 }
