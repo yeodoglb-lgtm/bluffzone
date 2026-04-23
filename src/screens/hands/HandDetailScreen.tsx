@@ -539,6 +539,18 @@ export default function HandDetailScreen({ navigation, route }: Props) {
         <View style={styles.card}>
           <Row label="날짜" value={date} />
           <Row label="게임" value={`${hand.game_type}${hand.stakes ? ` · ${hand.stakes}` : ''}`} />
+          {(hand as any).preflop_aggressor && (
+            <Row
+              label="프리플랍 어그레서"
+              value={(hand as any).preflop_aggressor === 'hero' ? '나 (히어로)' : '빌런'}
+            />
+          )}
+          {(hand as any).effective_stack != null && (
+            <Row label="유효 스택" value={`${(hand as any).effective_stack.toLocaleString()}원`} />
+          )}
+          {(hand as any).villain_type && (
+            <Row label="빌런 성향" value={(hand as any).villain_type} />
+          )}
         </View>
 
         {/* 카드 (텍스트 섹션) */}
@@ -660,13 +672,48 @@ export default function HandDetailScreen({ navigation, route }: Props) {
             };
             const streetOrder = ['preflop', 'flop', 'turn', 'river'];
             const streets = r.streets ?? {};
+            const rating = Number(r.rating) || 0;
             return (
               <View style={styles.reviewResult}>
+                {/* 한 줄 결론 + 평점 */}
+                {(r.headline || rating > 0) && (
+                  <View style={styles.headlineBox}>
+                    {r.headline ? <Text style={styles.headlineText}>👉 {r.headline}</Text> : null}
+                    {rating > 0 ? (
+                      <Text style={styles.ratingText}>
+                        {'⭐'.repeat(rating)}{'☆'.repeat(Math.max(0, 5 - rating))}
+                      </Text>
+                    ) : null}
+                  </View>
+                )}
+
+                {/* 추천 vs 실제 라인 비교 */}
+                {(r.recommended_line || r.actual_line) && (
+                  <View style={styles.lineCompareBox}>
+                    {r.recommended_line ? (
+                      <View style={styles.lineCompareRow}>
+                        <Text style={styles.lineCompareLabelGood}>✅ 추천</Text>
+                        <Text style={styles.lineCompareValue}>{r.recommended_line}</Text>
+                      </View>
+                    ) : null}
+                    {r.actual_line ? (
+                      <View style={styles.lineCompareRow}>
+                        <Text style={styles.lineCompareLabelBad}>❌ 실제</Text>
+                        <Text style={styles.lineCompareValue}>{r.actual_line}</Text>
+                      </View>
+                    ) : null}
+                    {r.ev_note ? (
+                      <Text style={styles.evNoteText}>💰 {r.ev_note}</Text>
+                    ) : null}
+                  </View>
+                )}
+
                 {/* 스트리트별 카드 */}
                 {streetOrder.map((s) => {
                   const st = streets[s];
                   if (!st || !st.action) return null;
                   const freq = Number(st.frequency) || 0;
+                  const altFreq = Number(st.alt_frequency) || 0;
                   return (
                     <View key={s} style={styles.streetCard}>
                       <View style={styles.streetCardHeader}>
@@ -679,6 +726,23 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                       <View style={styles.streetCardBar}>
                         <View style={[styles.streetCardBarFill, { width: `${Math.max(0, Math.min(100, freq))}%` }]} />
                       </View>
+                      {/* 대안 액션 (나머지 %) */}
+                      {st.alt_action && altFreq > 0 ? (
+                        <View style={styles.altActionRow}>
+                          <Text style={styles.altActionLabel}>나머지</Text>
+                          <Text style={styles.altActionValue}>{st.alt_action}</Text>
+                          <Text style={styles.altActionFreq}>{altFreq}%</Text>
+                          <View style={styles.altActionBar}>
+                            <View style={[styles.altActionBarFill, { width: `${Math.max(0, Math.min(100, altFreq))}%` }]} />
+                          </View>
+                        </View>
+                      ) : null}
+                      {st.size ? (
+                        <View style={styles.streetCardSizeRow}>
+                          <Text style={styles.streetCardSizeLabel}>추천 사이즈</Text>
+                          <Text style={styles.streetCardSizeValue}>{st.size}</Text>
+                        </View>
+                      ) : null}
                       {st.comment ? (
                         <Text style={styles.streetCardComment}>{st.comment}</Text>
                       ) : null}
@@ -920,6 +984,50 @@ const styles = StyleSheet.create({
     height: 4, borderRadius: 2, backgroundColor: `${colors.textMuted}22`, overflow: 'hidden',
   },
   streetCardBarFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 2 },
+  // 한 줄 결론 박스
+  headlineBox: {
+    backgroundColor: 'rgba(99,102,241,0.12)',
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    borderLeftWidth: 4, borderLeftColor: colors.primary,
+    marginBottom: spacing.sm,
+    gap: 6,
+  },
+  headlineText: { fontSize: fontSize.md, color: colors.text, fontWeight: fontWeight.bold, lineHeight: 22 },
+  ratingText: { fontSize: fontSize.sm, color: '#f59e0b', letterSpacing: 2 },
+  // 추천 vs 실제 비교 박스
+  lineCompareBox: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+    gap: 6,
+    borderWidth: 1, borderColor: colors.line,
+  },
+  lineCompareRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  lineCompareLabelGood: { fontSize: fontSize.xs, color: colors.success, fontWeight: fontWeight.bold, minWidth: 40 },
+  lineCompareLabelBad: { fontSize: fontSize.xs, color: colors.danger, fontWeight: fontWeight.bold, minWidth: 40 },
+  lineCompareValue: { flex: 1, fontSize: fontSize.sm, color: colors.text, lineHeight: 18 },
+  evNoteText: {
+    fontSize: fontSize.sm, color: '#f59e0b', fontWeight: fontWeight.medium,
+    marginTop: 4, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.line,
+  },
+  // 대안 액션
+  altActionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  altActionLabel: { fontSize: fontSize.xs, color: colors.textMuted },
+  altActionValue: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.medium },
+  altActionFreq: { fontSize: fontSize.xs, color: colors.textMuted },
+  altActionBar: { flex: 1, height: 3, borderRadius: 2, backgroundColor: `${colors.textMuted}15`, overflow: 'hidden' },
+  altActionBarFill: { height: '100%', backgroundColor: colors.textMuted, borderRadius: 2, opacity: 0.6 },
+  streetCardSizeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(99,102,241,0.10)',
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: radius.sm,
+    borderLeftWidth: 3, borderLeftColor: colors.primary,
+  },
+  streetCardSizeLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.medium },
+  streetCardSizeValue: { fontSize: fontSize.sm, color: colors.primary, fontWeight: fontWeight.bold },
   streetCardComment: { fontSize: fontSize.sm, color: colors.text, lineHeight: 20 },
   reviewActionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   reviewActionBadgeMain: {

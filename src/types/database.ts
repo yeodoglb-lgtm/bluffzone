@@ -39,15 +39,23 @@ export interface StreetReview {
   action: string;
   frequency: number;
   comment: string;
+  size?: string | null;
+  alt_action?: string | null;
+  alt_frequency?: number | null;
 }
 
 export interface HandReview {
+  headline?: string | null;
+  rating?: number | null;
   streets: {
     preflop?: StreetReview | null;
     flop?: StreetReview | null;
     turn?: StreetReview | null;
     river?: StreetReview | null;
   };
+  recommended_line?: string | null;
+  actual_line?: string | null;
+  ev_note?: string | null;
   mistake: string;
   tip: string;
   _cached?: boolean;

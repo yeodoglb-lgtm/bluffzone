@@ -292,7 +292,9 @@ function buildCacheKey(hand: any): string {
   const potBucket = hand?.pot_size ? Math.round(Math.log10(hand.pot_size + 1) * 2) : 0;
   const stackBucket = hand?.effective_stack ? Math.round(Math.log10(hand.effective_stack + 1) * 2) : 0;
 
-  return [heroPos, villainPos, aggressor, heroCards, board, actions, potBucket, stackBucket].join('_');
+  // v3: 넛츠 로직 강화 + 모든 필드 필수화 — 이전 캐시 무효화
+  const SCHEMA_VERSION = 'v3';
+  return [SCHEMA_VERSION, heroPos, villainPos, aggressor, heroCards, board, actions, potBucket, stackBucket].join('_');
 }
 
 // ── 핸드 리뷰 시스템 프롬프트 ────────────────────────────────────────────────
@@ -632,64 +634,128 @@ serve(async (req) => {
       }
       const sprStr = computeSPR(hand?.pot_size ?? null, hand?.effective_stack ?? null);
 
-      // 스트리트 블록 재구성: 보드 텍스처 + 히어로 핸드 강도 포함
+      // ── 스트리트별 누적 팟 및 히어로/빌런 실제 벳 사이즈 ──────────────────
+      // 액션 순서대로 누적 팟 추적해서 각 스트리트 진입 시점 팟을 계산
+      const fmtMoney = (n: number): string => {
+        if (n >= 10000) return `${(n / 10000).toFixed(n % 10000 === 0 ? 0 : 1)}만원`;
+        return `${n.toLocaleString()}원`;
+      };
+      let runningPot = 0;
+      const potAtStart: Record<string, number> = { preflop: 0, flop: 0, turn: 0, river: 0 };
+      const sizingInfo: Record<string, string> = { preflop: '', flop: '', turn: '', river: '' };
+      for (const s of streetOrder) {
+        potAtStart[s] = runningPot;
+        const acts = actionsByStreet[s];
+        const lastHeroBet = [...acts].reverse().find((a: any) =>
+          a.actor === 'hero' && (a.action === 'bet' || a.action === 'raise' || a.action === 'allin') && a.amount != null
+        );
+        const lastVillainBet = [...acts].reverse().find((a: any) =>
+          a.actor !== 'hero' && (a.action === 'bet' || a.action === 'raise' || a.action === 'allin') && a.amount != null
+        );
+        const parts: string[] = [];
+        parts.push(`스트리트 진입 팟: ${fmtMoney(runningPot)}`);
+        if (lastVillainBet) parts.push(`빌런 실제 벳: ${fmtMoney(lastVillainBet.amount)}`);
+        if (lastHeroBet) parts.push(`히어로 실제 벳: ${fmtMoney(lastHeroBet.amount)}`);
+        // 기준 사이즈 제안 (팟 대비)
+        if (runningPot > 0) {
+          const oneThird = Math.round(runningPot / 3);
+          const half = Math.round(runningPot / 2);
+          const twoThird = Math.round(runningPot * 2 / 3);
+          const pot = runningPot;
+          parts.push(`사이즈 가이드: 1/3팟=${fmtMoney(oneThird)} · 1/2팟=${fmtMoney(half)} · 2/3팟=${fmtMoney(twoThird)} · 팟=${fmtMoney(pot)}`);
+        }
+        sizingInfo[s] = parts.join(' / ');
+        // 액션 금액 합산 → runningPot 증가
+        for (const a of acts) {
+          if (a.amount != null && ['bet', 'raise', 'call', 'allin'].includes(a.action)) {
+            runningPot += a.amount;
+          }
+        }
+      }
+
+      // 스트리트 블록 재구성: 보드 텍스처 + 히어로 핸드 강도 + 사이즈 정보 포함
       const richStreetsBlock = streetOrder
         .map((s) => {
           const acts = actionsByStreet[s];
           const header = `  · ${s.toUpperCase()} [보드 ${boardAt[s]}]`;
           const meta = s === 'preflop'
-            ? ''
-            : `\n    텍스처: ${textureAt[s]}\n    히어로 현재 핸드: ${heroMadeAt[s]}`;
+            ? `\n    ${sizingInfo[s]}`
+            : `\n    텍스처: ${textureAt[s]}\n    히어로 현재 핸드: ${heroMadeAt[s]}\n    ${sizingInfo[s]}`;
           if (acts.length === 0) return `${header}${meta}\n    액션: (진행되지 않음)`;
           const line = acts
             .map(
               (a: any) =>
-                `${a.actor === 'hero' ? '히어로' : '빌런'} ${a.action}${a.amount != null ? ' ' + a.amount : ''}`
+                `${a.actor === 'hero' ? '히어로' : '빌런'} ${a.action}${a.amount != null ? ' ' + fmtMoney(a.amount) : ''}`
             )
             .join(' → ');
           return `${header}${meta}\n    액션: ${line}`;
         })
         .join('\n');
 
-      const systemPrompt = `너는 고수준 캐시게임 NLH 코치다. GTO와 익스플로잇 관점을 모두 쓰되, 반드시 다음 4가지 축으로 설명한다:
-1. 보드 텍스처 (드라이/웻, 페어드, 커넥티드, 모노톤 등)
-2. 레인지 우위 (포지션 + 프리플랍 어그레서 기준, IP/OOP)
-3. 밸류 vs 블러프 빈도 구분 (넛츠급은 밸류, 드로우/블로커 핸드는 블러프)
-4. 벳 사이징이 주는 정보와 상대 콜링 레인지
+      const systemPrompt = `너는 NL100+ 캐시게임 코치다. 출력은 100% JSON. 모든 필드 필수. 필드 생략 금지.
+
+[분석 축]
+1. 보드 텍스처 (드라이/웻·페어드·커넥티드·모노톤)
+2. 레인지 우위 (포지션·프리플랍 어그레서 기준 IP/OOP)
+3. 밸류 vs 블러프 믹스 (넛츠=밸류, 블로커=블러프)
+4. 사이징이 주는 정보 + 상대 콜링 레인지
 
 [절대 규칙]
-- 서버가 사전 계산해서 준 "히어로 현재 핸드" (예: 넛플러시, 탑페어, 하이카드+OESD)를 **반드시 그대로 인정**하고, 이를 기반으로 의사결정해라. 직접 카드를 재해석하지 마라.
-- 히어로가 넛츠급(⭐)인데 "드로우로 압박" 같은 소리 금지. 넛츠는 밸류 벳/레이즈가 기본이다.
-- "압박을 준다", "약한 핸드 가능" 같은 일반론 절대 금지. 구체 근거 (예: "A하이 드라이 보드에서 BTN 레인지 우위 + 탑페어 탑키커, 1/3 팟 스몰 벳").
-- frequency는 실전 믹스 비율 (GTO상 레이즈 70%/콜 30%면 레이즈 액션에 70).
-- comment는 45자 내외. 짧고 날카롭게.
-- 진행되지 않은 스트리트는 null.
-- 모든 텍스트는 한국어.
+① 서버가 준 "히어로 현재 핸드"를 그대로 인정. 카드 재해석 금지.
+② **넛츠급(⭐)/강한 핸드(💪)는 체크/콜이 기본 추천이 되면 안 됨.** 밸류 벳·레이즈가 1순위.
+   · 유일한 예외: (a) 웻 보드에서 히어로가 어그레서 아닌 플랍 공격 방어 (b) SPR ≥ 15에서 트랩 + 스택 보존 전략. 이 때도 frequency 60 이하로만.
+   · "레이즈도 가능" 같은 모호 표현 금지. 구체 수치로 alt_action에.
+③ **빌런 핸드 단정 절대 금지.**
+   · 금지: "빌런이 탑페어다", "빌런 블러프다"
+   · 허용: "빌런 레인지상 탑페어·중간페어 비중", "빌런 콜링 레인지에 드로우 섞임", "스테이션 성향상 더 넓게 콜"
+④ frequency + alt_frequency = 정확히 100. 둘 다 정수.
+⑤ **size는 필수.** action이 "베팅"/"레이즈"일 때 size 빈 문자열 금지. 서버가 준 "사이즈 가이드"에서 골라라 (예: "약 10만원 (2/3 팟)").
+⑥ 체크/콜/폴드일 때도 size 필드는 존재해야 함 (빈 문자열 "").
+⑦ 히어로 실제 벳이 추천 사이즈와 다르면 comment에 반드시 비교. 예: "히어로 9만원(60%) — 넛츠엔 2/3팟(10만원)이 밸류 극대화."
+⑧ comment는 50~80자. "밸류 벳 필요" 같은 공허한 말 금지. 이유 + 사이즈 + 상대 레인지 중 2개는 포함.
+⑨ 진행 안 된 스트리트는 null (빈 객체 아님).
+⑩ headline·recommended_line·actual_line·ev_note·mistake·tip 6개 필드는 반드시 채울 것. 빈 문자열도 안 됨 (mistake만 실수 없으면 "실수 없음").
 
-[출력 스키마 — 순수 JSON만]
+[출력 스키마 — 이 구조 정확히 지켜라]
 {
+  "headline":   "한 줄 결론 (25~40자). 예: '넛스트레이트인데 플랍 콜은 밸류 손실'",
+  "rating":     1~5 정수,
   "streets": {
-    "preflop": { "action": "", "frequency": number, "comment": "" },
-    "flop":    { "action": "", "frequency": number, "comment": "" } | null,
-    "turn":    { "action": "", "frequency": number, "comment": "" } | null,
-    "river":   { "action": "", "frequency": number, "comment": "" } | null
+    "preflop": { "action":"", "frequency":0, "alt_action":"", "alt_frequency":0, "size":"", "comment":"" },
+    "flop":    {...} | null,
+    "turn":    {...} | null,
+    "river":   {...} | null
   },
-  "mistake": "한 문장 — 히어로의 가장 큰 실수, 없으면 빈 문자열",
-  "tip":     "한 문장 — 다음에 바로 써먹을 실전 팁"
+  "recommended_line": "예: '콜 → 레이즈 2/3팟(6만원) → 벳 2/3팟(15만원) → 벳 1/2팟(30만원)'",
+  "actual_line":      "히어로 실제 라인 요약",
+  "ev_note":          "돈 감각 1문장. 예: '플랍 콜로 약 1 밸류 벳 손실, 리버 레이즈로 회수'",
+  "mistake":          "가장 큰 실수 1문장. 없으면 '실수 없음'",
+  "tip":              "바로 써먹을 1문장 코칭"
 }
 
-[예시 1 — 탑페어]
-입력: BTN vs BB, 히어로 AhKh, 플랍 Kd 7h 2c (레인보우·드라이·하이카드 K), 히어로 현재 핸드 "원페어 — 👍 탑페어", 어그레서 히어로, SPR 8
-좋은 출력: { "action": "베팅", "frequency": 80, "comment": "드라이 K하이, BTN 레인지 우위 + 탑페어 탑키커, 1/3 팟 레인지 c-bet." }
+[풀 예시 — 넛스트레이트 on 웻보드]
+입력 요약: BTN 히어로 JhTh, 플랍 9h 8c 7d (커넥티드·웻), 히어로 현재 핸드 "스트레이트 — ⭐ 실질적 넛츠급", 빌런 벳 3만원, 팟 9만원, 사이즈 가이드: 1/3=3만·1/2=4.5만·2/3=6만·팟=9만
 
-[예시 2 — 넛츠]
-입력: 히어로 현재 핸드 "플러시 — ⭐ 넛플러시", SPR 4
-나쁜 출력: { "action": "체크", "comment": "드로우 압박" }  ← 금지 (이미 메이드됨)
-좋은 출력: { "action": "베팅", "frequency": 90, "comment": "넛플러시 밸류 최대화, 2/3 팟으로 플러시·세트 콜 유도." }
+좋은 출력:
+{
+  "headline": "넛스트레이트 확보, 웻보드에서 레이즈 밸류 극대화",
+  "rating": 4,
+  "streets": {
+    "flop": {
+      "action": "레이즈",
+      "frequency": 75,
+      "alt_action": "콜",
+      "alt_frequency": 25,
+      "size": "약 10만원 (3배 레이즈)",
+      "comment": "넛스트레이트 + 웻보드. 빌런 레인지상 셋·투페어·드로우 많아 레이즈 밸류 큼. 트랩(콜 25%)은 IP 이점 유지 선택지."
+    }
+  },
+  ...
+}
 
-[예시 3 — 드로우]
-입력: 히어로 현재 핸드 "하이카드 + 플러시 드로우, 오픈엔디드 스트레이트 드로우", 어그레서 히어로, SPR 5
-좋은 출력: { "action": "베팅", "frequency": 70, "comment": "콤보드로우 15아웃 세미블러프, 2/3 팟으로 폴드 에쿼티 + 개선." }`;
+나쁜 출력 (금지):
+{ "flop": { "action":"콜", "frequency":70, "comment":"스트레이트로 강한 핸드, 레이즈도 가능" } }
+  ← ❌ 넛츠인데 콜 1순위 금지 / size 비어있음 / comment 모호 / alt_action 없음`;
 
       const userPrompt = `[기본 정보]
 - 게임: ${gameType} / 스테이크: ${stakes}
@@ -774,12 +840,17 @@ ${richStreetsBlock}
         await recordUsage(supabase, user.id, 'hand-review', 'gpt-4o', totalInput, totalOutput);
 
         const fallback = {
+          headline: '분석 실패 — 다시 시도해주세요',
+          rating: 0,
           streets: {
-            preflop: { action: '분석 실패', frequency: 0, comment: '일시적 오류로 분석하지 못했습니다.' },
+            preflop: { action: '분석 실패', frequency: 0, alt_action: '', alt_frequency: 0, size: '', comment: '일시적 오류로 분석하지 못했습니다.' },
             flop: null,
             turn: null,
             river: null,
           },
+          recommended_line: '',
+          actual_line: '',
+          ev_note: '',
           mistake: '',
           tip: '잠시 후 "다시 분석" 버튼을 눌러주세요.',
           _fallback: true,

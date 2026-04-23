@@ -51,8 +51,39 @@ const STREET_LABELS: Record<string, string> = {
 
 function ReviewSection({ review }: { review: HandReview }) {
   const order: Array<keyof HandReview['streets']> = ['preflop', 'flop', 'turn', 'river'];
+  const rating = Number(review.rating) || 0;
   return (
     <View style={styles.reviewContainer}>
+      {/* 한 줄 결론 */}
+      {(review.headline || rating > 0) && (
+        <View style={styles.card}>
+          {review.headline ? (
+            <Text style={[styles.summaryText, { fontWeight: 'bold' }]}>👉 {review.headline}</Text>
+          ) : null}
+          {rating > 0 ? (
+            <Text style={{ fontSize: 14, color: '#f59e0b', letterSpacing: 2, marginTop: 4 }}>
+              {'⭐'.repeat(rating)}{'☆'.repeat(Math.max(0, 5 - rating))}
+            </Text>
+          ) : null}
+        </View>
+      )}
+
+      {/* 추천 vs 실제 */}
+      {(review.recommended_line || review.actual_line || review.ev_note) && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>추천 vs 실제</Text>
+          {review.recommended_line ? (
+            <Text style={styles.summaryText}>✅ 추천: {review.recommended_line}</Text>
+          ) : null}
+          {review.actual_line ? (
+            <Text style={styles.summaryText}>❌ 실제: {review.actual_line}</Text>
+          ) : null}
+          {review.ev_note ? (
+            <Text style={[styles.summaryText, { color: '#f59e0b', marginTop: 6 }]}>💰 {review.ev_note}</Text>
+          ) : null}
+        </View>
+      )}
+
       {/* 스트리트별 추천 */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>홀덤 알파고 리뷰</Text>
@@ -60,6 +91,7 @@ function ReviewSection({ review }: { review: HandReview }) {
           const st = review.streets?.[s];
           if (!st || !st.action) return null;
           const freq = Number(st.frequency) || 0;
+          const altFreq = Number(st.alt_frequency) || 0;
           return (
             <View key={s} style={styles.lineRow}>
               <View style={styles.streetChip}>
@@ -67,6 +99,10 @@ function ReviewSection({ review }: { review: HandReview }) {
               </View>
               <View style={styles.lineContent}>
                 <Text style={styles.lineAction}>{st.action} · {freq}%</Text>
+                {st.alt_action && altFreq > 0 ? (
+                  <Text style={styles.lineRationale}>나머지 {altFreq}%: {st.alt_action}</Text>
+                ) : null}
+                {st.size ? <Text style={styles.lineSize}>추천 사이즈: {st.size}</Text> : null}
                 {st.comment ? <Text style={styles.lineRationale}>{st.comment}</Text> : null}
               </View>
             </View>
@@ -464,6 +500,7 @@ const styles = StyleSheet.create({
   },
   lineContent: { flex: 1, gap: 2 },
   lineAction: { fontSize: fontSize.sm, color: colors.text, fontWeight: fontWeight.bold },
+  lineSize: { fontSize: fontSize.xs, color: colors.primary, fontWeight: fontWeight.medium, marginTop: 2 },
   lineRationale: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20 },
 
   coachNoteRow: {

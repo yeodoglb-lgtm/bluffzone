@@ -25,6 +25,20 @@ import { useSettingsStore } from '../../store/settingsStore';
 const HERO_COLOR = '#3b82f6';
 const VILLAIN_COLORS = ['#ef4444', '#22c55e', '#a855f7'] as const;
 
+// ── 스트리트별 한글 라벨 & 색상 ────────────────────────────────────────────
+const STREET_LABEL: Record<string, string> = {
+  preflop: '프리플랍',
+  flop: '플랍',
+  turn: '턴',
+  river: '리버',
+};
+const STREET_COLOR: Record<string, string> = {
+  preflop: '#3b82f6', // 파랑
+  flop:    '#22c55e', // 초록
+  turn:    '#f59e0b', // 앰버
+  river:   '#a855f7', // 보라
+};
+
 const EDITOR_GAME_TYPES: { label: string; value: GameType }[] = [
   { label: 'NLH', value: 'NLH' },
   { label: 'Tournament', value: 'Tournament' },
@@ -309,25 +323,39 @@ export default function HandEditorScreen({ navigation, route }: Props) {
         </Section>
 
         <Section title="액션 (선택)">
-          {STREETS.map(street => (
-            <View key={street} style={styles.streetSection}>
-              <Text style={styles.streetTitle}>{street.toUpperCase()}</Text>
-              {actions.map((a, idx) => {
-                if (a.street !== street) return null;
-                return (
-                  <ActionRow key={idx} action={a} villainNames={villainNames} activeVillainCount={activeVillainCount}
-                    onChange={patch => setActions(prev => prev.map((x, i) => i === idx ? { ...x, ...patch } : x))}
-                    onRemove={() => setActions(prev => prev.filter((_, i) => i !== idx))}
-                    amountUnit={amountUnit}
-                  />
-                );
-              })}
-              <TouchableOpacity style={styles.addActionBtn}
-                onPress={() => setActions(prev => [...prev, { street, actor: '나' as any, action: 'check' }])}>
-                <Text style={styles.addActionText}>+ 액션 추가</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+          {STREETS.map((street, streetIdx) => {
+            const sColor = STREET_COLOR[street] ?? colors.primary;
+            const isLast = streetIdx === STREETS.length - 1;
+            return (
+              <View
+                key={street}
+                style={[
+                  styles.streetSection,
+                  !isLast && styles.streetSeparator,
+                ]}
+              >
+                <View style={[styles.streetTitleRow, { borderLeftColor: sColor }]}>
+                  <Text style={[styles.streetTitle, { color: sColor }]}>
+                    {STREET_LABEL[street] ?? street.toUpperCase()}
+                  </Text>
+                </View>
+                {actions.map((a, idx) => {
+                  if (a.street !== street) return null;
+                  return (
+                    <ActionRow key={idx} action={a} villainNames={villainNames} activeVillainCount={activeVillainCount}
+                      onChange={patch => setActions(prev => prev.map((x, i) => i === idx ? { ...x, ...patch } : x))}
+                      onRemove={() => setActions(prev => prev.filter((_, i) => i !== idx))}
+                      amountUnit={amountUnit}
+                    />
+                  );
+                })}
+                <TouchableOpacity style={styles.addActionBtn}
+                  onPress={() => setActions(prev => [...prev, { street, actor: '나' as any, action: 'check' }])}>
+                  <Text style={styles.addActionText}>+ 액션 추가</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
         </Section>
 
         <Section title="결과">
@@ -375,6 +403,13 @@ export default function HandEditorScreen({ navigation, route }: Props) {
         <Section title="알파고 리뷰 추가 정보 (선택)">
           <Text style={styles.helpText}>
             ℹ️ 홀덤 알파고의 분석 정확도를 높여주는 정보입니다. 입력하지 않아도 분석은 가능합니다.
+          </Text>
+          <Text style={styles.helpSub}>
+            💡 SPR (Stack-to-Pot Ratio) = 유효 스택 ÷ 팟 사이즈.{'\n'}
+            · SPR 낮음(&lt;4): 탑페어도 스택 투입 OK{'\n'}
+            · SPR 중간(4~10): 투페어+ 기준으로 스택 투입{'\n'}
+            · SPR 높음(&gt;10): 넛츠/세트급 아니면 스택 보존{'\n'}
+            팟 사이즈와 유효 스택만 입력하면 자동으로 계산됩니다.
           </Text>
 
           <Label text="프리플랍 어그레서 (마지막 3-bet/오픈 레이저)" />
@@ -718,8 +753,19 @@ const styles = StyleSheet.create({
   pickerChipDisabled: { opacity: 0.4 },
   pickerChipText: { fontSize: fontSize.sm, color: colors.text, fontWeight: fontWeight.medium },
   pickerBack: { fontSize: fontSize.xs, color: colors.primary, marginTop: 6 },
-  streetSection: { marginBottom: spacing.sm },
-  streetTitle: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.bold, marginBottom: 4, letterSpacing: 0.5 },
+  streetSection: { marginBottom: spacing.sm, paddingBottom: spacing.sm },
+  streetSeparator: {
+    borderBottomWidth: 1,
+    borderStyle: 'dashed',
+    borderBottomColor: colors.line,
+    marginBottom: spacing.base,
+  },
+  streetTitleRow: {
+    borderLeftWidth: 3,
+    paddingLeft: spacing.sm,
+    marginBottom: 8,
+  },
+  streetTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, letterSpacing: 0.3 },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' },
   actorChip: { paddingHorizontal: spacing.sm, paddingVertical: 4, backgroundColor: colors.surface, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary },
   actorText: { fontSize: fontSize.xs, color: colors.primary, fontWeight: fontWeight.medium },
@@ -731,8 +777,17 @@ const styles = StyleSheet.create({
   amountInput: { width: 70, backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, color: colors.text, fontSize: fontSize.xs, paddingHorizontal: 6, paddingVertical: 3 },
   removeBtn: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   removeBtnText: { fontSize: fontSize.md, color: colors.danger },
-  addActionBtn: { paddingVertical: 4 },
-  addActionText: { fontSize: fontSize.xs, color: colors.primary },
+  addActionBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: '#374151', // 진한 회색
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#4b5563',
+  },
+  addActionText: { fontSize: fontSize.xs, color: '#e5e7eb', fontWeight: fontWeight.medium },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
   autoBtn: { paddingHorizontal: 8, paddingVertical: 2, backgroundColor: colors.primary, borderRadius: 8 },
   autoBtnText: { fontSize: fontSize.xs, color: colors.text, fontWeight: fontWeight.medium },
