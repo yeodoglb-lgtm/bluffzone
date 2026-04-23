@@ -5,8 +5,8 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
+import { showConfirm, showAlert } from '../../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
@@ -48,19 +48,32 @@ export default function SessionDetailScreen({ route, navigation }: Props) {
   }
 
   function handleDelete() {
-    Alert.alert('세션 삭제', '이 세션을 삭제하시겠습니까?', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '삭제',
-        style: 'destructive',
-        onPress: () => {
-          deleteSession.mutate(
-            { id: sessionId, playedOn: session?.played_on ?? '' },
-            { onSuccess: () => navigation.goBack() }
-          );
-        },
+    showConfirm({
+      title: '세션 삭제',
+      message: '이 세션을 삭제하시겠습니까?',
+      confirmText: '삭제',
+      destructive: true,
+      onConfirm: () => {
+        deleteSession.mutate(
+          { id: sessionId, playedOn: session?.played_on ?? '' },
+          {
+            onSuccess: () => navigation.goBack(),
+            onError: (err: any) => {
+              const msg = err?.message ?? String(err);
+              // FK 제약으로 막히는 경우 안내
+              if (msg?.includes('foreign key') || err?.code === '23503') {
+                showAlert(
+                  '세션을 삭제할 수 없습니다',
+                  '이 세션에 기록된 핸드가 있어서 먼저 핸드를 삭제하거나 다른 세션으로 옮겨야 합니다.'
+                );
+              } else {
+                showAlert('삭제 실패', msg);
+              }
+            },
+          }
+        );
       },
-    ]);
+    });
   }
 
   if (loading) {
