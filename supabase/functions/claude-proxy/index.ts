@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
@@ -286,6 +287,59 @@ serve(async (req) => {
 
       const parsed = JSON.parse(data.content[0].text);
       return new Response(JSON.stringify(parsed), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── /hand-review-gpt ─────────────────────────────────────────────────────
+    if (endpoint === 'hand-review-gpt') {
+      const { allowed, used, limit } = await checkUsageLimit(supabase, user.id, 'hand-review');
+      if (!allowed) {
+        return new Response(JSON.stringify({
+          error: 'usage_limit',
+          message: `이번 달 핸드 리뷰 무료 한도(${limit}회)를 초과했습니다. (사용: ${used}회)`,
+        }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const { hand } = body;
+
+      const systemPrompt = `당신은 캐시게임 홀덤 코치입니다. 핸드를 분석하고 반드시 아래 JSON 스키마로만 응답하세요. 마크다운 없이 순수 JSON만 출력하세요.
+
+{
+  "verdict": "한 줄 결론 (예: 플랍 이후 베팅 멈춘 게 실수. 이겼지만 덜 번 핸드.)",
+  "street_grades": [
+    {"street": "PREFLOP|FLOP|TURN|RIVER", "grade": "good|ok|bad", "note": "짧은 평가 (20자 이내)"}
+  ],
+  "tip": "핵심 코칭 한 줄 (다음에 바로 써먹을 수 있는 것)"
+}
+
+street_grades는 실제 액션이 있었던 스트리트만 포함하세요.`;
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          max_tokens: 512,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `다음 핸드를 분석해주세요:\n\n${JSON.stringify(hand, null, 2)}` },
+          ],
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message ?? 'OpenAI API error');
+
+      const inputTokens = data.usage?.prompt_tokens ?? 0;
+      const outputTokens = data.usage?.completion_tokens ?? 0;
+      await recordUsage(supabase, user.id, 'hand-review', 'gpt-4o-mini', inputTokens, outputTokens);
+
+      const reviewJson = JSON.parse(data.choices[0].message.content);
+      return new Response(JSON.stringify(reviewJson), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

@@ -369,11 +369,49 @@ export default function HandDetailScreen({ navigation, route }: Props) {
     } catch (e) { console.error(e); }
   }
 
+  const [isReviewing, setIsReviewing] = useState(false);
+
   async function handleRequestReview() {
+    setIsReviewing(true);
     try {
       await updateHand.mutateAsync({ id: handId, data: { review_status: 'pending' } });
-    } catch {
-      Alert.alert('오류', '홀덤 알파고 리뷰 요청에 실패했습니다.');
+
+      const { supabase } = await import('../../services/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('로그인이 필요합니다.');
+
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/claude-proxy/hand-review-gpt`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ hand }),
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message ?? '리뷰 요청 실패');
+      }
+
+      const review = await res.json();
+      await updateHand.mutateAsync({
+        id: handId,
+        data: {
+          review_status: 'done',
+          review,
+          review_model: 'gpt-4o-mini',
+          reviewed_at: new Date().toISOString(),
+        },
+      });
+    } catch (e: any) {
+      await updateHand.mutateAsync({ id: handId, data: { review_status: 'error' } });
+      Alert.alert('오류', e.message ?? '리뷰 요청에 실패했습니다.');
+    } finally {
+      setIsReviewing(false);
     }
   }
 
@@ -592,32 +630,71 @@ export default function HandDetailScreen({ navigation, route }: Props) {
         {/* 홀덤 알파고 리뷰 */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>홀덤 알파고 리뷰</Text>
-          <View style={styles.reviewRow}>
-            <Text style={styles.reviewStatus}>
-              상태: <Text style={styles.reviewStatusValue}>{REVIEW_STATUS_LABELS[hand.review_status] ?? hand.review_status}</Text>
-            </Text>
-            {hand.review_status === 'none' && (
-              <TouchableOpacity style={styles.reviewBtn} onPress={handleRequestReview} disabled={updateHand.isPending} activeOpacity={0.8}>
-                {updateHand.isPending
-                  ? <ActivityIndicator color={colors.text} size="small" />
-                  : <Text style={styles.reviewBtnText}>홀덤 알파고 리뷰 요청</Text>
-                }
-              </TouchableOpacity>
-            )}
-          </View>
-          {hand.review_status === 'done' && hand.review && (
-            <Text style={styles.reviewContent}>
-              {typeof hand.review === 'object' && 'content' in hand.review
-                ? String(hand.review.content)
-                : JSON.stringify(hand.review, null, 2)}
-            </Text>
+
+          {/* 리뷰 없음 → 요청 버튼 */}
+          {(hand.review_status === 'none' || hand.review_status === 'error') && (
+            <TouchableOpacity
+              style={styles.reviewBtn}
+              onPress={handleRequestReview}
+              disabled={isReviewing}
+              activeOpacity={0.8}
+            >
+              {isReviewing
+                ? <><ActivityIndicator color={colors.text} size="small" /><Text style={[styles.reviewBtnText, { marginLeft: 8 }]}>분석 중...</Text></>
+                : <Text style={styles.reviewBtnText}>홀덤 알파고 리뷰 요청</Text>
+              }
+            </TouchableOpacity>
           )}
-          {hand.reviewed_at && (
-            <Text style={styles.reviewedAt}>
-              {new Date(hand.reviewed_at).toLocaleDateString('ko-KR')} 분석됨
-              {hand.review_model ? ` · ${hand.review_model}` : ''}
-            </Text>
+
+          {/* 분석 중 */}
+          {hand.review_status === 'pending' && !isReviewing && (
+            <View style={styles.reviewPending}>
+              <ActivityIndicator color={colors.primary} size="small" />
+              <Text style={styles.reviewPendingText}>분석 중...</Text>
+            </View>
           )}
+
+          {/* 리뷰 완료 */}
+          {hand.review_status === 'done' && hand.review && (() => {
+            const r = hand.review as any;
+            const gradeIcon: Record<string, string> = { good: '✅', ok: '⚠️', bad: '❌' };
+            return (
+              <View style={styles.reviewResult}>
+                {/* 한 줄 결론 */}
+                <Text style={styles.reviewVerdict}>{r.verdict}</Text>
+
+                {/* 스트리트별 평가 */}
+                {Array.isArray(r.street_grades) && (
+                  <View style={styles.reviewGrades}>
+                    {r.street_grades.map((g: any, i: number) => (
+                      <View key={i} style={styles.reviewGradeRow}>
+                        <Text style={styles.reviewGradeStreet}>{g.street}</Text>
+                        <Text style={styles.reviewGradeIcon}>{gradeIcon[g.grade] ?? '⚠️'}</Text>
+                        <Text style={styles.reviewGradeNote}>{g.note}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* 코칭 한 줄 */}
+                {r.tip && (
+                  <View style={styles.reviewTip}>
+                    <Text style={styles.reviewTipText}>💡 {r.tip}</Text>
+                  </View>
+                )}
+
+                {/* 재요청 버튼 */}
+                <TouchableOpacity
+                  onPress={handleRequestReview}
+                  disabled={isReviewing}
+                  style={styles.reviewRetryBtn}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.reviewRetryText}>다시 분석</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })()}
         </View>
 
         <View style={{ height: spacing.xl }} />
@@ -800,10 +877,31 @@ const styles = StyleSheet.create({
   reviewStatus: { fontSize: fontSize.sm, color: colors.textMuted },
   reviewStatusValue: { color: colors.text, fontWeight: fontWeight.medium },
   reviewBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: colors.primary, borderRadius: radius.button,
-    paddingHorizontal: spacing.base, paddingVertical: 6,
+    paddingVertical: 10,
   },
   reviewBtnText: { fontSize: fontSize.sm, color: colors.text, fontWeight: fontWeight.medium },
+  reviewPending: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 8 },
+  reviewPendingText: { fontSize: fontSize.sm, color: colors.textMuted },
+  reviewResult: { gap: spacing.sm, marginTop: 4 },
+  reviewVerdict: { fontSize: fontSize.base, color: colors.text, fontWeight: fontWeight.semibold, lineHeight: 22 },
+  reviewGrades: { gap: 6, marginTop: 4 },
+  reviewGradeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  reviewGradeStreet: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.bold, width: 52 },
+  reviewGradeIcon: { fontSize: 14 },
+  reviewGradeNote: { fontSize: fontSize.sm, color: colors.text, flex: 1 },
+  reviewTip: {
+    backgroundColor: `${colors.primary}18`,
+    borderRadius: radius.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    padding: spacing.sm,
+    marginTop: 4,
+  },
+  reviewTipText: { fontSize: fontSize.sm, color: colors.text, lineHeight: 20 },
+  reviewRetryBtn: { alignSelf: 'flex-end', paddingVertical: 4, paddingHorizontal: 8 },
+  reviewRetryText: { fontSize: fontSize.xs, color: colors.textMuted },
   reviewContent: { fontSize: fontSize.sm, color: colors.text, lineHeight: 20, marginTop: spacing.sm },
   reviewedAt: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 4 },
 });
