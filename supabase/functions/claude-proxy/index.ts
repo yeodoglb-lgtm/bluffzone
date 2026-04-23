@@ -70,6 +70,44 @@ async function recordUsage(
   });
 }
 
+// ── 캐시 키 생성 ──────────────────────────────────────────────────────────────
+// 같은 상황이면 GPT를 다시 부르지 않는다
+// 규칙: hero_pos + villain_pos + hero_cards + board + 단순화된 액션
+function buildCacheKey(hand: any): string {
+  const norm = (v: any) => (v ?? '').toString().trim().toUpperCase();
+
+  const heroPos = norm(hand?.hero_position);
+  const villainPos = norm(hand?.villain_position);
+
+  // 카드: [{rank,suit}] 형태 가정, 문자열이면 그대로
+  const cardStr = (c: any): string => {
+    if (!c) return '';
+    if (typeof c === 'string') return c.toUpperCase();
+    return `${norm(c.rank)}${(c.suit ?? '').toString().toLowerCase()}`;
+  };
+  const cardsStr = (arr: any): string =>
+    Array.isArray(arr) ? arr.map(cardStr).filter(Boolean).join('') : '';
+
+  const heroCards = cardsStr(hand?.hero_cards);
+  const board = cardsStr(hand?.board);
+
+  // 액션: street/actor/action/amount 만 추려서 단순화
+  const actions = Array.isArray(hand?.actions)
+    ? hand.actions
+        .map((a: any) =>
+          [
+            norm(a?.street),
+            norm(a?.actor),
+            norm(a?.action),
+            a?.amount != null ? String(a.amount) : '',
+          ].join(':')
+        )
+        .join('|')
+    : '';
+
+  return [heroPos, villainPos, heroCards, board, actions].join('_');
+}
+
 // ── 핸드 리뷰 시스템 프롬프트 ────────────────────────────────────────────────
 const HAND_REVIEW_SYSTEM = `당신은 고수준 캐시게임 홀덤 코치입니다. GTO와 익스플로잇 관점 모두를 설명하되,
 입력이 충분하지 않으면 가정을 명시하세요. 에쿼티 수치는 근사임을 명시하세요.
@@ -293,6 +331,32 @@ serve(async (req) => {
 
     // ── /hand-review-gpt ─────────────────────────────────────────────────────
     if (endpoint === 'hand-review-gpt') {
+      const { hand } = body;
+
+      // ── 캐시 키 생성 ──────────────────────────────────────────────────────
+      // 같은 상황(포지션 + 핸드 + 보드 + 액션)이면 GPT를 다시 부르지 않는다
+      const cacheKey = buildCacheKey(hand);
+
+      // ── 캐시 조회 ─────────────────────────────────────────────────────────
+      const { data: cached } = await supabase
+        .from('hand_review_cache')
+        .select('id, result, hit_count')
+        .eq('cache_key', cacheKey)
+        .maybeSingle();
+
+      if (cached) {
+        // hit_count 증가 (실패해도 응답은 그대로 반환)
+        await supabase
+          .from('hand_review_cache')
+          .update({ hit_count: (cached.hit_count ?? 1) + 1, updated_at: new Date().toISOString() })
+          .eq('id', cached.id);
+
+        return new Response(JSON.stringify({ ...cached.result, _cached: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // ── 사용량 한도 체크 (캐시 미스일 때만) ─────────────────────────────────
       const { allowed, used, limit } = await checkUsageLimit(supabase, user.id, 'hand-review');
       if (!allowed) {
         return new Response(JSON.stringify({
@@ -301,44 +365,151 @@ serve(async (req) => {
         }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      const { hand } = body;
+      // ── 사람이 읽기 쉬운 형태로 hand 요약 (프롬프트용) ─────────────────────
+      const fmtCard = (c: any): string => {
+        if (!c) return '';
+        if (typeof c === 'string') return c;
+        return `${c.rank ?? ''}${c.suit ?? ''}`;
+      };
+      const fmtCards = (arr: any): string =>
+        Array.isArray(arr) && arr.length ? arr.map(fmtCard).join(' ') : '(없음)';
+      const fmtActions = (arr: any): string =>
+        Array.isArray(arr) && arr.length
+          ? arr
+              .map(
+                (a: any) =>
+                  `${a.street}:${a.actor} ${a.action}${a.amount != null ? ' ' + a.amount : ''}`
+              )
+              .join(' / ')
+          : '(없음)';
 
-      const systemPrompt = `당신은 캐시게임 홀덤 코치입니다. 핸드를 분석하고 반드시 아래 JSON 스키마로만 응답하세요. 마크다운 없이 순수 JSON만 출력하세요.
+      const position = `${hand?.hero_position ?? '?'} vs ${hand?.villain_position ?? '?'}`;
+      const handCards = fmtCards(hand?.hero_cards);
+      const boardCards = fmtCards(hand?.board);
+      const actionsText = fmtActions(hand?.actions);
 
+      const systemPrompt = `너는 포커 전략 코치다.
+
+주어진 상황을 분석하고 반드시 JSON 형식으로만 답해라.
+설명, 문장, 마크다운 절대 추가하지 마라.
+
+[출력 형식]
 {
-  "verdict": "한 줄 결론 (예: 플랍 이후 베팅 멈춘 게 실수. 이겼지만 덜 번 핸드.)",
-  "street_grades": [
-    {"street": "PREFLOP|FLOP|TURN|RIVER", "grade": "good|ok|bad", "note": "짧은 평가 (20자 이내)"}
-  ],
-  "tip": "핵심 코칭 한 줄 (다음에 바로 써먹을 수 있는 것)"
+  "recommended_action": "베팅 또는 체크",
+  "recommended_frequency": 0-100 사이 정수,
+  "secondary_action": "베팅 또는 체크",
+  "secondary_frequency": 0-100 사이 정수,
+  "summary": ["문장1", "문장2", "문장3"],
+  "mistake": "한 문장",
+  "tip": "한 문장"
 }
 
-street_grades는 실제 액션이 있었던 스트리트만 포함하세요.`;
+[규칙]
+- 반드시 JSON만 출력 (다른 텍스트 금지)
+- recommended_frequency + secondary_frequency = 100
+- summary는 정확히 3개 문장
+- 모든 문장은 짧고 명확하게 작성
+- 한국어로 작성`;
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          max_tokens: 512,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: `다음 핸드를 분석해주세요:\n\n${JSON.stringify(hand, null, 2)}` },
+      const userPrompt = `[상황]
+- 포지션: ${position}
+- 핸드: ${handCards}
+- 보드: ${boardCards}
+- 액션: ${actionsText}`;
+
+      // ── GPT 호출 헬퍼 (재시도 + JSON 파싱 fallback 포함) ─────────────────
+      async function callGpt(): Promise<{
+        json: any | null;
+        inputTokens: number;
+        outputTokens: number;
+        raw: string;
+      }> {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            max_tokens: 512,
+            response_format: { type: 'json_object' },
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+          }),
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error?.message ?? 'OpenAI API error');
+
+        const raw: string = d.choices?.[0]?.message?.content ?? '';
+        const inputTokens = d.usage?.prompt_tokens ?? 0;
+        const outputTokens = d.usage?.completion_tokens ?? 0;
+
+        // 1차 시도: 그대로 JSON.parse
+        try {
+          return { json: JSON.parse(raw), inputTokens, outputTokens, raw };
+        } catch {
+          // 2차 시도: { ... } 구간만 추출해서 파싱 (마크다운 ```json 등 섞였을 때)
+          const match = raw.match(/\{[\s\S]*\}/);
+          if (match) {
+            try {
+              return { json: JSON.parse(match[0]), inputTokens, outputTokens, raw };
+            } catch { /* fall through */ }
+          }
+          return { json: null, inputTokens, outputTokens, raw };
+        }
+      }
+
+      // 1차 호출
+      let result = await callGpt();
+      let totalInput = result.inputTokens;
+      let totalOutput = result.outputTokens;
+
+      // JSON 파싱 실패 → 1회만 재시도
+      if (!result.json) {
+        console.warn('[hand-review-gpt] JSON parse failed, retrying once. raw:', result.raw);
+        result = await callGpt();
+        totalInput += result.inputTokens;
+        totalOutput += result.outputTokens;
+      }
+
+      // 재시도까지 실패 → 기본값으로 안전 응답 (사용량 차감은 하되, 에러 없이 fallback 반환)
+      if (!result.json) {
+        console.error('[hand-review-gpt] JSON parse failed after retry. raw:', result.raw);
+        await recordUsage(supabase, user.id, 'hand-review', 'gpt-4o-mini', totalInput, totalOutput);
+
+        const fallback = {
+          recommended_action: '체크',
+          recommended_frequency: 50,
+          secondary_action: '베팅',
+          secondary_frequency: 50,
+          summary: [
+            '분석 결과를 가져오는 중 오류가 발생했습니다.',
+            '잠시 후 다시 시도해주세요.',
+            '문제가 반복되면 핸드 정보를 확인해주세요.',
           ],
-        }),
+          mistake: '일시적인 오류로 정확한 분석을 제공하지 못했습니다.',
+          tip: '다시 분석을 요청해주세요.',
+          _fallback: true,
+        };
+        // fallback은 캐시에 저장하지 않음 (다음에 다시 시도할 수 있도록)
+        return new Response(JSON.stringify(fallback), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const reviewJson = result.json;
+      await recordUsage(supabase, user.id, 'hand-review', 'gpt-4o-mini', totalInput, totalOutput);
+
+      // ── 캐시 저장 (실패해도 응답은 그대로 반환) ─────────────────────────────
+      await supabase.from('hand_review_cache').insert({
+        cache_key: cacheKey,
+        result: reviewJson,
+        hit_count: 1,
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error?.message ?? 'OpenAI API error');
-
-      const inputTokens = data.usage?.prompt_tokens ?? 0;
-      const outputTokens = data.usage?.completion_tokens ?? 0;
-      await recordUsage(supabase, user.id, 'hand-review', 'gpt-4o-mini', inputTokens, outputTokens);
-
-      const reviewJson = JSON.parse(data.choices[0].message.content);
       return new Response(JSON.stringify(reviewJson), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

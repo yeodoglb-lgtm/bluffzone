@@ -657,26 +657,59 @@ export default function HandDetailScreen({ navigation, route }: Props) {
           {/* 리뷰 완료 */}
           {hand.review_status === 'done' && hand.review && (() => {
             const r = hand.review as any;
-            const gradeIcon: Record<string, string> = { good: '✅', ok: '⚠️', bad: '❌' };
+            const recFreq = Number(r.recommended_frequency) || 0;
+            const secFreq = Number(r.secondary_frequency) || 0;
             return (
               <View style={styles.reviewResult}>
-                {/* 한 줄 결론 */}
-                <Text style={styles.reviewVerdict}>{r.verdict}</Text>
+                {/* 추천 액션 (메인) */}
+                {r.recommended_action && (
+                  <View style={styles.reviewActionRow}>
+                    <View style={styles.reviewActionBadgeMain}>
+                      <Text style={styles.reviewActionBadgeText}>추천</Text>
+                    </View>
+                    <Text style={styles.reviewActionName}>{r.recommended_action}</Text>
+                    <Text style={styles.reviewActionFreq}>{recFreq}%</Text>
+                  </View>
+                )}
+                {/* 비율 막대 */}
+                {(recFreq > 0 || secFreq > 0) && (
+                  <View style={styles.reviewFreqBar}>
+                    <View style={[styles.reviewFreqBarMain, { flex: Math.max(recFreq, 1) }]} />
+                    <View style={[styles.reviewFreqBarSub, { flex: Math.max(secFreq, 1) }]} />
+                  </View>
+                )}
+                {/* 서브 액션 */}
+                {r.secondary_action && (
+                  <View style={styles.reviewActionRow}>
+                    <View style={styles.reviewActionBadgeSub}>
+                      <Text style={styles.reviewActionBadgeTextSub}>대안</Text>
+                    </View>
+                    <Text style={styles.reviewActionNameSub}>{r.secondary_action}</Text>
+                    <Text style={styles.reviewActionFreqSub}>{secFreq}%</Text>
+                  </View>
+                )}
 
-                {/* 스트리트별 평가 */}
-                {Array.isArray(r.street_grades) && (
-                  <View style={styles.reviewGrades}>
-                    {r.street_grades.map((g: any, i: number) => (
-                      <View key={i} style={styles.reviewGradeRow}>
-                        <Text style={styles.reviewGradeStreet}>{g.street}</Text>
-                        <Text style={styles.reviewGradeIcon}>{gradeIcon[g.grade] ?? '⚠️'}</Text>
-                        <Text style={styles.reviewGradeNote}>{g.note}</Text>
+                {/* 요약 3줄 */}
+                {Array.isArray(r.summary) && r.summary.length > 0 && (
+                  <View style={styles.reviewSummary}>
+                    {r.summary.map((line: string, i: number) => (
+                      <View key={i} style={styles.reviewSummaryRow}>
+                        <Text style={styles.reviewSummaryBullet}>•</Text>
+                        <Text style={styles.reviewSummaryText}>{line}</Text>
                       </View>
                     ))}
                   </View>
                 )}
 
-                {/* 코칭 한 줄 */}
+                {/* 실수 */}
+                {r.mistake && (
+                  <View style={styles.reviewMistake}>
+                    <Text style={styles.reviewMistakeLabel}>❌ 실수</Text>
+                    <Text style={styles.reviewMistakeText}>{r.mistake}</Text>
+                  </View>
+                )}
+
+                {/* 팁 */}
                 {r.tip && (
                   <View style={styles.reviewTip}>
                     <Text style={styles.reviewTipText}>💡 {r.tip}</Text>
@@ -885,12 +918,42 @@ const styles = StyleSheet.create({
   reviewPending: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 8 },
   reviewPendingText: { fontSize: fontSize.sm, color: colors.textMuted },
   reviewResult: { gap: spacing.sm, marginTop: 4 },
-  reviewVerdict: { fontSize: fontSize.base, color: colors.text, fontWeight: fontWeight.semibold, lineHeight: 22 },
-  reviewGrades: { gap: 6, marginTop: 4 },
-  reviewGradeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  reviewGradeStreet: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.bold, width: 52 },
-  reviewGradeIcon: { fontSize: 14 },
-  reviewGradeNote: { fontSize: fontSize.sm, color: colors.text, flex: 1 },
+  reviewActionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  reviewActionBadgeMain: {
+    backgroundColor: colors.primary, borderRadius: radius.sm,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  reviewActionBadgeSub: {
+    backgroundColor: `${colors.textMuted}33`, borderRadius: radius.sm,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  reviewActionBadgeText: { fontSize: fontSize.xs, color: colors.text, fontWeight: fontWeight.bold },
+  reviewActionBadgeTextSub: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.bold },
+  reviewActionName: { fontSize: fontSize.base, color: colors.text, fontWeight: fontWeight.bold, flex: 1 },
+  reviewActionNameSub: { fontSize: fontSize.sm, color: colors.textMuted, flex: 1 },
+  reviewActionFreq: { fontSize: fontSize.base, color: colors.primary, fontWeight: fontWeight.bold },
+  reviewActionFreqSub: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.medium },
+  reviewFreqBar: {
+    flexDirection: 'row', height: 6, borderRadius: 3, overflow: 'hidden',
+    backgroundColor: `${colors.textMuted}22`, marginVertical: 2,
+  },
+  reviewFreqBarMain: { backgroundColor: colors.primary },
+  reviewFreqBarSub: { backgroundColor: `${colors.textMuted}66` },
+  reviewSummary: { gap: 4, marginTop: 4 },
+  reviewSummaryRow: { flexDirection: 'row', gap: 6, alignItems: 'flex-start' },
+  reviewSummaryBullet: { fontSize: fontSize.sm, color: colors.primary, lineHeight: 20 },
+  reviewSummaryText: { fontSize: fontSize.sm, color: colors.text, lineHeight: 20, flex: 1 },
+  reviewMistake: {
+    backgroundColor: `${colors.danger}18`,
+    borderRadius: radius.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.danger,
+    padding: spacing.sm,
+    marginTop: 4,
+    gap: 2,
+  },
+  reviewMistakeLabel: { fontSize: fontSize.xs, color: colors.danger, fontWeight: fontWeight.bold },
+  reviewMistakeText: { fontSize: fontSize.sm, color: colors.text, lineHeight: 20 },
   reviewTip: {
     backgroundColor: `${colors.primary}18`,
     borderRadius: radius.sm,

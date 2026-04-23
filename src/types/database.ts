@@ -36,25 +36,14 @@ export interface SessionWithProfit extends Session {
 }
 
 export interface HandReview {
-  summary: string;
-  recommended_line: Array<{
-    street: string;
-    action: string;
-    rationale: string;
-  }>;
-  equity: {
-    assumptions: string;
-    preflop?: { win: number; tie: number; lose: number };
-    flop?: { win: number; tie: number; lose: number };
-    turn?: { win: number; tie: number; lose: number };
-    river?: { win: number; tie: number; lose: number };
-  };
-  mistakes: Array<{
-    street: string;
-    severity: 'low' | 'medium' | 'high';
-    note: string;
-  }>;
-  coach_notes: string[];
+  recommended_action: string;
+  recommended_frequency: number;
+  secondary_action: string;
+  secondary_frequency: number;
+  summary: string[];
+  mistake: string;
+  tip: string;
+  _cached?: boolean;
 }
 
 export interface Hand {
