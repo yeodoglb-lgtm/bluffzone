@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.sm,
     marginBottom: 8,
   },
-  streetTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, letterSpacing: 0.3 },
+  streetTitle: { fontSize: fontSize.base, fontWeight: fontWeight.bold, letterSpacing: 0.3 },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' },
   actorChip: { paddingHorizontal: spacing.sm, paddingVertical: 4, backgroundColor: colors.surface, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary },
   actorText: { fontSize: fontSize.xs, color: colors.primary, fontWeight: fontWeight.medium },

@@ -588,13 +588,40 @@ export default function HandDetailScreen({ navigation, route }: Props) {
         {hand.actions.length > 0 && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>액션</Text>
-            {(STREETS as readonly Street[]).map(street => {
-              const streetActions = hand.actions.filter(a => a.street === street);
-              if (streetActions.length === 0) return null;
-              return (
-                <View key={street} style={styles.streetBlock}>
-                  <Text style={styles.streetLabel}>{street.toUpperCase()}</Text>
-                  {streetActions.map((a, i) => (
+            {(() => {
+              const STREET_LABEL: Record<string, string> = {
+                preflop: '프리플랍', flop: '플랍', turn: '턴', river: '리버',
+              };
+              const STREET_COLOR: Record<string, string> = {
+                preflop: '#3b82f6', flop: '#22c55e', turn: '#f59e0b', river: '#a855f7',
+              };
+              const shown = (STREETS as readonly Street[]).filter(
+                s => hand.actions.some(a => a.street === s)
+              );
+              return shown.map((street, idx) => {
+                const streetActions = hand.actions.filter(a => a.street === street);
+                const sColor = STREET_COLOR[street] ?? colors.primary;
+                const isLast = idx === shown.length - 1;
+                return (
+                  <View
+                    key={street}
+                    style={[
+                      styles.streetBlock,
+                      !isLast && {
+                        borderBottomWidth: 1,
+                        borderStyle: 'dashed',
+                        borderBottomColor: colors.line,
+                        paddingBottom: spacing.sm,
+                        marginBottom: spacing.sm,
+                      },
+                    ]}
+                  >
+                    <View style={{ borderLeftWidth: 3, borderLeftColor: sColor, paddingLeft: spacing.sm, marginBottom: 6 }}>
+                      <Text style={[styles.streetLabel, { color: sColor, fontSize: fontSize.base }]}>
+                        {STREET_LABEL[street] ?? street.toUpperCase()}
+                      </Text>
+                    </View>
+                    {streetActions.map((a, i) => (
                     <View key={i} style={styles.actionLine}>
                       <Text style={[styles.actionActor, {
                         color: a.actor === 'hero' || a.actor === '나' ? HERO_COLOR
@@ -611,7 +638,8 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                   ))}
                 </View>
               );
-            })}
+              });
+            })()}
           </View>
         )}
 
