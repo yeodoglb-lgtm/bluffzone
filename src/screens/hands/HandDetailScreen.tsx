@@ -4,10 +4,10 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Share,
 } from 'react-native';
+import { showConfirm, showAlert } from '../../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import type { StackScreenProps } from '@react-navigation/stack';
@@ -342,20 +342,20 @@ export default function HandDetailScreen({ navigation, route }: Props) {
   function handleLast()  { setIsPlaying(false); setPlaybackIdx(totalSteps - 1); }
 
   function handleDelete() {
-    Alert.alert('핸드 삭제', '이 핸드를 삭제하시겠습니까?', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '삭제', style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteHand.mutateAsync(handId);
-            navigation.goBack();
-          } catch {
-            Alert.alert('오류', '핸드 삭제에 실패했습니다.');
-          }
-        },
+    showConfirm({
+      title: '핸드 삭제',
+      message: '이 핸드를 삭제하시겠습니까?',
+      confirmText: '삭제',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteHand.mutateAsync(handId);
+          navigation.goBack();
+        } catch {
+          showAlert('오류', '핸드 삭제에 실패했습니다.');
+        }
       },
-    ]);
+    });
   }
 
   async function handleShare() {
@@ -409,7 +409,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
       });
     } catch (e: any) {
       await updateHand.mutateAsync({ id: handId, data: { review_status: 'error' } });
-      Alert.alert('오류', e.message ?? '리뷰 요청에 실패했습니다.');
+      showAlert('오류', e.message ?? '리뷰 요청에 실패했습니다.');
     } finally {
       setIsReviewing(false);
     }

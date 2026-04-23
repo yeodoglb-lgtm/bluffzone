@@ -7,7 +7,9 @@ import {
   FlatList,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
+import { showConfirm, showAlert } from '../../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { Plus } from 'lucide-react-native';
@@ -52,6 +54,35 @@ export default function DayDetailScreen({ route, navigation }: Props) {
   }
 
   function handleLongPress(session: SessionWithProfit) {
+    // 웹: window.confirm이 2버튼만 지원하므로 삭제 확인만
+    if (Platform.OS === 'web') {
+      showConfirm({
+        title: '세션 삭제',
+        message: `${session.place_name_snapshot ?? '장소 없음'} 세션을 삭제하시겠습니까?\n(수정은 세션을 탭해서 상세 화면에서 가능합니다.)`,
+        confirmText: '삭제',
+        destructive: true,
+        onConfirm: () => {
+          deleteSession.mutate(
+            { id: session.id, playedOn: session.played_on },
+            {
+              onError: (err: any) => {
+                const msg = err?.message ?? String(err);
+                if (msg?.includes('foreign key') || err?.code === '23503') {
+                  showAlert(
+                    '세션을 삭제할 수 없습니다',
+                    '이 세션에 기록된 핸드가 있습니다. 먼저 핸드를 삭제하거나 다른 세션으로 옮겨주세요.'
+                  );
+                } else {
+                  showAlert('삭제 실패', msg);
+                }
+              },
+            }
+          );
+        },
+      });
+      return;
+    }
+    // 네이티브: 3버튼 메뉴 (수정 / 삭제 / 취소)
     Alert.alert(
       '세션 관리',
       `${session.place_name_snapshot ?? '장소 없음'} 세션`,

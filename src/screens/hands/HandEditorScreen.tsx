@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   Switch,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { showAlert } from '../../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useMemo } from 'react';
 import type { StackScreenProps } from '@react-navigation/stack';
@@ -268,7 +268,7 @@ export default function HandEditorScreen({ navigation, route }: Props) {
         navigation.navigate('HandDetail', { handId: c.id });
       }
     } catch (err: any) {
-      Alert.alert('저장 실패', err?.message ?? '알 수 없는 오류');
+      showAlert('저장 실패', err?.message ?? '알 수 없는 오류');
     } finally { setSaving(false); }
   }
 
@@ -376,7 +376,7 @@ export default function HandEditorScreen({ navigation, route }: Props) {
               placeholder="핸드에 대한 메모를 입력하세요" placeholderTextColor={colors.textMuted}
               multiline numberOfLines={4} textAlignVertical="top" value={note} onChangeText={setNote} />
             <TouchableOpacity style={styles.micBtn}
-              onPress={() => Alert.alert('음성 입력', Platform.OS === 'web' ? '웹에서는 텍스트로 입력해주세요.' : '네이티브 앱에서 지원됩니다.')}>
+              onPress={() => showAlert('음성 입력', Platform.OS === 'web' ? '웹에서는 텍스트로 입력해주세요.' : '네이티브 앱에서 지원됩니다.')}>
               <Text style={styles.micIcon}>🎙</Text>
             </TouchableOpacity>
           </View>

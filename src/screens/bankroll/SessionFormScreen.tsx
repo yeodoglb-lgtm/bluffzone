@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
+import { showAlert } from '../../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { useForm, Controller } from 'react-hook-form';
@@ -143,7 +143,7 @@ export default function SessionFormScreen({ route, navigation }: Props) {
       }
       navigation.goBack();
     } catch (e: any) {
-      Alert.alert('오류', e?.message ?? JSON.stringify(e) ?? '저장 중 오류가 발생했습니다.');
+      showAlert('오류', e?.message ?? JSON.stringify(e) ?? '저장 중 오류가 발생했습니다.');
     }
   }
 

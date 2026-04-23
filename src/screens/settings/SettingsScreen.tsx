@@ -7,14 +7,13 @@ import {
   TouchableOpacity,
   Switch,
   TextInput,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { showConfirm, showAlert } from '../../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useAuthStore } from '../../store/authStore';
-import { Platform } from 'react-native';
 import { signOut, updateProfile } from '../../services/auth';
 import { AI_MODELS, CURRENCIES, STT_ENGINES } from '../../constants/poker';
 import type { AiModel, Currency, SttEngine } from '../../constants/poker';
@@ -93,7 +92,7 @@ export default function SettingsScreen() {
 
   async function handleSaveName() {
     const trimmed = nameInput.trim();
-    if (!trimmed) { Alert.alert('오류', '닉네임을 입력해주세요.'); return; }
+    if (!trimmed) { showAlert('오류', '닉네임을 입력해주세요.'); return; }
     if (!profile?.id) return;
     setSavingName(true);
     try {
@@ -101,33 +100,24 @@ export default function SettingsScreen() {
       if (updated) setProfile(updated);
       setEditingName(false);
     } catch {
-      Alert.alert('오류', '닉네임 저장에 실패했습니다.');
+      showAlert('오류', '닉네임 저장에 실패했습니다.');
     } finally {
       setSavingName(false);
     }
   }
 
   async function handleSignOut() {
-    // 웹에서는 Alert.alert 동작 불안정 → window.confirm 사용
-    if (Platform.OS === 'web') {
-      if (!window.confirm('로그아웃하시겠습니까?')) return;
-      setSigningOut(true);
-      try { await signOut(); } catch (e) { console.error(e); }
-      finally { reset(); setSigningOut(false); }
-      return;
-    }
-    Alert.alert('로그아웃', '정말 로그아웃하시겠습니까?', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '로그아웃',
-        style: 'destructive',
-        onPress: async () => {
-          setSigningOut(true);
-          try { await signOut(); } catch (e) { console.error(e); }
-          finally { reset(); setSigningOut(false); }
-        },
+    showConfirm({
+      title: '로그아웃',
+      message: '정말 로그아웃하시겠습니까?',
+      confirmText: '로그아웃',
+      destructive: true,
+      onConfirm: async () => {
+        setSigningOut(true);
+        try { await signOut(); } catch (e) { console.error(e); }
+        finally { reset(); setSigningOut(false); }
       },
-    ]);
+    });
   }
 
   return (
