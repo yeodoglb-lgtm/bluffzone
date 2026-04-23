@@ -334,10 +334,13 @@ export default function HandEditorScreen({ navigation, route }: Props) {
                   !isLast && styles.streetSeparator,
                 ]}
               >
-                <View style={[styles.streetTitleRow, { borderLeftColor: sColor }]}>
-                  <Text style={[styles.streetTitle, { color: sColor }]}>
-                    {STREET_LABEL[street] ?? street.toUpperCase()}
-                  </Text>
+                <View style={styles.streetTitleRow}>
+                  <View style={[styles.streetTitleBar, { backgroundColor: sColor }]} />
+                  <View style={styles.streetTitlePill}>
+                    <Text style={[styles.streetTitle, { color: sColor }]}>
+                      {STREET_LABEL[street] ?? street.toUpperCase()}
+                    </Text>
+                  </View>
                 </View>
                 {actions.map((a, idx) => {
                   if (a.street !== street) return null;
@@ -761,11 +764,23 @@ const styles = StyleSheet.create({
     marginBottom: spacing.base,
   },
   streetTitleRow: {
-    borderLeftWidth: 3,
-    paddingLeft: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  streetTitle: { fontSize: fontSize.base, fontWeight: fontWeight.bold, letterSpacing: 0.3 },
+  streetTitleBar: {
+    width: 3,
+    height: 18,
+    marginRight: spacing.sm,
+    borderRadius: 2,
+  },
+  streetTitlePill: {
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+  },
+  streetTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, letterSpacing: 0.3 },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' },
   actorChip: { paddingHorizontal: spacing.sm, paddingVertical: 4, backgroundColor: colors.surface, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary },
   actorText: { fontSize: fontSize.xs, color: colors.primary, fontWeight: fontWeight.medium },

@@ -616,10 +616,13 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                       },
                     ]}
                   >
-                    <View style={{ borderLeftWidth: 3, borderLeftColor: sColor, paddingLeft: spacing.sm, marginBottom: 6 }}>
-                      <Text style={[styles.streetLabel, { color: sColor, fontSize: fontSize.base }]}>
-                        {STREET_LABEL[street] ?? street.toUpperCase()}
-                      </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                      <View style={{ width: 3, height: 18, backgroundColor: sColor, marginRight: spacing.sm, borderRadius: 2 }} />
+                      <View style={{ backgroundColor: colors.surfaceAlt, paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.sm }}>
+                        <Text style={[styles.streetLabel, { color: sColor, fontSize: fontSize.sm }]}>
+                          {STREET_LABEL[street] ?? street.toUpperCase()}
+                        </Text>
+                      </View>
                     </View>
                     {streetActions.map((a, i) => (
                     <View key={i} style={styles.actionLine}>
