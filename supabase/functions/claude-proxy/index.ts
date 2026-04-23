@@ -373,49 +373,103 @@ serve(async (req) => {
       };
       const fmtCards = (arr: any): string =>
         Array.isArray(arr) && arr.length ? arr.map(fmtCard).join(' ') : '(없음)';
-      const fmtActions = (arr: any): string =>
-        Array.isArray(arr) && arr.length
-          ? arr
-              .map(
-                (a: any) =>
-                  `${a.street}:${a.actor} ${a.action}${a.amount != null ? ' ' + a.amount : ''}`
-              )
-              .join(' / ')
-          : '(없음)';
 
-      const position = `${hand?.hero_position ?? '?'} vs ${hand?.villain_position ?? '?'}`;
+      // 스트리트별 액션 그룹화 + 보드 상태 포함
+      const streetOrder = ['preflop', 'flop', 'turn', 'river'];
+      const actionsByStreet: Record<string, any[]> = {
+        preflop: [], flop: [], turn: [], river: [],
+      };
+      if (Array.isArray(hand?.actions)) {
+        for (const a of hand.actions) {
+          const s = (a?.street ?? '').toString().toLowerCase();
+          if (actionsByStreet[s]) actionsByStreet[s].push(a);
+        }
+      }
+      const boardArr: any[] = Array.isArray(hand?.board) ? hand.board : [];
+      const boardAt: Record<string, string> = {
+        preflop: '(없음)',
+        flop: fmtCards(boardArr.slice(0, 3)),
+        turn: fmtCards(boardArr.slice(0, 4)),
+        river: fmtCards(boardArr.slice(0, 5)),
+      };
+
+      const streetsBlock = streetOrder
+        .map((s) => {
+          const acts = actionsByStreet[s];
+          if (acts.length === 0) return `  · ${s.toUpperCase()}: (액션 없음 / 진행되지 않음)`;
+          const line = acts
+            .map(
+              (a: any) =>
+                `${a.actor === 'hero' ? '히어로' : '빌런'} ${a.action}${a.amount != null ? ' ' + a.amount : ''}`
+            )
+            .join(' → ');
+          return `  · ${s.toUpperCase()} [보드 ${boardAt[s]}]: ${line}`;
+        })
+        .join('\n');
+
+      const position = `${hand?.hero_position ?? '?'} (히어로) vs ${hand?.villain_position ?? '?'} (빌런)`;
       const handCards = fmtCards(hand?.hero_cards);
+      const villainCards =
+        hand?.villain_known && Array.isArray(hand?.villain_cards)
+          ? fmtCards(hand.villain_cards)
+          : '(비공개)';
       const boardCards = fmtCards(hand?.board);
-      const actionsText = fmtActions(hand?.actions);
+      const stakes = hand?.stakes ?? '(미기재)';
+      const gameType = hand?.game_type ?? 'NLH';
+      const potSize = hand?.pot_size != null ? `${hand.pot_size}` : '(미기재)';
+      const heroResult =
+        hand?.result
+          ? `${hand.result}${hand?.hero_pl != null ? ` (${hand.hero_pl >= 0 ? '+' : ''}${hand.hero_pl})` : ''}`
+          : '(미기재)';
 
-      const systemPrompt = `너는 포커 전략 코치다.
+      const systemPrompt = `너는 프로 캐시게임 홀덤 코치다.
 
-주어진 상황을 분석하고 반드시 JSON 형식으로만 답해라.
-설명, 문장, 마크다운 절대 추가하지 마라.
+하나의 액션만 추천하지 말고, 프리플랍/플랍/턴/리버 각 스트리트를 개별 분석해라.
+각 스트리트마다:
+- 추천 액션 (베팅·체크·콜·레이즈·폴드·올인 중 하나를 한국어로)
+- 빈도 (%, 0~100 정수) ← 그 액션을 얼마나 자주 섞어야 하는지
+- 이유 (구체적으로)
+
+절대 "압박을 주세요" / "약한 핸드 가능" 같은 일반론만 쓰지 마라.
+반드시 아래를 근거로 설명해라:
+- 보드 텍스처 (드라이 / 웻 / 페어드 / 모노톤 등)
+- 포지션 기반 레인지 우위 (IP/OOP, 프리플랍 어그레서 여부)
+- 밸류 vs 블러프 빈도 구분
+- 벳 사이징이 상대에게 주는 정보
+
+진행되지 않은 스트리트(예: 플랍에서 폴드로 종료)는 해당 객체를 생략하거나 비워라 (null 가능).
+
+반드시 아래 JSON 스키마로만 응답하고, 마크다운·설명·여는말 없이 순수 JSON만 출력해라.
 
 [출력 형식]
 {
-  "recommended_action": "베팅 또는 체크",
-  "recommended_frequency": 0-100 사이 정수,
-  "secondary_action": "베팅 또는 체크",
-  "secondary_frequency": 0-100 사이 정수,
-  "summary": ["문장1", "문장2", "문장3"],
-  "mistake": "한 문장",
-  "tip": "한 문장"
+  "streets": {
+    "preflop": { "action": "", "frequency": number, "comment": "" },
+    "flop":    { "action": "", "frequency": number, "comment": "" } | null,
+    "turn":    { "action": "", "frequency": number, "comment": "" } | null,
+    "river":   { "action": "", "frequency": number, "comment": "" } | null
+  },
+  "mistake": "한 문장 — 히어로가 저지른 가장 큰 실수, 없으면 빈 문자열",
+  "tip":     "한 문장 — 다음에 바로 써먹을 실전 팁"
 }
 
 [규칙]
-- 반드시 JSON만 출력 (다른 텍스트 금지)
-- recommended_frequency + secondary_frequency = 100
-- summary는 정확히 3개 문장
-- 모든 문장은 짧고 명확하게 작성
-- 한국어로 작성`;
+- 반드시 JSON만 출력
+- frequency는 0~100 정수
+- comment는 근거 중심으로 짧고 명확하게 (40자 내외)
+- 모든 텍스트는 한국어`;
 
-      const userPrompt = `[상황]
+      const userPrompt = `[기본 정보]
+- 게임: ${gameType} / 스테이크: ${stakes}
 - 포지션: ${position}
-- 핸드: ${handCards}
-- 보드: ${boardCards}
-- 액션: ${actionsText}`;
+- 히어로 핸드: ${handCards}
+- 빌런 핸드: ${villainCards}
+- 최종 보드: ${boardCards}
+- 팟 사이즈: ${potSize}
+- 결과: ${heroResult}
+
+[스트리트별 진행]
+${streetsBlock}`;
 
       // ── GPT 호출 헬퍼 (재시도 + JSON 파싱 fallback 포함) ─────────────────
       async function callGpt(): Promise<{
@@ -481,17 +535,14 @@ serve(async (req) => {
         await recordUsage(supabase, user.id, 'hand-review', 'gpt-4o-mini', totalInput, totalOutput);
 
         const fallback = {
-          recommended_action: '체크',
-          recommended_frequency: 50,
-          secondary_action: '베팅',
-          secondary_frequency: 50,
-          summary: [
-            '분석 결과를 가져오는 중 오류가 발생했습니다.',
-            '잠시 후 다시 시도해주세요.',
-            '문제가 반복되면 핸드 정보를 확인해주세요.',
-          ],
-          mistake: '일시적인 오류로 정확한 분석을 제공하지 못했습니다.',
-          tip: '다시 분석을 요청해주세요.',
+          streets: {
+            preflop: { action: '분석 실패', frequency: 0, comment: '일시적 오류로 분석하지 못했습니다.' },
+            flop: null,
+            turn: null,
+            river: null,
+          },
+          mistake: '',
+          tip: '잠시 후 "다시 분석" 버튼을 눌러주세요.',
           _fallback: true,
         };
         // fallback은 캐시에 저장하지 않음 (다음에 다시 시도할 수 있도록)

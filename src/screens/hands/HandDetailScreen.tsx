@@ -657,49 +657,36 @@ export default function HandDetailScreen({ navigation, route }: Props) {
           {/* 리뷰 완료 */}
           {hand.review_status === 'done' && hand.review && (() => {
             const r = hand.review as any;
-            const recFreq = Number(r.recommended_frequency) || 0;
-            const secFreq = Number(r.secondary_frequency) || 0;
+            const streetLabels: Record<string, string> = {
+              preflop: '프리플랍', flop: '플랍', turn: '턴', river: '리버',
+            };
+            const streetOrder = ['preflop', 'flop', 'turn', 'river'];
+            const streets = r.streets ?? {};
             return (
               <View style={styles.reviewResult}>
-                {/* 추천 액션 (메인) */}
-                {r.recommended_action && (
-                  <View style={styles.reviewActionRow}>
-                    <View style={styles.reviewActionBadgeMain}>
-                      <Text style={styles.reviewActionBadgeText}>추천</Text>
-                    </View>
-                    <Text style={styles.reviewActionName}>{r.recommended_action}</Text>
-                    <Text style={styles.reviewActionFreq}>{recFreq}%</Text>
-                  </View>
-                )}
-                {/* 비율 막대 */}
-                {(recFreq > 0 || secFreq > 0) && (
-                  <View style={styles.reviewFreqBar}>
-                    <View style={[styles.reviewFreqBarMain, { flex: Math.max(recFreq, 1) }]} />
-                    <View style={[styles.reviewFreqBarSub, { flex: Math.max(secFreq, 1) }]} />
-                  </View>
-                )}
-                {/* 서브 액션 */}
-                {r.secondary_action && (
-                  <View style={styles.reviewActionRow}>
-                    <View style={styles.reviewActionBadgeSub}>
-                      <Text style={styles.reviewActionBadgeTextSub}>대안</Text>
-                    </View>
-                    <Text style={styles.reviewActionNameSub}>{r.secondary_action}</Text>
-                    <Text style={styles.reviewActionFreqSub}>{secFreq}%</Text>
-                  </View>
-                )}
-
-                {/* 요약 3줄 */}
-                {Array.isArray(r.summary) && r.summary.length > 0 && (
-                  <View style={styles.reviewSummary}>
-                    {r.summary.map((line: string, i: number) => (
-                      <View key={i} style={styles.reviewSummaryRow}>
-                        <Text style={styles.reviewSummaryBullet}>•</Text>
-                        <Text style={styles.reviewSummaryText}>{line}</Text>
+                {/* 스트리트별 카드 */}
+                {streetOrder.map((s) => {
+                  const st = streets[s];
+                  if (!st || !st.action) return null;
+                  const freq = Number(st.frequency) || 0;
+                  return (
+                    <View key={s} style={styles.streetCard}>
+                      <View style={styles.streetCardHeader}>
+                        <Text style={styles.streetCardLabel}>{streetLabels[s]}</Text>
+                        <View style={styles.streetCardActionWrap}>
+                          <Text style={styles.streetCardAction}>{st.action}</Text>
+                          <Text style={styles.streetCardFreq}>{freq}%</Text>
+                        </View>
                       </View>
-                    ))}
-                  </View>
-                )}
+                      <View style={styles.streetCardBar}>
+                        <View style={[styles.streetCardBarFill, { width: `${Math.max(0, Math.min(100, freq))}%` }]} />
+                      </View>
+                      {st.comment ? (
+                        <Text style={styles.streetCardComment}>{st.comment}</Text>
+                      ) : null}
+                    </View>
+                  );
+                })}
 
                 {/* 실수 */}
                 {r.mistake && (
@@ -918,6 +905,24 @@ const styles = StyleSheet.create({
   reviewPending: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 8 },
   reviewPendingText: { fontSize: fontSize.sm, color: colors.textMuted },
   reviewResult: { gap: spacing.sm, marginTop: 4 },
+  streetCard: {
+    backgroundColor: `${colors.primary}0D`,
+    borderRadius: radius.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    padding: spacing.sm,
+    gap: 6,
+  },
+  streetCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  streetCardLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.bold, letterSpacing: 0.5 },
+  streetCardActionWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  streetCardAction: { fontSize: fontSize.base, color: colors.text, fontWeight: fontWeight.bold },
+  streetCardFreq: { fontSize: fontSize.sm, color: colors.primary, fontWeight: fontWeight.bold },
+  streetCardBar: {
+    height: 4, borderRadius: 2, backgroundColor: `${colors.textMuted}22`, overflow: 'hidden',
+  },
+  streetCardBarFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 2 },
+  streetCardComment: { fontSize: fontSize.sm, color: colors.text, lineHeight: 20 },
   reviewActionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   reviewActionBadgeMain: {
     backgroundColor: colors.primary, borderRadius: radius.sm,

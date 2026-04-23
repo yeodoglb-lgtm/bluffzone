@@ -35,15 +35,23 @@ export interface SessionWithProfit extends Session {
   net_profit: number;
 }
 
+export interface StreetReview {
+  action: string;
+  frequency: number;
+  comment: string;
+}
+
 export interface HandReview {
-  recommended_action: string;
-  recommended_frequency: number;
-  secondary_action: string;
-  secondary_frequency: number;
-  summary: string[];
+  streets: {
+    preflop?: StreetReview | null;
+    flop?: StreetReview | null;
+    turn?: StreetReview | null;
+    river?: StreetReview | null;
+  };
   mistake: string;
   tip: string;
   _cached?: boolean;
+  _fallback?: boolean;
 }
 
 export interface Hand {
