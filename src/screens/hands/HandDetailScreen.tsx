@@ -107,14 +107,14 @@ function CardBadge({ card }: { card: Card }) {
 
 // ── 테이블 레이아웃 (360×355, 에디터와 동일) ────────────────────────────────
 const SEAT_DEFS: { pos: Position9Max; cx: number; cy: number; dir: 'up' | 'down' }[] = [
-  { pos: 'BTN',   cx: 180, cy: 272, dir: 'down' },
-  { pos: 'CO',    cx: 285, cy: 268, dir: 'down' },
-  { pos: 'HJ',    cx: 330, cy: 188, dir: 'up'   },
-  { pos: 'MP',    cx: 285, cy:  95, dir: 'up'   },
-  { pos: 'UTG+1', cx: 180, cy:  80, dir: 'up'   },
-  { pos: 'UTG',   cx:  75, cy:  95, dir: 'up'   },
-  { pos: 'BB',    cx:  32, cy: 175, dir: 'down' },
-  { pos: 'SB',    cx:  75, cy: 268, dir: 'down' },
+  { pos: 'BTN',   cx: 195, cy: 272, dir: 'down' },
+  { pos: 'CO',    cx: 300, cy: 268, dir: 'down' },
+  { pos: 'HJ',    cx: 345, cy: 188, dir: 'up'   },
+  { pos: 'MP',    cx: 300, cy:  95, dir: 'up'   },
+  { pos: 'UTG+1', cx: 195, cy:  80, dir: 'up'   },
+  { pos: 'UTG',   cx:  90, cy:  95, dir: 'up'   },
+  { pos: 'BB',    cx:  47, cy: 175, dir: 'down' },
+  { pos: 'SB',    cx:  90, cy: 268, dir: 'down' },
 ];
 
 // ── 미니 카드 컴포넌트 ────────────────────────────────────────────────────────
@@ -723,10 +723,10 @@ function Row({ label, value, valueColor }: { label: string; value: string; value
 // ── 테이블 뷰 스타일 (360×355, 에디터와 동일) ───────────────────────────────
 const tv = StyleSheet.create({
   tableContainer: { width: 360, height: 355, position: 'relative' },
-  tableOval: { position: 'absolute', left: 60, top: 100, width: 240, height: 150, borderRadius: 999, backgroundColor: '#1a5c2e', borderWidth: 3, borderColor: '#2d8c4a' },
-  boardArea: { position: 'absolute', left: 100, top: 158, width: 160, height: 44, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', zIndex: 10, overflow: 'visible' },
+  tableOval: { position: 'absolute', left: 75, top: 100, width: 240, height: 150, borderRadius: 999, backgroundColor: '#1a5c2e', borderWidth: 3, borderColor: '#2d8c4a' },
+  boardArea: { position: 'absolute', left: 115, top: 158, width: 160, height: 44, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', zIndex: 10, overflow: 'visible' },
   boardEmpty: { fontSize: 9, color: 'rgba(255,255,255,0.4)' },
-  dealerChip: { position: 'absolute', left: 222, top: 222, width: 24, height: 24, borderRadius: 12, backgroundColor: '#888', alignItems: 'center', justifyContent: 'center', zIndex: 5 },
+  dealerChip: { position: 'absolute', left: 237, top: 222, width: 24, height: 24, borderRadius: 12, backgroundColor: '#888', alignItems: 'center', justifyContent: 'center', zIndex: 5 },
   dealerText: { fontSize: 9, color: '#fff', fontWeight: fontWeight.bold },
   // 에디터와 동일한 group-based 레이아웃
   seatGroup: { position: 'absolute' },

@@ -35,14 +35,14 @@ const EDITOR_GAME_TYPES: { label: string; value: GameType }[] = [
 // 그룹 크기: 56×90. dir=up → 카드(top=0)→뱃지(40)→칩(66). dir=down → 칩(0)→뱃지(26)→카드(52)
 // 인접 좌석 간 x 겹침이 있을 경우 y간격 ≥90 보장
 const SEAT_DEFS: { pos: Position9Max; cx: number; cy: number; dir: 'up' | 'down' }[] = [
-  { pos: 'BTN',   cx: 180, cy: 272, dir: 'down' },
-  { pos: 'CO',    cx: 285, cy: 268, dir: 'down' },
-  { pos: 'HJ',    cx: 330, cy: 188, dir: 'up'   },
-  { pos: 'MP',    cx: 285, cy:  95, dir: 'up'   },
-  { pos: 'UTG+1', cx: 180, cy:  80, dir: 'up'   },
-  { pos: 'UTG',   cx:  75, cy:  95, dir: 'up'   },
-  { pos: 'BB',    cx:  32, cy: 175, dir: 'down' },
-  { pos: 'SB',    cx:  75, cy: 268, dir: 'down' },
+  { pos: 'BTN',   cx: 195, cy: 272, dir: 'down' },
+  { pos: 'CO',    cx: 300, cy: 268, dir: 'down' },
+  { pos: 'HJ',    cx: 345, cy: 188, dir: 'up'   },
+  { pos: 'MP',    cx: 300, cy:  95, dir: 'up'   },
+  { pos: 'UTG+1', cx: 195, cy:  80, dir: 'up'   },
+  { pos: 'UTG',   cx:  90, cy:  95, dir: 'up'   },
+  { pos: 'BB',    cx:  47, cy: 175, dir: 'down' },
+  { pos: 'SB',    cx:  90, cy: 268, dir: 'down' },
 ];
 
 // ── 타입 ──────────────────────────────────────────────────────────────────────
@@ -712,9 +712,9 @@ const ts = StyleSheet.create({
   hint: { fontSize: fontSize.xs, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.sm },
   tableWrap: { alignItems: 'center', marginBottom: spacing.sm },
   tableContainer: { width: 360, height: 355, position: 'relative' },
-  tableOval: { position: 'absolute', left: 60, top: 100, width: 240, height: 150, borderRadius: 999, backgroundColor: '#1a5c2e', borderWidth: 3, borderColor: '#2d8c4a' },
+  tableOval: { position: 'absolute', left: 75, top: 100, width: 240, height: 150, borderRadius: 999, backgroundColor: '#1a5c2e', borderWidth: 3, borderColor: '#2d8c4a' },
   boardArea: {
-    position: 'absolute', left: 100, top: 158, width: 160, height: 44,
+    position: 'absolute', left: 115, top: 158, width: 160, height: 44,
     borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
@@ -722,7 +722,7 @@ const ts = StyleSheet.create({
   },
   boardAreaActive: { borderColor: '#fff', borderWidth: 2 },
   boardHint: { fontSize: 9, color: 'rgba(255,255,255,0.5)' },
-  dealerChip: { position: 'absolute', left: 222, top: 222, width: 24, height: 24, borderRadius: 12, backgroundColor: '#888', alignItems: 'center', justifyContent: 'center', zIndex: 5 },
+  dealerChip: { position: 'absolute', left: 237, top: 222, width: 24, height: 24, borderRadius: 12, backgroundColor: '#888', alignItems: 'center', justifyContent: 'center', zIndex: 5 },
   dealerText: { fontSize: 9, color: '#fff', fontWeight: fontWeight.bold },
   // 각 시트 그룹: 독립 TouchableOpacity (올바른 위치와 크기만 커버)
   seatGroup: { position: 'absolute' },
