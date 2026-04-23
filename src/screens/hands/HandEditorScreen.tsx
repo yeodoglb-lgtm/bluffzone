@@ -775,7 +775,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   streetTitlePill: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: '#374151',
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radius.sm,
@@ -795,14 +795,14 @@ const styles = StyleSheet.create({
   addActionBtn: {
     paddingVertical: 8,
     paddingHorizontal: spacing.sm,
-    backgroundColor: '#374151', // 진한 회색
+    backgroundColor: 'rgba(55, 65, 81, 0.35)', // 진한 회색 (투명)
     borderRadius: radius.sm,
     alignItems: 'center',
     marginTop: 4,
     borderWidth: 1,
-    borderColor: '#4b5563',
+    borderColor: 'rgba(75, 85, 99, 0.5)',
   },
-  addActionText: { fontSize: fontSize.xs, color: '#e5e7eb', fontWeight: fontWeight.medium },
+  addActionText: { fontSize: fontSize.xs, color: 'rgba(229, 231, 235, 0.75)', fontWeight: fontWeight.medium },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
   autoBtn: { paddingHorizontal: 8, paddingVertical: 2, backgroundColor: colors.primary, borderRadius: 8 },
   autoBtnText: { fontSize: fontSize.xs, color: colors.text, fontWeight: fontWeight.medium },
