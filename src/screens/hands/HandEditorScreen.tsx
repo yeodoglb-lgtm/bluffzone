@@ -16,7 +16,7 @@ import type { StackScreenProps } from '@react-navigation/stack';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import type { HandsStackParamList } from '../../navigation/types';
 import { RANKS, SUITS, STREETS, ACTIONS, RESULT_TYPES, SUIT_COLORS, SUIT_SYMBOLS } from '../../constants/poker';
-import type { Card, HandAction, GameType, Position9Max, ResultType, Street, Action } from '../../constants/poker';
+import type { Card, HandAction, GameType, Position9Max, ResultType, Action } from '../../constants/poker';
 import { useHand, useCreateHand, useUpdateHand } from '../../hooks/useHands';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -125,15 +125,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Label({ text }: { text: string }) {
   return <Text style={styles.label}>{text}</Text>;
 }
-function CardBadge({ card, onRemove }: { card: Card; onRemove?: () => void }) {
-  const inner = (
-    <View style={styles.cardBadge}>
-      <Text style={[styles.cardBadgeText, { color: SUIT_COLORS[card.suit] }]}>{card.rank}{SUIT_SYMBOLS[card.suit]}</Text>
-      {onRemove && <Text style={styles.cardRemoveX}>×</Text>}
-    </View>
-  );
-  return onRemove ? <TouchableOpacity onPress={onRemove} activeOpacity={0.7}>{inner}</TouchableOpacity> : inner;
-}
 function ActionRow({ action, villainNames, activeVillainCount, onChange, onRemove, amountUnit }: {
   action: HandAction; villainNames: [string, string, string]; activeVillainCount: number;
   onChange: (p: Partial<HandAction>) => void; onRemove: () => void; amountUnit: number;
@@ -200,6 +191,11 @@ export default function HandEditorScreen({ navigation, route }: Props) {
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // ── 알파고 리뷰용 선택 입력 ─────────────────────────────────────────────
+  const [preflopAggressor, setPreflopAggressor] = useState<'hero' | 'villain' | null>(null);
+  const [effectiveStack, setEffectiveStack] = useState('');
+  const [villainType, setVillainType] = useState<string>('');
+
   // ── 팟 자동계산: bet/raise/call/allin 합산 ─────────────────────────────────
   const autoPot = useMemo(() =>
     actions
@@ -224,6 +220,9 @@ export default function HandEditorScreen({ navigation, route }: Props) {
     // 기존 핸드 로드 시 amountUnit으로 나눠서 표시
     setPotSize(existingHand.pot_size != null ? String(Math.round(existingHand.pot_size / amountUnit)) : '');
     setHeroPl(existingHand.hero_pl != null ? String(Math.round(existingHand.hero_pl / amountUnit)) : '');
+    setPreflopAggressor((existingHand as any).preflop_aggressor ?? null);
+    setEffectiveStack((existingHand as any).effective_stack != null ? String(Math.round((existingHand as any).effective_stack / amountUnit)) : '');
+    setVillainType((existingHand as any).villain_type ?? '');
     setNote(existingHand.note ?? '');
     setIsAutoPot(false); // 기존 팟 값 유지 (자동 덮어쓰기 방지)
     const vd = (existingHand as any).villain_data;
@@ -257,6 +256,9 @@ export default function HandEditorScreen({ navigation, route }: Props) {
         actions, result,
         pot_size: potSize ? Math.round(Number(potSize) * amountUnit) : null,
         hero_pl: heroPl ? Math.round(Number(heroPl) * amountUnit) : null,
+        preflop_aggressor: preflopAggressor,
+        effective_stack: effectiveStack ? Math.round(Number(effectiveStack) * amountUnit) : null,
+        villain_type: villainType.trim() || null,
         note: note.trim() || null, raw_voice_text: null,
         review_status: 'none' as const, review: null, reviewed_at: null, review_model: null, share_id: null, is_public: false,
       };
@@ -367,6 +369,46 @@ export default function HandEditorScreen({ navigation, route }: Props) {
             keyboardType="numeric"
             value={heroPl}
             onChangeText={setHeroPl}
+          />
+        </Section>
+
+        <Section title="알파고 리뷰 추가 정보 (선택)">
+          <Text style={styles.helpText}>
+            ℹ️ 홀덤 알파고의 분석 정확도를 높여주는 정보입니다. 입력하지 않아도 분석은 가능합니다.
+          </Text>
+
+          <Label text="프리플랍 어그레서 (마지막 3-bet/오픈 레이저)" />
+          <Text style={styles.helpSub}>프리플랍에서 마지막으로 공격적 액션(레이즈)을 한 쪽. 레인지 우위 판정에 사용됩니다.</Text>
+          <View style={styles.chipRow}>
+            <Chip label="나 (히어로)" selected={preflopAggressor === 'hero'} onPress={() => setPreflopAggressor(p => p === 'hero' ? null : 'hero')} />
+            <Chip label="빌런" selected={preflopAggressor === 'villain'} onPress={() => setPreflopAggressor(p => p === 'villain' ? null : 'villain')} />
+            <Chip label="모름/없음" selected={preflopAggressor === null} onPress={() => setPreflopAggressor(null)} color={colors.textMuted} />
+          </View>
+
+          <Label text={`유효 스택${amountUnit === 10000 ? ' (만원)' : ''}`} />
+          <Text style={styles.helpSub}>히어로·빌런 중 더 적은 쪽의 시작 스택. SPR 계산으로 스택 투입 기준을 잡습니다.</Text>
+          <TextInput
+            style={styles.input}
+            placeholder={amountUnit === 10000 ? '예: 100 (=100만원)' : '예: 1000000'}
+            placeholderTextColor={colors.textMuted}
+            keyboardType="numeric"
+            value={effectiveStack}
+            onChangeText={setEffectiveStack}
+          />
+
+          <Label text="빌런 성향 (선택)" />
+          <Text style={styles.helpSub}>예: "타이트-패시브", "루즈-어그레시브", "피쉬(초보)". 익스플로잇 분석에 사용됩니다.</Text>
+          <View style={styles.chipRow}>
+            {['타이트-패시브(TP)', '타이트-어그레시브(TAG)', '루즈-패시브(LP)', '루즈-어그레시브(LAG)', '피쉬'].map(t => (
+              <Chip key={t} label={t} selected={villainType === t} onPress={() => setVillainType(v => v === t ? '' : t)} />
+            ))}
+          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="또는 직접 입력 (예: 블러프 많음, 패시브 콜러)"
+            placeholderTextColor={colors.textMuted}
+            value={villainType}
+            onChangeText={setVillainType}
           />
         </Section>
 
@@ -695,6 +737,8 @@ const styles = StyleSheet.create({
   autoBtn: { paddingHorizontal: 8, paddingVertical: 2, backgroundColor: colors.primary, borderRadius: 8 },
   autoBtnText: { fontSize: fontSize.xs, color: colors.text, fontWeight: fontWeight.medium },
   autoTag: { fontSize: fontSize.xs, color: colors.primary, fontStyle: 'italic' },
+  helpText: { fontSize: fontSize.xs, color: colors.primary, backgroundColor: 'rgba(99,102,241,0.08)', padding: spacing.sm, borderRadius: radius.sm, marginBottom: spacing.sm, lineHeight: 16 },
+  helpSub: { fontSize: 10, color: colors.textMuted, marginBottom: 6, fontStyle: 'italic', lineHeight: 14 },
   saveBtn: { backgroundColor: colors.primary, borderRadius: radius.button, paddingVertical: spacing.base, alignItems: 'center', marginTop: spacing.sm },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },

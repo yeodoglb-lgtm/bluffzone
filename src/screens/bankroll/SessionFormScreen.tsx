@@ -31,8 +31,6 @@ const SESSION_GAME_TYPES = [
   { label: '기타', value: 'Mixed' },
 ] as const;
 
-type SessionGameType = (typeof SESSION_GAME_TYPES)[number]['value'];
-
 const schema = z.object({
   played_on: z.string().min(1, '날짜를 입력하세요'),
   started_at: z.string().nullable(),
@@ -93,7 +91,8 @@ export default function SessionFormScreen({ route, navigation }: Props) {
         started_at: session.started_at,
         ended_at: session.ended_at,
         place_name_snapshot: session.place_name_snapshot,
-        game_type: session.game_type,
+        // Session 타입은 GameType(PLO5 포함)이지만 SessionForm은 4종만 — PLO5는 Mixed로 매핑
+        game_type: session.game_type === 'PLO5' ? 'Mixed' : (session.game_type as 'NLH' | 'PLO' | 'Tournament' | 'Mixed' | null),
         stakes: session.stakes,
         buy_in: session.buy_in / UNIT,
         cash_out: session.cash_out / UNIT,

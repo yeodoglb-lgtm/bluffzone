@@ -22,6 +22,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     detectSessionInUrl: false,
     storage,
     // 웹에서 Web Locks API 무한 대기 방지
-    ...(Platform.OS === 'web' ? { lock: (name: string, acquireTimeout: number, fn: () => Promise<any>) => fn() } : {}),
+    ...(Platform.OS === 'web' ? { lock: (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => fn() } : {}),
   },
 });

@@ -30,10 +30,6 @@ const RESULT_COLORS: Record<string, string> = {
 const RESULT_LABELS: Record<string, string> = {
   won: '이겼다', lost: '졌다', chopped: '반반', folded: '폴드',
 };
-const REVIEW_STATUS_LABELS: Record<string, string> = {
-  none: '없음', pending: '분석 중...', done: '완료', error: '오류',
-};
-
 // ── 리플레이 유틸 ─────────────────────────────────────────────────────────────
 function actionDisplayText(a: HandAction): string {
   const amt = a.amount != null ? ` ${a.amount.toLocaleString()}` : '';
@@ -393,8 +389,10 @@ export default function HandDetailScreen({ navigation, route }: Props) {
       );
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message ?? '리뷰 요청 실패');
+        const err = await res.json().catch(() => ({}));
+        const detail = err?.message ?? err?.error ?? `HTTP ${res.status}`;
+        console.error('[hand-review-gpt] failed:', res.status, err);
+        throw new Error(`리뷰 요청 실패: ${detail}`);
       }
 
       const review = await res.json();

@@ -71,6 +71,13 @@ export interface Hand {
   result: ResultType | null;
   pot_size: number | null;
   hero_pl: number | null;
+  // ── 알파고 리뷰용 선택 입력 ──────────────────────────────────────────────
+  // 프리플랍 어그레서: 'hero' | 'villain' | null (null = 모름/없음)
+  preflop_aggressor: 'hero' | 'villain' | null;
+  // 유효 스택 (원 단위, 히어로·빌런 중 작은 쪽)
+  effective_stack: number | null;
+  // 빌런 성향 — 자유 텍스트 (예: "타이트-패시브", "루즈-어그레시브/LAG")
+  villain_type: string | null;
   note: string | null;
   raw_voice_text: string | null;
   review_status: ReviewStatus;

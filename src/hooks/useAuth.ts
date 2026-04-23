@@ -43,11 +43,14 @@ export function useAuthInit() {
     }, 2000);
 
     // Supabase 프리 티어 슬립 대응: 가벼운 ping으로 DB 깨우기
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).limit(1).then(() => {}).catch(() => {});
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).limit(1).then(
+      () => {},
+      () => {}
+    );
 
     // onAuthStateChange만 사용 (getSession + onAuthStateChange 동시 호출 시 데드락 발생)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (_event, session) => {
         try {
           setSession(session);
           if (session?.user) {

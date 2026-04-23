@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   unitText: { fontSize: fontSize.sm, color: colors.textMuted },
   modelRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm,
-    borderRadius: radius.base, borderWidth: 1, borderColor: colors.line,
+    borderRadius: radius.input, borderWidth: 1, borderColor: colors.line,
   },
   modelRowActive: { borderColor: colors.primary, backgroundColor: `${colors.primary}11` },
   radio: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: colors.textMuted },

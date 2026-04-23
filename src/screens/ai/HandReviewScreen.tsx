@@ -45,75 +45,53 @@ const RESULT_LABELS: Record<string, string> = {
   folded: '폴드',
 };
 
-const SEVERITY_ICONS: Record<'high' | 'medium' | 'low', { symbol: string; color: string }> = {
-  high: { symbol: '!', color: colors.danger },
-  medium: { symbol: '△', color: colors.warning },
-  low: { symbol: '○', color: colors.textMuted },
+const STREET_LABELS: Record<string, string> = {
+  preflop: '프리플랍', flop: '플랍', turn: '턴', river: '리버',
 };
 
 function ReviewSection({ review }: { review: HandReview }) {
+  const order: Array<keyof HandReview['streets']> = ['preflop', 'flop', 'turn', 'river'];
   return (
     <View style={styles.reviewContainer}>
-      {/* 총평 */}
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryBorder} />
-        <View style={styles.summaryContent}>
-          <Text style={styles.sectionLabel}>총평</Text>
-          <Text style={styles.summaryText}>{review.summary}</Text>
-        </View>
-      </View>
-
-      {/* 실수 분석 */}
-      {review.mistakes.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>실수 분석</Text>
-          {review.mistakes.map((m, i) => {
-            const icon = SEVERITY_ICONS[m.severity];
-            return (
-              <View key={i} style={styles.mistakeRow}>
-                <View style={[styles.severityIcon, { borderColor: icon.color }]}>
-                  <Text style={[styles.severitySymbol, { color: icon.color }]}>{icon.symbol}</Text>
-                </View>
-                <View style={styles.mistakeContent}>
-                  <Text style={styles.mistakeStreet}>{m.street.toUpperCase()}</Text>
-                  <Text style={styles.mistakeNote}>{m.note}</Text>
-                </View>
-              </View>
-            );
-          })}
-        </View>
-      )}
-
-      {/* 추천 라인 */}
-      {review.recommended_line.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>추천 라인</Text>
-          {review.recommended_line.map((line, i) => (
-            <View key={i} style={styles.lineRow}>
+      {/* 스트리트별 추천 */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>홀덤 알파고 리뷰</Text>
+        {order.map((s) => {
+          const st = review.streets?.[s];
+          if (!st || !st.action) return null;
+          const freq = Number(st.frequency) || 0;
+          return (
+            <View key={s} style={styles.lineRow}>
               <View style={styles.streetChip}>
-                <Text style={styles.streetChipText}>{line.street.toUpperCase()}</Text>
+                <Text style={styles.streetChipText}>{STREET_LABELS[s] ?? s}</Text>
               </View>
               <View style={styles.lineContent}>
-                <Text style={styles.lineAction}>{line.action}</Text>
-                <Text style={styles.lineRationale}>{line.rationale}</Text>
+                <Text style={styles.lineAction}>{st.action} · {freq}%</Text>
+                {st.comment ? <Text style={styles.lineRationale}>{st.comment}</Text> : null}
               </View>
             </View>
-          ))}
-        </View>
-      )}
+          );
+        })}
+      </View>
 
-      {/* 코치 노트 */}
-      {review.coach_notes.length > 0 && (
+      {/* 실수 */}
+      {review.mistake ? (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>코치 노트</Text>
-          {review.coach_notes.map((note, i) => (
-            <View key={i} style={styles.coachNoteRow}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.coachNoteText}>{note}</Text>
-            </View>
-          ))}
+          <Text style={styles.cardTitle}>실수</Text>
+          <Text style={styles.summaryText}>{review.mistake}</Text>
         </View>
-      )}
+      ) : null}
+
+      {/* 팁 */}
+      {review.tip ? (
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryBorder} />
+          <View style={styles.summaryContent}>
+            <Text style={styles.sectionLabel}>💡 팁</Text>
+            <Text style={styles.summaryText}>{review.tip}</Text>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
