@@ -69,7 +69,7 @@ export default function AIChatScreen({ navigation }: Props) {
 
     try {
       let full = '';
-      for await (const chunk of streamChat(newMessages, 'claude-sonnet-4-6', SYSTEM_PROMPT)) {
+      for await (const chunk of streamChat(newMessages, 'gpt-4o-mini', SYSTEM_PROMPT)) {
         full += chunk;
         setStreamingText(full);
       }

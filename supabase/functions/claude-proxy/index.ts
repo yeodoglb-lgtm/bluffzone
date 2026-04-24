@@ -423,36 +423,50 @@ serve(async (req) => {
         }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      const { messages, model = 'claude-sonnet-4-6', systemPrompt } = body;
+      const { messages, model = 'gpt-4o-mini', systemPrompt } = body;
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      // OpenAI chat/completions 형식으로 변환 (role: system/user/assistant)
+      const openaiMessages = [
+        {
+          role: 'system',
+          content: systemPrompt ?? '당신은 블러프존AI입니다. 홀덤 전략, 핸드 분석, 뱅크롤 관리에 전문화된 포커 코치입니다. 한국어로 답변하세요.',
+        },
+        ...messages.map((m: { role: string; content: string }) => ({
+          role: m.role,
+          content: m.content,
+        })),
+      ];
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           'content-type': 'application/json',
         },
         body: JSON.stringify({
           model,
-          max_tokens: 4096,
+          max_tokens: 2048,
           stream: true,
-          system: systemPrompt ?? '당신은 블러프존AI입니다. 홀덤 전략, 핸드 분석, 뱅크롤 관리에 전문화된 포커 코치입니다. 한국어로 답변하세요.',
-          messages,
+          stream_options: { include_usage: true },
+          messages: openaiMessages,
         }),
       });
 
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error?.message ?? 'Anthropic API error');
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error?.message ?? `OpenAI API error: ${response.status}`);
       }
 
-      // SSE 스트림 중계
+      // OpenAI SSE → Anthropic 비슷한 포맷으로 재포장하여 중계
+      // 프론트는 `data: {delta: {text}}` 를 기대하므로 맞춰준다
       const stream = new TransformStream();
       const writer = stream.writable.getWriter();
       const encoder = new TextEncoder();
 
       (async () => {
         const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
         let inputTokens = 0;
         let outputTokens = 0;
 
@@ -460,16 +474,34 @@ serve(async (req) => {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            const chunk = new TextDecoder().decode(value);
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
 
-            // 토큰 카운트 추출
-            const usageMatch = chunk.match(/"input_tokens":(\d+),"output_tokens":(\d+)/);
-            if (usageMatch) {
-              inputTokens = parseInt(usageMatch[1]);
-              outputTokens = parseInt(usageMatch[2]);
+            for (const line of lines) {
+              if (!line.startsWith('data: ')) continue;
+              const data = line.slice(6).trim();
+              if (!data) continue;
+              if (data === '[DONE]') {
+                await writer.write(encoder.encode('data: [DONE]\n\n'));
+                continue;
+              }
+              try {
+                const parsed = JSON.parse(data);
+                // usage 이벤트 (마지막 청크)
+                if (parsed.usage) {
+                  inputTokens = parsed.usage.prompt_tokens ?? 0;
+                  outputTokens = parsed.usage.completion_tokens ?? 0;
+                }
+                const delta = parsed.choices?.[0]?.delta?.content;
+                if (delta) {
+                  const out = `data: ${JSON.stringify({ delta: { text: delta } })}\n\n`;
+                  await writer.write(encoder.encode(out));
+                }
+              } catch {
+                // 파싱 실패한 라인은 무시
+              }
             }
-
-            await writer.write(encoder.encode(chunk));
           }
         } finally {
           await writer.close();

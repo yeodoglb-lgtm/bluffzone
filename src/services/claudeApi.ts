@@ -62,7 +62,7 @@ export interface ChatMessage {
 
 export async function* streamChat(
   messages: ChatMessage[],
-  model: string = 'claude-sonnet-4-6',
+  model: string = 'gpt-4o-mini',
   systemPrompt?: string
 ): AsyncGenerator<string> {
   const authHeader = await getAuthHeader();
