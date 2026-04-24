@@ -101,7 +101,7 @@ export default function AIChatScreen({ navigation }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>블러프존 AI</Text>
+        <Text style={styles.headerTitle}>블러프존 홀덤 알파고</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -113,7 +113,7 @@ export default function AIChatScreen({ navigation }: Props) {
         {isEmpty ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyEmoji}>🤖</Text>
-            <Text style={styles.emptyTitle}>블러프존 AI 포커 코치</Text>
+            <Text style={styles.emptyTitle}>블러프존 홀덤 알파고</Text>
             <Text style={styles.emptyDesc}>핸드 분석, 전략, 멘탈 등 무엇이든 물어보세요</Text>
             <View style={styles.exampleChips}>
               {EXAMPLE_QUESTIONS.map((q, i) => (

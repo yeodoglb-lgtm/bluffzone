@@ -670,7 +670,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
 
         {/* 홀덤 알파고 리뷰 */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>홀덤 알파고 리뷰</Text>
+          <Text style={styles.cardTitle}>블러프존 홀덤 알파고 핸드리뷰</Text>
 
           {/* 리뷰 없음 → 요청 버튼 */}
           {(hand.review_status === 'none' || hand.review_status === 'error') && (
@@ -682,7 +682,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
             >
               {isReviewing
                 ? <><ActivityIndicator color={colors.text} size="small" /><Text style={[styles.reviewBtnText, { marginLeft: 8 }]}>분석 중...</Text></>
-                : <Text style={styles.reviewBtnText}>홀덤 알파고 리뷰 요청</Text>
+                : <Text style={styles.reviewBtnText}>리뷰 요청</Text>
               }
             </TouchableOpacity>
           )}

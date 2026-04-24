@@ -85,14 +85,17 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         ))}
 
-        {/* 홀덤 알파고 리뷰 버튼 */}
+        {/* 블러프존 홀덤 알파고 배너 */}
         <TouchableOpacity
           style={styles.aiBtn}
           onPress={() => navigation.navigate('AIChat', {})}
           activeOpacity={0.85}
         >
-          <Bot color={colors.bg} size={22} strokeWidth={2} />
-          <Text style={styles.aiBtnText}>홀덤 알파고 리뷰</Text>
+          <Bot color={colors.bg} size={24} strokeWidth={2} />
+          <View style={styles.aiBtnTextWrap}>
+            <Text style={styles.aiBtnText}>블러프존 홀덤 알파고</Text>
+            <Text style={styles.aiBtnSub}>포커 질문이든 핸드 분석이든, 무엇이든 물어보세요</Text>
+          </View>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -167,16 +170,25 @@ const styles = StyleSheet.create({
   aiBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: colors.primary,
     borderRadius: radius.button,
     paddingVertical: spacing.base,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.base,
+    gap: spacing.md,
     marginTop: spacing.sm,
+  },
+  aiBtnTextWrap: {
+    flex: 1,
+    gap: 2,
   },
   aiBtnText: {
     fontSize: fontSize.base,
     fontWeight: fontWeight.bold,
     color: colors.bg,
+  },
+  aiBtnSub: {
+    fontSize: fontSize.xs,
+    color: colors.bg,
+    opacity: 0.8,
   },
 });

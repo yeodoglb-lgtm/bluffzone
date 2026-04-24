@@ -86,7 +86,7 @@ function ReviewSection({ review }: { review: HandReview }) {
 
       {/* 스트리트별 추천 */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>홀덤 알파고 리뷰</Text>
+        <Text style={styles.cardTitle}>블러프존 홀덤 알파고 핸드리뷰</Text>
         {order.map((s) => {
           const st = review.streets?.[s];
           if (!st || !st.action) return null;
@@ -174,7 +174,7 @@ export default function HandReviewScreen({ navigation, route }: Props) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Text style={styles.backText}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>홀덤 알파고 리뷰</Text>
+          <Text style={styles.headerTitle}>블러프존 홀덤 알파고 핸드리뷰</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.center}>
@@ -201,7 +201,7 @@ export default function HandReviewScreen({ navigation, route }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>홀덤 알파고 리뷰</Text>
+        <Text style={styles.headerTitle}>블러프존 홀덤 알파고 핸드리뷰</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -287,7 +287,7 @@ export default function HandReviewScreen({ navigation, route }: Props) {
                 onPress={handleRequestReview}
                 activeOpacity={0.8}
               >
-                <Text style={styles.reviewRequestBtnText}>홀덤 알파고 리뷰 요청</Text>
+                <Text style={styles.reviewRequestBtnText}>리뷰 요청</Text>
               </TouchableOpacity>
             )}
           </View>
