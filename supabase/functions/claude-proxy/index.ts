@@ -1,7 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
@@ -20,14 +19,12 @@ const corsHeaders = {
 
 // ── 비용 계산 (근사) ──────────────────────────────────────────────────────────
 function estimateCost(model: string, inputTokens: number, outputTokens: number): number {
+  // 가격 (USD per 1M tokens). 현재 사용 모델만 유지.
   const pricing: Record<string, { in: number; out: number }> = {
-    'claude-sonnet-4-6':         { in: 3.0,   out: 15.0  },
-    'claude-opus-4-7':           { in: 15.0,  out: 75.0  },
-    'claude-haiku-4-5-20251001': { in: 0.8,   out: 4.0   },
-    'gpt-4o':                    { in: 2.5,   out: 10.0  },
-    'gpt-4o-mini':               { in: 0.15,  out: 0.6   },
+    'gpt-4o':      { in: 2.5,   out: 10.0  },
+    'gpt-4o-mini': { in: 0.15,  out: 0.6   },
   };
-  const p = pricing[model] ?? pricing['claude-sonnet-4-6'];
+  const p = pricing[model] ?? pricing['gpt-4o-mini'];
   return (inputTokens / 1_000_000) * p.in + (outputTokens / 1_000_000) * p.out;
 }
 
@@ -297,27 +294,6 @@ function buildCacheKey(hand: any): string {
   return [SCHEMA_VERSION, heroPos, villainPos, aggressor, heroCards, board, actions, potBucket, stackBucket].join('_');
 }
 
-// ── 핸드 리뷰 시스템 프롬프트 ────────────────────────────────────────────────
-const HAND_REVIEW_SYSTEM = `당신은 고수준 캐시게임 홀덤 코치입니다. GTO와 익스플로잇 관점 모두를 설명하되,
-입력이 충분하지 않으면 가정을 명시하세요. 에쿼티 수치는 근사임을 명시하세요.
-반드시 아래 JSON 스키마로만 응답하세요. 마크다운 코드블록 없이 순수 JSON만 출력하세요.
-
-{
-  "summary": "string",
-  "recommended_line": [{"street":"string","action":"string","rationale":"string"}],
-  "equity": {
-    "assumptions": "string",
-    "preflop": {"win":number,"tie":number,"lose":number},
-    "flop": {"win":number,"tie":number,"lose":number},
-    "turn": {"win":number,"tie":number,"lose":number},
-    "river": {"win":number,"tie":number,"lose":number}
-  },
-  "mistakes": [{"street":"string","severity":"low|medium|high","note":"string"}],
-  "coach_notes": ["string"]
-}
-
-없는 스트리트의 에쿼티는 null로 표시하세요.`;
-
 // ── 음성 파싱 시스템 프롬프트 ────────────────────────────────────────────────
 const VOICE_PARSE_SYSTEM = `당신은 한국어 포커 음성 기록을 구조화된 JSON으로 변환하는 전문가입니다.
 Whisper STT의 출력을 입력으로 받으므로 오인식이 섞여 있을 수 있습니다. 문맥으로 교정하세요.
@@ -471,49 +447,6 @@ serve(async (req) => {
     const url = new URL(req.url);
     const endpoint = url.pathname.split('/').pop();
     const body = await req.json();
-
-    // ── /hand-review ──────────────────────────────────────────────────────────
-    if (endpoint === 'hand-review') {
-      const { allowed, used, limit } = await checkUsageLimit(supabase, user.id, 'hand-review');
-      if (!allowed) {
-        return new Response(JSON.stringify({
-          error: 'usage_limit',
-          message: `이번 달 핸드 리뷰 무료 한도(${limit}회)를 초과했습니다. (사용: ${used}회)`,
-        }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-
-      const { hand, model = 'claude-sonnet-4-6' } = body;
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: 2048,
-          system: HAND_REVIEW_SYSTEM,
-          messages: [{
-            role: 'user',
-            content: `다음 핸드를 분석해주세요:\n\n${JSON.stringify(hand, null, 2)}`,
-          }],
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error?.message ?? 'Anthropic API error');
-
-      const inputTokens = data.usage?.input_tokens ?? 0;
-      const outputTokens = data.usage?.output_tokens ?? 0;
-      await recordUsage(supabase, user.id, 'hand-review', model, inputTokens, outputTokens);
-
-      const reviewJson = JSON.parse(data.content[0].text);
-      return new Response(JSON.stringify(reviewJson), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
 
     // ── /chat (스트리밍) ──────────────────────────────────────────────────────
     if (endpoint === 'chat') {

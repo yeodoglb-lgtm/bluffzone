@@ -21,8 +21,8 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>(set => ({
   currency: 'KRW',
   locale: 'ko',
-  aiModel: 'claude-sonnet-4-6',
-  sttEngine: 'device',
+  aiModel: 'gpt-4o-mini',
+  sttEngine: 'whisper',
   autoReview: false,
   monthlyGoal: null,
   lossProtect: true,

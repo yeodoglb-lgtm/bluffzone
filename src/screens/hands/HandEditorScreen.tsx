@@ -21,7 +21,7 @@ import { useHand, useCreateHand, useUpdateHand } from '../../hooks/useHands';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
-import { parseVoiceToHand } from '../../services/claudeApi';
+import { parseVoiceToHand } from '../../services/openaiApi';
 
 // ── 색상 ──────────────────────────────────────────────────────────────────────
 const HERO_COLOR = '#3b82f6';

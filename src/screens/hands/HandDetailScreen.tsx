@@ -401,7 +401,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
         data: {
           review_status: 'done',
           review,
-          review_model: 'gpt-4o-mini',
+          review_model: 'gpt-4o',
           reviewed_at: new Date().toISOString(),
         },
       });

@@ -39,7 +39,6 @@ export type RootStackParamList = {
   Auth: undefined;
   Main: NavigatorScreenParams<MainTabParamList>;
   AIChat: { chatId?: string };
-  HandReview: { handId: string };
 };
 
 // ── Screen Props helpers ───────────────────────────────────────────────────────

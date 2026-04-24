@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { ChatMessage } from './claudeApi';
+import type { ChatMessage } from './openaiApi';
 
 export interface StoredMessage extends ChatMessage {
   id: string;

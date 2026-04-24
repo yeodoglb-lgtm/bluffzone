@@ -1,5 +1,12 @@
+/**
+ * OpenAI 프록시 클라이언트
+ *
+ * Supabase Edge Function(`/claude-proxy`)을 호출합니다.
+ * Edge Function 이름은 과거 Anthropic 시절의 네이밍이라 `claude-proxy`로 남아있으나,
+ * 내부 구현은 전부 OpenAI(gpt-4o / gpt-4o-mini)입니다.
+ */
 import { supabase } from './supabase';
-import type { Hand, HandReview } from '../types/database';
+import type { Hand } from '../types/database';
 
 const FUNCTION_BASE = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/claude-proxy`;
 
@@ -9,31 +16,8 @@ async function getAuthHeader(): Promise<string> {
   return `Bearer ${session.access_token}`;
 }
 
-// ── 핸드 리뷰 요청 ────────────────────────────────────────────────────────────
-export async function requestHandReview(
-  hand: Hand,
-  model: string = 'claude-sonnet-4-6'
-): Promise<HandReview> {
-  const authHeader = await getAuthHeader();
-
-  const res = await fetch(`${FUNCTION_BASE}/hand-review`, {
-    method: 'POST',
-    headers: {
-      Authorization: authHeader,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ hand, model }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.message ?? `Hand review failed: ${res.status}`);
-  }
-
-  return res.json() as Promise<HandReview>;
-}
-
 // ── 음성 텍스트 → 핸드 파싱 ──────────────────────────────────────────────────
+// 모델: gpt-4o (서버 기본값, 정확도 우선)
 export async function parseVoiceToHand(text: string): Promise<Partial<Hand>> {
   const authHeader = await getAuthHeader();
 
@@ -55,6 +39,7 @@ export async function parseVoiceToHand(text: string): Promise<Partial<Hand>> {
 }
 
 // ── AI 채팅 스트리밍 ──────────────────────────────────────────────────────────
+// 모델: gpt-4o-mini (서버 기본값, 비용 우선)
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;

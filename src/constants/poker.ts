@@ -52,9 +52,8 @@ export const CURRENCY_SYMBOLS: Record<Currency, string> = {
 };
 
 export const AI_MODELS = [
-  'claude-sonnet-4-6',
-  'claude-opus-4-7',
-  'claude-haiku-4-5-20251001',
+  'gpt-4o',       // 핸드 리뷰, 음성 핸드 자동입력 (정확도 우선)
+  'gpt-4o-mini',  // 일반 채팅 (비용 우선)
 ] as const;
 export type AiModel = (typeof AI_MODELS)[number];
 

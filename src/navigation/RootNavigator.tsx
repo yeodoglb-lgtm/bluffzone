@@ -10,7 +10,6 @@ import type { RootStackParamList } from './types';
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import MainTabNavigator from './MainTabNavigator';
 import AIChatScreen from '../screens/ai/AIChatScreen';
-import HandReviewScreen from '../screens/ai/HandReviewScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -65,11 +64,6 @@ export default function RootNavigator() {
             <Stack.Screen
               name="AIChat"
               component={AIChatScreen}
-              options={modalOptions}
-            />
-            <Stack.Screen
-              name="HandReview"
-              component={HandReviewScreen}
               options={modalOptions}
             />
           </>
