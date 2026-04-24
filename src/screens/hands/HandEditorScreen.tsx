@@ -239,8 +239,9 @@ export default function HandEditorScreen({ navigation, route }: Props) {
           if (parsed.board && parsed.board.length > 0) setBoard(parsed.board as Card[]);
           if (parsed.actions && parsed.actions.length > 0) setActions(parsed.actions as HandAction[]);
           if (parsed.result) setResult(parsed.result as ResultType);
-          if (parsed.pot_size != null) setPotSize(String(parsed.pot_size));
-          if (parsed.hero_pl != null) setHeroPl(String(parsed.hero_pl));
+          // parse-voice는 항상 KRW 원 단위로 반환 → 폼 표시 단위(amountUnit)로 변환
+          if (parsed.pot_size != null) setPotSize(String(Math.round(parsed.pot_size / amountUnit)));
+          if (parsed.hero_pl != null) setHeroPl(String(Math.round(parsed.hero_pl / amountUnit)));
           if (parsed.note) setNote(parsed.note);
           showAlert('음성 입력 완료', '핸드 정보가 자동 입력되었습니다. 내용을 확인하고 저장해주세요.');
         } finally {
