@@ -94,7 +94,7 @@ export default function DashboardScreen() {
           <Bot color={colors.bg} size={24} strokeWidth={2} />
           <View style={styles.aiBtnTextWrap}>
             <Text style={styles.aiBtnText}>블러프존 홀덤 알파고</Text>
-            <Text style={styles.aiBtnSub}>포커 질문이든 핸드 분석이든, 무엇이든 물어보세요</Text>
+            <Text style={styles.aiBtnSub}>당신의 홀덤 고민, 지금 바로 답해드립니다</Text>
           </View>
         </TouchableOpacity>
       </ScrollView>
