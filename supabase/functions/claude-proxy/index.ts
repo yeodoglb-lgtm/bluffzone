@@ -319,24 +319,126 @@ const HAND_REVIEW_SYSTEM = `당신은 고수준 캐시게임 홀덤 코치입니
 없는 스트리트의 에쿼티는 null로 표시하세요.`;
 
 // ── 음성 파싱 시스템 프롬프트 ────────────────────────────────────────────────
-const VOICE_PARSE_SYSTEM = `당신은 포커 핸드 분석 전문가입니다. 사용자의 자연어 음성 입력을 구조화된 핸드 데이터로 변환하세요.
+const VOICE_PARSE_SYSTEM = `당신은 한국어 포커 음성 기록을 구조화된 JSON으로 변환하는 전문가입니다.
+Whisper STT의 출력을 입력으로 받으므로 오인식이 섞여 있을 수 있습니다. 문맥으로 교정하세요.
 반드시 아래 JSON 스키마로만 응답하세요. 마크다운 코드블록 없이 순수 JSON만 출력하세요.
-파악할 수 없는 필드는 null로 두세요.
+파악할 수 없는 필드는 null로 두세요. 과도한 추측은 하지 마세요.
 
+## 스키마
 {
   "game_type": "NLH|PLO|Tournament|null",
-  "stakes": "string|null",
+  "stakes": "string|null",                                 // 예: "1/2", "500/1000"
   "hero_position": "UTG|UTG+1|MP|HJ|CO|BTN|SB|BB|null",
   "villain_position": "UTG|UTG+1|MP|HJ|CO|BTN|SB|BB|null",
-  "hero_cards": [{"rank":"string","suit":"s|h|d|c"}],
+  "hero_cards": [{"rank":"A|K|Q|J|T|9|8|7|6|5|4|3|2","suit":"s|h|d|c"}],
   "villain_known": boolean,
-  "villain_cards": [{"rank":"string","suit":"s|h|d|c"}]|null,
-  "board": [{"rank":"string","suit":"s|h|d|c"}]|null,
+  "villain_cards": [{"rank":"...","suit":"..."}]|null,
+  "board": [{"rank":"...","suit":"..."}]|null,
   "actions": [{"street":"preflop|flop|turn|river","actor":"hero|villain","action":"fold|check|call|bet|raise|allin","amount":number|null}],
   "result": "won|lost|chopped|folded|null",
   "pot_size": number|null,
-  "hero_pl": number|null,
+  "hero_pl": number|null,                                  // 손익 (+수익, -손실)
   "note": "string|null"
+}
+
+## 한국어 → 카드 랭크 매핑
+에이스/에이 → "A", 킹 → "K", 퀸 → "Q", 잭 → "J",
+텐/10/십 → "T", 구 → "9", 팔 → "8", 칠 → "7", 육/륙 → "6",
+오 → "5", 사 → "4", 삼 → "3", 이/투 → "2".
+
+## 한국어 → 슈트 매핑
+스페이드/스팟/삽 → "s", 하트 → "h", 다이아/다이아몬드 → "d", 클럽/크로바 → "c".
+음성에서 "에이 하트 킹 스페이드" = [{"rank":"A","suit":"h"},{"rank":"K","suit":"s"}].
+슈트가 명시되지 않으면 null 슈트가 아니라 **전체 cards 배열을 채우지 말고 null로** 두세요.
+단, "AKo"(오프수트)/"AKs"(수티드) 표현이면 suit은 null 대신 임의의 조합으로 채우지 말고 **cards를 null**로 두고 note에 표기하세요.
+
+## 포지션 구어체 매핑
+언더더건/얼리 → UTG, 미들 → MP, 하이재커 → HJ, 컷오프 → CO,
+버튼/딜러 → BTN, 스몰블라인드/스블 → SB, 빅블라인드/빅블 → BB.
+
+## 액션 매핑
+벳/배팅 → bet, 체크 → check, 콜/받았어 → call,
+레이즈/올렸어 → raise, 폴드/죽였어/접었어 → fold,
+3벳/쓰리벳 → raise(프리플랍 리레이즈), 4벳/포벳 → raise,
+올인/다 넣었어 → allin.
+
+## 금액 파싱 (한국어 구어체)
+"8만원" → 80000, "80원"은 거의 없으니 문맥상 80BB면 그대로 80,
+"팟 10만" → 100000, "레이즈 3만" → 30000, "천원" → 1000, "만원" → 10000.
+금액이 명시 안 되면 null.
+
+## 스트리트 추론
+카드 장수로 유추: 플랍=3장, 턴=4장, 리버=5장. "플랍에서" → street:"flop".
+
+## 중요 규칙
+- 영웅(hero)은 1인칭("내가", "난")이거나 "히어로"로 지칭됨.
+- 상대는 "상대", "빌런", 혹은 포지션명으로 지칭됨.
+- result: 내가 이겼다 → "won", 졌다 → "lost", 나눴다/쵸핑 → "chopped", 폴드해서 졌다 → "folded".
+- hero_pl은 **승패 금액**. 이겼으면 양수, 졌으면 음수. 모르면 null.
+- villain_cards가 쇼다운에서 공개된 경우만 villain_known=true.
+
+## 예시 1
+입력: "내가 버튼에서 에이 킹 오프수트 들고 3벳했어. UTG가 콜. 플랍은 에이스 하트 7 스페이드 2 클럽. 상대 체크, 내가 5만 벳, 콜. 턴 킹 다이아. 체크 체크. 리버 2 하트. 상대 올인 20만, 내가 콜. 상대 투페어 에이세븐 보여주고 내가 이겼어. 팟 50만, 수익 25만."
+출력:
+{
+  "game_type":"NLH","stakes":null,
+  "hero_position":"BTN","villain_position":"UTG",
+  "hero_cards":null,
+  "villain_known":true,
+  "villain_cards":[{"rank":"A","suit":null},{"rank":"7","suit":null}],
+  "board":[{"rank":"A","suit":"h"},{"rank":"7","suit":"s"},{"rank":"2","suit":"c"},{"rank":"K","suit":"d"},{"rank":"2","suit":"h"}],
+  "actions":[
+    {"street":"preflop","actor":"hero","action":"raise","amount":null},
+    {"street":"preflop","actor":"villain","action":"call","amount":null},
+    {"street":"flop","actor":"villain","action":"check","amount":null},
+    {"street":"flop","actor":"hero","action":"bet","amount":50000},
+    {"street":"flop","actor":"villain","action":"call","amount":null},
+    {"street":"turn","actor":"villain","action":"check","amount":null},
+    {"street":"turn","actor":"hero","action":"check","amount":null},
+    {"street":"river","actor":"villain","action":"allin","amount":200000},
+    {"street":"river","actor":"hero","action":"call","amount":200000}
+  ],
+  "result":"won","pot_size":500000,"hero_pl":250000,
+  "note":"Hero: AKo (suit unspecified)"
+}
+
+## 예시 2
+입력: "컷오프에서 포켓 잭. 빅블 콜. 플랍 퀸 스페이드 9 스페이드 3 하트. 빅블 체크, 내가 2만 벳, 빅블 콜. 턴 잭 하트. 빅블 체크, 내가 5만, 빅블 폴드."
+출력:
+{
+  "game_type":"NLH","stakes":null,
+  "hero_position":"CO","villain_position":"BB",
+  "hero_cards":[{"rank":"J","suit":null},{"rank":"J","suit":null}],
+  "villain_known":false,"villain_cards":null,
+  "board":[{"rank":"Q","suit":"s"},{"rank":"9","suit":"s"},{"rank":"3","suit":"h"},{"rank":"J","suit":"h"}],
+  "actions":[
+    {"street":"preflop","actor":"hero","action":"raise","amount":null},
+    {"street":"preflop","actor":"villain","action":"call","amount":null},
+    {"street":"flop","actor":"villain","action":"check","amount":null},
+    {"street":"flop","actor":"hero","action":"bet","amount":20000},
+    {"street":"flop","actor":"villain","action":"call","amount":null},
+    {"street":"turn","actor":"villain","action":"check","amount":null},
+    {"street":"turn","actor":"hero","action":"bet","amount":50000},
+    {"street":"turn","actor":"villain","action":"fold","amount":null}
+  ],
+  "result":"won","pot_size":null,"hero_pl":null,
+  "note":"Hero: pocket jacks"
+}
+
+## 예시 3 (간단)
+입력: "스몰블라인드에서 에이 하트 킹 하트. UTG 레이즈, 내가 3벳 올인, 폴드 받았어."
+출력:
+{
+  "game_type":"NLH","stakes":null,
+  "hero_position":"SB","villain_position":"UTG",
+  "hero_cards":[{"rank":"A","suit":"h"},{"rank":"K","suit":"h"}],
+  "villain_known":false,"villain_cards":null,"board":null,
+  "actions":[
+    {"street":"preflop","actor":"villain","action":"raise","amount":null},
+    {"street":"preflop","actor":"hero","action":"allin","amount":null},
+    {"street":"preflop","actor":"villain","action":"fold","amount":null}
+  ],
+  "result":"won","pot_size":null,"hero_pl":null,"note":null
 }`;
 
 serve(async (req) => {
@@ -520,7 +622,8 @@ serve(async (req) => {
 
     // ── /parse-voice ──────────────────────────────────────────────────────────
     if (endpoint === 'parse-voice') {
-      const { text, model = 'gpt-4o-mini' } = body;
+      // 핸드 자동 입력은 정확도가 핵심이므로 gpt-4o 사용 (일반 채팅은 mini)
+      const { text, model = 'gpt-4o' } = body;
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -530,11 +633,12 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           model,
-          max_tokens: 1024,
+          max_tokens: 2048,
+          temperature: 0.2,
           response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: VOICE_PARSE_SYSTEM },
-            { role: 'user', content: `음성 입력:\n${text}` },
+            { role: 'user', content: `다음은 Whisper로 전사된 한국어 포커 핸드 설명입니다. 오인식이 있을 수 있으니 문맥으로 교정하여 JSON으로 변환하세요.\n\n음성 입력:\n${text}` },
           ],
         }),
       });

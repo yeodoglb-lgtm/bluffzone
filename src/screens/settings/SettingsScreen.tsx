@@ -15,14 +15,8 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useAuthStore } from '../../store/authStore';
 import { signOut, updateProfile } from '../../services/auth';
-import { AI_MODELS, CURRENCIES, STT_ENGINES } from '../../constants/poker';
-import type { AiModel, Currency, SttEngine } from '../../constants/poker';
-
-const AI_MODEL_LABELS: Record<AiModel, string> = {
-  'claude-sonnet-4-6': 'Sonnet 4.6 (권장)',
-  'claude-opus-4-7': 'Opus 4.7 (고성능)',
-  'claude-haiku-4-5-20251001': 'Haiku 4.5 (빠름)',
-};
+import { CURRENCIES } from '../../constants/poker';
+import type { Currency } from '../../constants/poker';
 
 function SectionHeader({ title }: { title: string }) {
   return <Text style={styles.sectionHeader}>{title}</Text>;
@@ -69,9 +63,6 @@ export default function SettingsScreen() {
   const {
     currency, setCurrency,
     locale, setLocale,
-    aiModel, setAiModel,
-    sttEngine, setSttEngine,
-    autoReview, setAutoReview,
     monthlyGoal, setMonthlyGoal,
     lossProtect, setLossProtect,
   } = useSettingsStore();
@@ -236,50 +227,11 @@ export default function SettingsScreen() {
           />
         </View>
 
-        {/* AI 설정 */}
-        <SectionHeader title="AI 설정" />
-        <View style={styles.card}>
-          <Text style={styles.rowLabel}>AI 모델</Text>
-          <View style={{ gap: spacing.xs, marginTop: spacing.sm }}>
-            {AI_MODELS.map(model => (
-              <TouchableOpacity
-                key={model}
-                style={[styles.modelRow, aiModel === model && styles.modelRowActive]}
-                onPress={() => setAiModel(model as AiModel)}
-              >
-                <View style={[styles.radio, aiModel === model && styles.radioActive]} />
-                <Text style={[styles.modelLabel, aiModel === model && styles.modelLabelActive]}>
-                  {AI_MODEL_LABELS[model as AiModel]}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={styles.divider} />
-          <SettingRow
-            label="자동 리뷰"
-            sub="핸드 저장 시 자동으로 AI 분석"
-            right={
-              <Switch
-                value={autoReview}
-                onValueChange={setAutoReview}
-                trackColor={{ false: colors.surfaceAlt, true: colors.primary }}
-                thumbColor={colors.text}
-              />
-            }
-          />
-          <View style={styles.divider} />
-          <SettingRow
-            label="음성 입력 엔진"
-            right={
-              <ChipGroup<SttEngine>
-                options={STT_ENGINES}
-                value={sttEngine}
-                onChange={setSttEngine}
-                labels={{ device: '기기 STT', whisper: 'Whisper AI' }}
-              />
-            }
-          />
-        </View>
+        {/* AI 설정 — 내부 운용 설정은 사용자 노출 없이 고정값으로 운영합니다.
+            - AI 모델: 핸드리뷰=gpt-4o / 음성 핸드 입력=gpt-4o / 채팅=gpt-4o-mini (서버 기본값)
+            - 자동 리뷰: 사용 안 함 (유저가 원할 때만 수동으로 요청)
+            - 음성 입력 엔진: Whisper 고정 (기기 STT는 미구현)
+            의도적으로 UI에서 숨김. 필요 시 아래 블록 주석 해제. */}
 
         {/* 계정 */}
         <SectionHeader title="계정" />
@@ -353,15 +305,6 @@ const styles = StyleSheet.create({
     color: colors.text, fontSize: fontSize.base, textAlign: 'right',
   },
   unitText: { fontSize: fontSize.sm, color: colors.textMuted },
-  modelRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm,
-    borderRadius: radius.input, borderWidth: 1, borderColor: colors.line,
-  },
-  modelRowActive: { borderColor: colors.primary, backgroundColor: `${colors.primary}11` },
-  radio: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: colors.textMuted },
-  radioActive: { borderColor: colors.primary, backgroundColor: colors.primary },
-  modelLabel: { fontSize: fontSize.sm, color: colors.textMuted },
-  modelLabelActive: { color: colors.text, fontWeight: fontWeight.medium },
   dangerBtn: {
     paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.button,
     borderWidth: 1, borderColor: colors.danger,
