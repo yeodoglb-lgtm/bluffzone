@@ -18,7 +18,8 @@ import type { RootStackParamList } from '../../navigation/types';
 import { streamChat } from '../../services/claudeApi';
 import type { ChatMessage } from '../../services/claudeApi';
 import { getOrCreateChat, loadMessages, saveMessage, clearMessages } from '../../services/aiChat';
-import { showConfirm } from '../../utils/alert';
+import { showConfirm, showAlert } from '../../utils/alert';
+import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
 
 type Props = StackScreenProps<RootStackParamList, 'AIChat'>;
 
@@ -60,6 +61,21 @@ export default function AIChatScreen({ navigation }: Props) {
   const [chatId, setChatId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
+  const voice = useVoiceRecorder();
+
+  const handleMic = useCallback(async () => {
+    try {
+      if (voice.status === 'recording') {
+        const text = await voice.stop();
+        if (text) setInput(prev => (prev ? prev + ' ' + text : text));
+      } else {
+        await voice.start();
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '음성 입력 실패';
+      showAlert('음성 입력', msg);
+    }
+  }, [voice]);
 
   // 초기 로드: 채팅 ID 확보 + 이전 메시지 복원
   useEffect(() => {
@@ -206,16 +222,30 @@ export default function AIChatScreen({ navigation }: Props) {
             style={styles.textInput}
             value={input}
             onChangeText={setInput}
-            placeholder="포커 코치에게 물어보세요..."
+            placeholder={voice.status === 'recording' ? '🔴 녹음 중... 다시 누르면 종료' : voice.status === 'transcribing' ? '음성 인식 중...' : '포커 코치에게 물어보세요...'}
             placeholderTextColor={colors.textMuted}
             multiline
             maxLength={2000}
             returnKeyType="default"
+            editable={voice.status === 'idle' || voice.status === 'error'}
           />
           <TouchableOpacity
-            style={[styles.sendBtn, isStreaming && styles.sendBtnDisabled]}
+            style={[
+              styles.micBtn,
+              voice.status === 'recording' && styles.micBtnActive,
+            ]}
+            onPress={handleMic}
+            disabled={voice.status === 'transcribing' || isStreaming}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.micBtnText}>
+              {voice.status === 'recording' ? '■' : voice.status === 'transcribing' ? '…' : '🎙'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sendBtn, (isStreaming || voice.status !== 'idle') && styles.sendBtnDisabled]}
             onPress={() => handleSend()}
-            disabled={isStreaming || !input.trim()}
+            disabled={isStreaming || !input.trim() || voice.status !== 'idle'}
             activeOpacity={0.8}
           >
             <Text style={styles.sendBtnText}>▲</Text>
@@ -354,6 +384,25 @@ const styles = StyleSheet.create({
     maxHeight: 120,
     borderWidth: 1,
     borderColor: colors.line,
+  },
+  micBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  micBtnActive: {
+    backgroundColor: colors.danger,
+    borderColor: colors.danger,
+  },
+  micBtnText: {
+    fontSize: fontSize.sm,
+    color: colors.text,
   },
   sendBtn: {
     width: 40,

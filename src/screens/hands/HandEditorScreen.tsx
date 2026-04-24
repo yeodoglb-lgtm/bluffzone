@@ -20,6 +20,8 @@ import type { Card, HandAction, GameType, Position9Max, ResultType, Action } fro
 import { useHand, useCreateHand, useUpdateHand } from '../../hooks/useHands';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
+import { parseVoiceToHand } from '../../services/claudeApi';
 
 // ── 색상 ──────────────────────────────────────────────────────────────────────
 const HERO_COLOR = '#3b82f6';
@@ -204,6 +206,54 @@ export default function HandEditorScreen({ navigation, route }: Props) {
   const [heroPl, setHeroPl] = useState('');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const voice = useVoiceRecorder();
+  const voiceFull = useVoiceRecorder();
+  const [isParsing, setIsParsing] = useState(false);
+
+  const handleMic = async () => {
+    try {
+      if (voice.status === 'recording') {
+        const text = await voice.stop();
+        if (text) setNote(prev => (prev ? prev + ' ' + text : text));
+      } else {
+        await voice.start();
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '음성 입력 실패';
+      showAlert('음성 입력', msg);
+    }
+  };
+
+  const handleVoiceFullHand = async () => {
+    try {
+      if (voiceFull.status === 'recording') {
+        const text = await voiceFull.stop();
+        if (!text) return;
+        setIsParsing(true);
+        try {
+          const parsed = await parseVoiceToHand(text);
+          // 파싱 결과를 폼 상태에 반영 (있는 필드만)
+          if (parsed.game_type) setGameType(parsed.game_type as GameType);
+          if (parsed.hero_position) setHeroPos(parsed.hero_position as Position9Max);
+          if (parsed.hero_cards && parsed.hero_cards.length > 0) setHeroCards(parsed.hero_cards as Card[]);
+          if (parsed.board && parsed.board.length > 0) setBoard(parsed.board as Card[]);
+          if (parsed.actions && parsed.actions.length > 0) setActions(parsed.actions as HandAction[]);
+          if (parsed.result) setResult(parsed.result as ResultType);
+          if (parsed.pot_size != null) setPotSize(String(parsed.pot_size));
+          if (parsed.hero_pl != null) setHeroPl(String(parsed.hero_pl));
+          if (parsed.note) setNote(parsed.note);
+          showAlert('음성 입력 완료', '핸드 정보가 자동 입력되었습니다. 내용을 확인하고 저장해주세요.');
+        } finally {
+          setIsParsing(false);
+        }
+      } else {
+        await voiceFull.start();
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '음성 입력 실패';
+      showAlert('음성 입력', msg);
+    }
+  };
 
   // ── 알파고 리뷰용 선택 입력 ─────────────────────────────────────────────
   const [preflopAggressor, setPreflopAggressor] = useState<'hero' | 'villain' | null>(null);
@@ -300,6 +350,30 @@ export default function HandEditorScreen({ navigation, route }: Props) {
         <View style={{ width: 40 }} />
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        {/* 음성으로 핸드 입력 */}
+        <TouchableOpacity
+          style={[
+            styles.voiceFullBtn,
+            voiceFull.status === 'recording' && styles.voiceFullBtnRecording,
+          ]}
+          onPress={handleVoiceFullHand}
+          disabled={voiceFull.status === 'transcribing' || isParsing}
+          activeOpacity={0.8}
+        >
+          {voiceFull.status === 'transcribing' || isParsing ? (
+            <>
+              <ActivityIndicator color={colors.text} size="small" />
+              <Text style={styles.voiceFullBtnText}>
+                {isParsing ? 'AI가 핸드 분석 중...' : '음성 인식 중...'}
+              </Text>
+            </>
+          ) : voiceFull.status === 'recording' ? (
+            <Text style={styles.voiceFullBtnText}>■ 녹음 종료 (자동 입력)</Text>
+          ) : (
+            <Text style={styles.voiceFullBtnText}>🎙 음성으로 핸드 입력</Text>
+          )}
+        </TouchableOpacity>
+
         <Section title="기본 정보">
           <Label text="게임 타입" />
           <View style={styles.chipRow}>
@@ -455,9 +529,14 @@ export default function HandEditorScreen({ navigation, route }: Props) {
             <TextInput style={[styles.input, styles.textArea, { flex: 1 }]}
               placeholder="핸드에 대한 메모를 입력하세요" placeholderTextColor={colors.textMuted}
               multiline numberOfLines={4} textAlignVertical="top" value={note} onChangeText={setNote} />
-            <TouchableOpacity style={styles.micBtn}
-              onPress={() => showAlert('음성 입력', Platform.OS === 'web' ? '웹에서는 텍스트로 입력해주세요.' : '네이티브 앱에서 지원됩니다.')}>
-              <Text style={styles.micIcon}>🎙</Text>
+            <TouchableOpacity
+              style={[styles.micBtn, voice.status === 'recording' && { backgroundColor: colors.danger, borderColor: colors.danger }]}
+              onPress={handleMic}
+              disabled={voice.status === 'transcribing'}
+            >
+              <Text style={styles.micIcon}>
+                {voice.status === 'recording' ? '■' : voice.status === 'transcribing' ? '…' : '🎙'}
+              </Text>
             </TouchableOpacity>
           </View>
         </Section>
@@ -746,6 +825,24 @@ const styles = StyleSheet.create({
   noteRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
   micBtn: { width: 44, height: 44, borderRadius: radius.button, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   micIcon: { fontSize: 20 },
+  voiceFullBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+    borderRadius: radius.button,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.base,
+  },
+  voiceFullBtnRecording: {
+    backgroundColor: colors.danger,
+  },
+  voiceFullBtnText: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
   cardBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 4, borderWidth: 1, borderColor: colors.line, gap: 2 },
   cardBadgeText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold },
   cardRemoveX: { fontSize: fontSize.xs, color: colors.textMuted },

@@ -520,31 +520,33 @@ serve(async (req) => {
 
     // ── /parse-voice ──────────────────────────────────────────────────────────
     if (endpoint === 'parse-voice') {
-      const { text, model = 'claude-haiku-4-5-20251001' } = body;
+      const { text, model = 'gpt-4o-mini' } = body;
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           'content-type': 'application/json',
         },
         body: JSON.stringify({
           model,
           max_tokens: 1024,
-          system: VOICE_PARSE_SYSTEM,
-          messages: [{ role: 'user', content: `음성 입력:\n${text}` }],
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: VOICE_PARSE_SYSTEM },
+            { role: 'user', content: `음성 입력:\n${text}` },
+          ],
         }),
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error?.message ?? 'Anthropic API error');
+      if (!response.ok) throw new Error(data.error?.message ?? 'OpenAI API error');
 
-      const inputTokens = data.usage?.input_tokens ?? 0;
-      const outputTokens = data.usage?.output_tokens ?? 0;
+      const inputTokens = data.usage?.prompt_tokens ?? 0;
+      const outputTokens = data.usage?.completion_tokens ?? 0;
       await recordUsage(supabase, user.id, 'parse-voice', model, inputTokens, outputTokens);
 
-      const parsed = JSON.parse(data.content[0].text);
+      const parsed = JSON.parse(data.choices[0].message.content);
       return new Response(JSON.stringify(parsed), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
