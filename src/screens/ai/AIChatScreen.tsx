@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
   ListRenderItemInfo,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +17,8 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import type { RootStackParamList } from '../../navigation/types';
 import { streamChat } from '../../services/claudeApi';
 import type { ChatMessage } from '../../services/claudeApi';
+import { getOrCreateChat, loadMessages, saveMessage, clearMessages } from '../../services/aiChat';
+import { showConfirm } from '../../utils/alert';
 
 type Props = StackScreenProps<RootStackParamList, 'AIChat'>;
 
@@ -54,7 +57,26 @@ export default function AIChatScreen({ navigation }: Props) {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState('');
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
+
+  // 초기 로드: 채팅 ID 확보 + 이전 메시지 복원
+  useEffect(() => {
+    (async () => {
+      try {
+        const id = await getOrCreateChat();
+        setChatId(id);
+        const prev = await loadMessages(id);
+        setMessages(prev.map(m => ({ role: m.role, content: m.content })));
+      } catch (e) {
+        // 로드 실패 시 빈 상태 유지 (로그인 필요 등)
+        console.warn('[AIChat] 초기 로드 실패:', e);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, []);
 
   const handleSend = useCallback(async (text?: string) => {
     const content = (text ?? input).trim();
@@ -67,6 +89,9 @@ export default function AIChatScreen({ navigation }: Props) {
     setIsStreaming(true);
     setStreamingText('');
 
+    // 사용자 메시지 저장 (비동기, 실패해도 UI 진행)
+    if (chatId) saveMessage(chatId, 'user', content).catch(() => {});
+
     try {
       let full = '';
       for await (const chunk of streamChat(newMessages, 'gpt-4o-mini', SYSTEM_PROMPT)) {
@@ -74,16 +99,37 @@ export default function AIChatScreen({ navigation }: Props) {
         setStreamingText(full);
       }
       setMessages(prev => [...prev, { role: 'assistant', content: full }]);
+      if (chatId) saveMessage(chatId, 'assistant', full).catch(() => {});
     } catch {
+      const errMsg = '오류가 발생했습니다. 다시 시도해주세요.';
       setMessages(prev => [
         ...prev,
-        { role: 'assistant', content: '오류가 발생했습니다. 다시 시도해주세요.' },
+        { role: 'assistant', content: errMsg },
       ]);
+      if (chatId) saveMessage(chatId, 'assistant', errMsg).catch(() => {});
     } finally {
       setIsStreaming(false);
       setStreamingText('');
     }
-  }, [input, messages, isStreaming]);
+  }, [input, messages, isStreaming, chatId]);
+
+  const handleClear = useCallback(() => {
+    if (!chatId || messages.length === 0) return;
+    showConfirm({
+      title: '대화 삭제',
+      message: '모든 대화 내용을 삭제할까요?',
+      confirmText: '삭제',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await clearMessages(chatId);
+          setMessages([]);
+        } catch {
+          // 실패 무시
+        }
+      },
+    });
+  }, [chatId, messages.length]);
 
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<ChatMessage>) => <MessageBubble message={item} />,
@@ -102,7 +148,13 @@ export default function AIChatScreen({ navigation }: Props) {
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>블러프존 홀덤 알파고</Text>
-        <View style={{ width: 40 }} />
+        {messages.length > 0 ? (
+          <TouchableOpacity onPress={handleClear} style={styles.clearBtn}>
+            <Text style={styles.clearBtnText}>초기화</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 52 }} />
+        )}
       </View>
 
       <KeyboardAvoidingView
@@ -110,7 +162,11 @@ export default function AIChatScreen({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        {isEmpty ? (
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={colors.primary} />
+          </View>
+        ) : isEmpty ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyEmoji}>🤖</Text>
             <Text style={styles.emptyTitle}>블러프존 홀덤 알파고</Text>
@@ -187,6 +243,18 @@ const styles = StyleSheet.create({
   backBtn: { width: 40, height: 40, justifyContent: 'center' },
   backText: { fontSize: fontSize.lg, color: colors.text },
   headerTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  clearBtn: {
+    width: 52,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  clearBtnText: { fontSize: fontSize.sm, color: colors.textMuted },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   messageList: {
     paddingHorizontal: spacing.base,
