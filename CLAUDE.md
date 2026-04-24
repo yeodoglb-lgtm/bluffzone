@@ -1,0 +1,102 @@
+# BluffZone 프로젝트 운영 메모 (Claude용)
+
+이 파일은 Claude 세션 간 컨텍스트 유지를 위한 **작업 지침 메모**입니다.
+세션이 요약돼도 이 파일은 항상 로드되니, 중요한 운영 규칙은 여기에 적습니다.
+
+---
+
+## 🚀 배포 방법
+
+### Vercel (프론트엔드)
+- **자동** — `master` 브랜치에 푸시하면 자동 재배포.
+- URL: https://bluffzone-iota.vercel.app
+- GitHub 500 뜨면 빈 커밋(`git commit --allow-empty`)으로 재트리거.
+
+### Supabase Edge Functions (백엔드) ⚠️ 수동
+사용자는 **대시보드 복붙 방식**을 선호합니다. CLI 쓰지 말고 아래 절차 안내할 것:
+
+1. 로컬 파일 열기 (`supabase/functions/{함수명}/index.ts`)
+2. `Ctrl+A` → `Ctrl+C` 전체 복사
+3. https://supabase.com/dashboard → `bluffzone_seoul` → Edge Functions
+4. 해당 함수 클릭 → 에디터 진입 → 기존 코드 전체 삭제 → 붙여넣기
+5. **Deploy updates** 초록 버튼 클릭
+6. "Successfully deployed" + 목록 Updated 컬럼 "a few seconds ago" 확인
+
+**프로젝트 ref**: `chxcayaehgwqrpjuajqx`
+**현재 배포된 Edge Functions**: `claude-proxy`, `whisper-proxy`
+
+---
+
+## 🤖 AI 모델 트랙 (확정)
+
+| 용도 | 모델 | 엔드포인트 |
+|---|---|---|
+| 핸드 리뷰 | `gpt-4o` | `/hand-review-gpt` |
+| 음성 → 핸드 자동입력 | `gpt-4o` | `/parse-voice` |
+| 일반 AI 채팅 | `gpt-4o-mini` | `/chat` |
+| 음성 전사 | `whisper-1` | `/whisper-proxy` |
+
+- Anthropic Claude는 **더 이상 안 씀**. 과거 `claude-sonnet-4-6` 참조는 deprecated.
+- 모델 변경 시 서버 기본값만 건드리고, 클라이언트는 건드리지 말 것.
+
+---
+
+## 🎨 UI 정책
+
+### 설정 화면에서 **숨긴 것** (유저 선택 불가, 서버 고정값)
+- AI 모델 선택
+- 자동 리뷰 토글 (유저가 원할 때만 수동 리뷰)
+- 음성 입력 엔진 선택 (Whisper 고정, 기기 STT 미구현)
+
+주석으로 복구 가능하게 남겨둠 — `SettingsScreen.tsx` 참고.
+
+### 네이밍 통일
+- 홈 배너: "블러프존 홀덤 알파고" / 서브 "당신의 홀덤 고민, 지금 바로 답해드립니다"
+- AI 채팅 화면: "블러프존 홀덤 알파고"
+- 핸드 리뷰: "블러프존 홀덤 알파고 핸드리뷰" / 버튼 "리뷰 요청"
+
+---
+
+## 🎙️ 음성 입력 아키텍처
+
+- 웹: `MediaRecorder` API (`src/hooks/useVoiceRecorder.ts`)
+- 네이티브: 미구현 (나중에 `expo-av`로 확장 예정)
+- 전사: **항상 Whisper** (플랫폼 무관, 클라우드 API라 웹/앱 공통)
+- Whisper `prompt` 파라미터는 **224 토큰 제한** — 힌트 넣을 때 주의.
+
+---
+
+## 💾 DB 테이블
+
+- `ai_chats`, `ai_messages`: AI 채팅 영속화 (RLS 적용, 유저별 분리)
+- `ai_usages`: AI API 사용량 기록 (`kind` 컬럼 사용, **`feature` 아님**)
+- `hand_review_cache`: 동일 핸드 리뷰 결과 캐싱 (cache_key 기반)
+
+---
+
+## 📝 대화 스타일 규칙
+
+- 답변은 한국어로, 간결하게.
+- 이모지는 섹션 구분·강조용 정도만. 남발 금지.
+- 작업 후에는 **Vercel + Supabase 양쪽 배포 여부** 반드시 함께 안내.
+  (한쪽만 안내하면 사용자가 "장난쳐?" 함. 과거 실수 반복 금지.)
+
+## 🧠 CLAUDE.md 자동 업데이트 원칙
+
+사용자가 매번 "기록해둬" 말하지 않아도 **아래 경우엔 Claude가 먼저 기록한다**:
+
+1. **사용자가 특정 절차/방법을 알려준 경우** (예: "대시보드 복붙 방식으로 배포함")
+2. **사용자가 "장난쳐", "왜 까먹어", "기억 좀 해" 류 불만을 낸 경우**
+   → 해당 건 즉시 기록 + 짜증난 이유까지 남겨서 재발 방지
+3. **모델/엔드포인트/DB 스키마가 변경된 경우**
+4. **UI 정책(숨김/표시, 네이밍)이 확정된 경우**
+5. **사용자가 거부한 접근/선호하지 않는 방식** (예: CLI 말고 대시보드 복붙 선호)
+
+기록 후에는 **"CLAUDE.md에 기록해뒀습니다"** 한 줄 언급해서 사용자가 확인 가능하게.
+
+## 🔑 사용자 트리거 문구 (이 말 나오면 즉시 실행)
+
+- "메모리 노트에 기재해둬" / "CLAUDE.md에 적어둬" / "기록해둬" / "저장해둬"
+  → 직전 대화 맥락을 요약해서 CLAUDE.md에 추가
+- "CLAUDE.md 뭐 있어?" / "뭐 기록돼있어?"
+  → 파일 읽어서 보여주기
