@@ -135,8 +135,9 @@ export default function AIChatScreen({ navigation }: Props) {
             renderItem={renderItem}
             keyExtractor={keyExtractor}
             contentContainerStyle={styles.messageList}
-            inverted
-            ListHeaderComponent={
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+            ListFooterComponent={
               isStreaming && streamingText ? (
                 <StreamingBubble text={streamingText} />
               ) : null
