@@ -48,7 +48,8 @@ serve(async (req) => {
     const clientPrompt = formData.get('prompt');
     // Whisper prompt는 224 토큰 제한 → 오인식률 높은 핵심 용어만 영+한 혼합으로 압축.
     // 숫자 카드(2~9)는 일반어라 힌트 효과가 낮아 제외, 잘 틀리는 영한 포커 고유어 위주.
-    const POKER_HINT = `포커 홀덤 Holdem. 프리플랍 Preflop, 플랍 Flop, 턴 Turn, 리버 River, 쇼다운. UTG 유티지 언더더건, MP 엠피, HJ 하이잭, CO 컷오프, BTN 버튼, SB 스몰블라인드, BB 빅블라인드. Ace 에이스 A, King 킹 K, Queen 퀸 Q, Jack 잭 J, Ten 텐 T, Nine 나인 9, Eight 에잇 8, Seven 세븐 7, Six 식스 6, Five 파이브 5, Four 포 4, Three 쓰리 3, Two 투 Deuce 듀스 2. Spade 스페이드, Heart 하트, Diamond 다이아, Club 클럽. AKo 에이킹오프수트, AKs 에이킹수티드, 포켓페어 JJ TT. Fold 폴드, Check 체크, Call 콜, Bet 벳, Raise 레이즈, 3벳 쓰리벳, 4벳 포벳, 올인 Allin, 쇼브 Shove, 림프 Limp, 스트래들 Straddle. 씨벳 C-bet, 동크벳 Donk, 블러프 Bluff, 밸류벳, 세미블러프, 체크레이즈. 플레이어 타입: 피쉬 Fish, 호구, 레귤러 Reg, 너트 Nit, 매니악 Maniac, 콜링스테이션, 돈키 Donkey, TAG 태그, LAG 래그, 샤크 Shark, 웨일 Whale. 오버페어, 탑페어, 미들페어, 바텀페어, 셋 Set, 트립스 Trips, 드로우, 거트샷 Gutshot, 양방드로우 OESD, 플러시드로우, 풀하우스, 스트레이트플러시, 포카인드, 넛츠. GTO 지티오, 익스플로잇, 레인지, 에쿼티 Equity, EV 기댓값, SPR, 팟오즈, 이펙티브스택. 팟 Pot, 스택 Stack, 빅블, 만원, 십만원.`;
+    // ★ 잭/7/3 자주 오인식 → 강조 위해 카드명 앞쪽 배치 + 변형 추가
+    const POKER_HINT = `포커 홀덤. 카드: 에이스 A Ace, 킹 K King, 퀸 Q Queen, 잭 J Jack 잭잭 자크, 텐 T 10 Ten, 나인 9 Nine, 에잇 8 Eight, 세븐 7 Seven 칠, 식스 6 Six 육, 파이브 5 Five 오, 포 4 Four 사, 쓰리 3 Three 삼, 투 2 Two 듀스 Deuce 이. 슈트: 스페이드 Spade, 하트 Heart, 다이아 다이아몬드 Diamond, 클럽 Club 클로버. 잭 다이아 잭 클럽 잭 하트 잭 스페이드. 7 다이아 7 클럽 7 하트. 포지션 UTG 유티지 언더더건, MP 엠피, HJ 하이잭, CO 컷오프, BTN 버튼, SB 스몰블라인드, BB 빅블라인드. 프리플랍 플랍 턴 리버 쇼다운. AKo 에이킹오프수트, AKs 에이킹수티드, 포켓페어 JJ TT. Fold 폴드, Check 체크, Call 콜, Bet 벳, Raise 레이즈, 3벳 쓰리벳, 4벳 포벳, 올인 Allin, 림프 Limp, 스트래들. 씨벳 C-bet, 동크벳, 블러프, 밸류벳, 체크레이즈. 피쉬 Fish 호구, 레귤러 Reg, 너트 Nit, 매니악, 콜링스테이션, 돈키, TAG, LAG, 샤크, 웨일. 오버페어 탑페어 미들페어 바텀페어 셋 트립스 드로우 거트샷 OESD 플러시드로우 풀하우스 넛츠. GTO 익스플로잇 레인지 에쿼티 EV SPR 팟오즈 이펙티브스택. 팟 스택 빅블 만원 십만원.`;
 
     const whisperForm = new FormData();
     whisperForm.append('file', audioFile, audioFile.name);
