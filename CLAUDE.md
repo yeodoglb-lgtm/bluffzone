@@ -12,15 +12,14 @@
 - URL: https://bluffzone-iota.vercel.app
 - GitHub 500 뜨면 빈 커밋(`git commit --allow-empty`)으로 재트리거.
 
-### Supabase Edge Functions (백엔드) ⚠️ 수동
-사용자는 **대시보드 복붙 방식**을 선호합니다. CLI 쓰지 말고 아래 절차 안내할 것:
+### Supabase Edge Functions (백엔드) ✅ Claude가 직접 배포
+**CLI 인증 살아있음** — `npx supabase functions deploy {name} --project-ref chxcayaehgwqrpjuajqx --no-verify-jwt`
+Docker 없어도 됨 (WARNING은 무시). 배포 후 `functions list`로 VERSION 증가 확인.
 
-1. 로컬 파일 열기 (`supabase/functions/{함수명}/index.ts`)
-2. `Ctrl+A` → `Ctrl+C` 전체 복사
-3. https://supabase.com/dashboard → `bluffzone_seoul` → Edge Functions
-4. 해당 함수 클릭 → 에디터 진입 → 기존 코드 전체 삭제 → 붙여넣기
-5. **Deploy updates** 초록 버튼 클릭
-6. "Successfully deployed" + 목록 Updated 컬럼 "a few seconds ago" 확인
+만약 CLI 인증 만료되면 → 사용자에게 **대시보드 복붙 방식** 안내:
+1. 로컬 파일 (`supabase/functions/{함수명}/index.ts`) 전체 복사
+2. https://supabase.com/dashboard → `bluffzone_seoul` → Edge Functions → 해당 함수
+3. 코드 교체 → **Deploy updates** → "Successfully deployed" 확인
 
 **프로젝트 ref**: `chxcayaehgwqrpjuajqx`
 **현재 배포된 Edge Functions**: `claude-proxy`, `whisper-proxy`
