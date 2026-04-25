@@ -27,6 +27,14 @@ import { parseVoiceToHand } from '../../services/openaiApi';
 const HERO_COLOR = '#3b82f6';
 const VILLAIN_COLORS = ['#ef4444', '#22c55e', '#a855f7'] as const;
 
+// ── 금액 표시 헬퍼 ─────────────────────────────────────────────────────────
+// amount(원) ÷ amountUnit(만원=10000) → "0.5", "1", "13.5" 처럼 소수점 보존
+function formatAmountDisplay(amount: number, unit: number): string {
+  const v = amount / unit;
+  if (Number.isInteger(v)) return String(v);
+  return String(Math.round(v * 100) / 100); // 소수점 2자리까지
+}
+
 // ── 스트리트별 한글 라벨 & 색상 ────────────────────────────────────────────
 const STREET_LABEL: Record<string, string> = {
   preflop: '프리플랍',
@@ -155,8 +163,8 @@ function ActionRow({ action, villainNames, activeVillainCount, onChange, onRemov
   }
   const ac = actorColor(cur);
   const showAmount = (['bet', 'raise', 'call', 'allin'] as Action[]).includes(action.action);
-  // 표시값: 저장값 ÷ amountUnit
-  const displayAmt = action.amount != null ? String(Math.round(action.amount / amountUnit)) : '';
+  // 표시값: 저장값 ÷ amountUnit (소수점 보존: 5000원 / 10000 → "0.5")
+  const displayAmt = action.amount != null ? formatAmountDisplay(action.amount, amountUnit) : '';
 
   return (
     <View style={styles.actionRow}>
@@ -237,11 +245,52 @@ export default function HandEditorScreen({ navigation, route }: Props) {
           if (parsed.hero_position) setHeroPos(parsed.hero_position as Position9Max);
           if (parsed.hero_cards && parsed.hero_cards.length > 0) setHeroCards(parsed.hero_cards as Card[]);
           if (parsed.board && parsed.board.length > 0) setBoard(parsed.board as Card[]);
-          if (parsed.actions && parsed.actions.length > 0) setActions(parsed.actions as HandAction[]);
+
+          // ── 빌런 배열 처리: parsed.villains[] (신규) 또는 villain_position (구버전) ──
+          // villains 슬롯 [0..2]를 채우고, 비어있는 슬롯은 그대로 둔다.
+          const parsedVillains: Array<{ position?: string; type?: string | null; known?: boolean; cards?: Card[] | null }> =
+            Array.isArray((parsed as any).villains) && (parsed as any).villains.length > 0
+              ? (parsed as any).villains
+              : parsed.villain_position
+                ? [{
+                    position: parsed.villain_position,
+                    type: null,
+                    known: !!parsed.villain_known,
+                    cards: parsed.villain_cards ?? null,
+                  }]
+                : [];
+          if (parsedVillains.length > 0) {
+            const next: [VillainState, VillainState, VillainState] = [emptyVillain(), emptyVillain(), emptyVillain()];
+            parsedVillains.slice(0, 3).forEach((v, i) => {
+              next[i] = {
+                pos: (v.position ?? null) as Position9Max | null,
+                cards: (v.known && Array.isArray(v.cards)) ? (v.cards as Card[]) : [],
+                cardsKnown: !!v.known,
+                name: v.type ?? '',
+              };
+            });
+            setVillains(next);
+          }
+
+          // ── 액션 actor 변환: 'hero'/'villain' → '나'/(첫 빌런 이름 또는 '빌런 1') ──
+          if (parsed.actions && parsed.actions.length > 0) {
+            const primaryVillainName =
+              (parsedVillains[0]?.type && parsedVillains[0].type !== '' ? parsedVillains[0].type : '') || '빌런 1';
+            const mapped = (parsed.actions as HandAction[]).map(a => {
+              const rawActor = (a as any).actor;
+              const newActor =
+                rawActor === 'hero' ? '나' :
+                rawActor === 'villain' ? primaryVillainName :
+                rawActor;
+              return { ...a, actor: newActor } as HandAction;
+            });
+            setActions(mapped);
+          }
+
           if (parsed.result) setResult(parsed.result as ResultType);
-          // parse-voice는 항상 KRW 원 단위로 반환 → 폼 표시 단위(amountUnit)로 변환
-          if (parsed.pot_size != null) setPotSize(String(Math.round(parsed.pot_size / amountUnit)));
-          if (parsed.hero_pl != null) setHeroPl(String(Math.round(parsed.hero_pl / amountUnit)));
+          // parse-voice는 항상 KRW 원 단위로 반환 → 폼 표시 단위(amountUnit)로 변환 (소수점 보존)
+          if (parsed.pot_size != null) setPotSize(formatAmountDisplay(parsed.pot_size, amountUnit));
+          if (parsed.hero_pl != null) setHeroPl(formatAmountDisplay(parsed.hero_pl, amountUnit));
           if (parsed.note) setNote(parsed.note);
           showAlert('음성 입력 완료', '핸드 정보가 자동 입력되었습니다. 내용을 확인하고 저장해주세요.');
         } finally {
@@ -271,7 +320,7 @@ export default function HandEditorScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     if (!isAutoPot) return;
-    setPotSize(autoPot > 0 ? String(Math.round(autoPot / amountUnit)) : '');
+    setPotSize(autoPot > 0 ? formatAmountDisplay(autoPot, amountUnit) : '');
   }, [autoPot, amountUnit, isAutoPot]);
 
   useEffect(() => {
@@ -283,10 +332,10 @@ export default function HandEditorScreen({ navigation, route }: Props) {
     setActions(existingHand.actions ?? []);
     setResult(existingHand.result);
     // 기존 핸드 로드 시 amountUnit으로 나눠서 표시
-    setPotSize(existingHand.pot_size != null ? String(Math.round(existingHand.pot_size / amountUnit)) : '');
-    setHeroPl(existingHand.hero_pl != null ? String(Math.round(existingHand.hero_pl / amountUnit)) : '');
+    setPotSize(existingHand.pot_size != null ? formatAmountDisplay(existingHand.pot_size, amountUnit) : '');
+    setHeroPl(existingHand.hero_pl != null ? formatAmountDisplay(existingHand.hero_pl, amountUnit) : '');
     setPreflopAggressor((existingHand as any).preflop_aggressor ?? null);
-    setEffectiveStack((existingHand as any).effective_stack != null ? String(Math.round((existingHand as any).effective_stack / amountUnit)) : '');
+    setEffectiveStack((existingHand as any).effective_stack != null ? formatAmountDisplay((existingHand as any).effective_stack, amountUnit) : '');
     setVillainType((existingHand as any).villain_type ?? '');
     setNote(existingHand.note ?? '');
     setIsAutoPot(false); // 기존 팟 값 유지 (자동 덮어쓰기 방지)
