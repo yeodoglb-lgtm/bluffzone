@@ -262,26 +262,34 @@ export default function HandEditorScreen({ navigation, route }: Props) {
           if (parsedVillains.length > 0) {
             const next: [VillainState, VillainState, VillainState] = [emptyVillain(), emptyVillain(), emptyVillain()];
             parsedVillains.slice(0, 3).forEach((v, i) => {
+              // name = type가 있으면 type, 없으면 "빌런 N" — actor 문자열과 매칭 보장
+              const nm = (v.type && v.type !== '') ? v.type : `빌런 ${i + 1}`;
               next[i] = {
                 pos: (v.position ?? null) as Position9Max | null,
                 cards: (v.known && Array.isArray(v.cards)) ? (v.cards as Card[]) : [],
                 cardsKnown: !!v.known,
-                name: v.type ?? '',
+                name: nm,
               };
             });
             setVillains(next);
           }
 
-          // ── 액션 actor 변환: 'hero'/'villain' → '나'/(첫 빌런 이름 또는 '빌런 1') ──
+          // ── 액션 actor 변환 ──
+          // GPT 출력: 'hero' | 'villain1' | 'villain2' | 'villain3' (구버전 'villain' = villain1)
+          // 폼 표시: '나' | 빌런별 이름 (type 또는 '빌런 N')
           if (parsed.actions && parsed.actions.length > 0) {
-            const primaryVillainName =
-              (parsedVillains[0]?.type && parsedVillains[0].type !== '' ? parsedVillains[0].type : '') || '빌런 1';
+            const villainNameAt = (idx: number): string => {
+              const v = parsedVillains[idx];
+              if (v?.type && v.type !== '') return v.type;
+              return `빌런 ${idx + 1}`;
+            };
             const mapped = (parsed.actions as HandAction[]).map(a => {
-              const rawActor = (a as any).actor;
-              const newActor =
-                rawActor === 'hero' ? '나' :
-                rawActor === 'villain' ? primaryVillainName :
-                rawActor;
+              const rawActor = String((a as any).actor ?? '').toLowerCase();
+              let newActor: string = (a as any).actor;
+              if (rawActor === 'hero') newActor = '나';
+              else if (rawActor === 'villain' || rawActor === 'villain1') newActor = villainNameAt(0);
+              else if (rawActor === 'villain2') newActor = villainNameAt(1);
+              else if (rawActor === 'villain3') newActor = villainNameAt(2);
               return { ...a, actor: newActor } as HandAction;
             });
             setActions(mapped);
