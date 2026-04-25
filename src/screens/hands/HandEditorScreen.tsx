@@ -192,7 +192,7 @@ function ActionRow({ action, villainNames, activeVillainCount, onChange, onRemov
 export default function HandEditorScreen({ navigation, route }: Props) {
   const { handId, sessionId } = route.params ?? {};
   const { session } = useAuthStore();
-  const { currency } = useSettingsStore();
+  const { currency, defaultBbKrw } = useSettingsStore();
   const userId = session?.user.id ?? 'dev-user';
   const { data: existingHand, isLoading: loadingHand } = useHand(handId);
   const createHand = useCreateHand();
@@ -204,6 +204,8 @@ export default function HandEditorScreen({ navigation, route }: Props) {
   const [isAutoPot, setIsAutoPot] = useState(true);
 
   const [gameType, setGameType] = useState<GameType>('NLH');
+  // 핸드별 BB (원). 기본값은 settings의 defaultBbKrw. 음성 파싱 시 콜·림프 금액 자동계산에 사용.
+  const [bbKrw, setBbKrw] = useState<string>(defaultBbKrw ? String(defaultBbKrw) : '');
   const [heroPos, setHeroPos] = useState<Position9Max | null>(null);
   const [villains, setVillains] = useState<[VillainState, VillainState, VillainState]>([emptyVillain(), emptyVillain(), emptyVillain()]);
   const [heroCards, setHeroCards] = useState<Card[]>([]);
@@ -239,7 +241,8 @@ export default function HandEditorScreen({ navigation, route }: Props) {
         if (!text) return;
         setIsParsing(true);
         try {
-          const parsed = await parseVoiceToHand(text);
+          const bbNum = bbKrw ? parseInt(bbKrw, 10) : undefined;
+          const parsed = await parseVoiceToHand(text, bbNum && bbNum > 0 ? bbNum : undefined);
           // 파싱 결과를 폼 상태에 반영 (있는 필드만)
           if (parsed.game_type) setGameType(parsed.game_type as GameType);
           if (parsed.hero_position) setHeroPos(parsed.hero_position as Position9Max);
@@ -442,6 +445,16 @@ export default function HandEditorScreen({ navigation, route }: Props) {
             <Chip label="원" selected={amountUnit === 1} onPress={() => setAmountUnit(1)} />
             <Chip label="만원" selected={amountUnit === 10000} onPress={() => setAmountUnit(10000)} />
           </View>
+          <Label text="빅블라인드 (원)" />
+          <TextInput
+            style={styles.input}
+            value={bbKrw}
+            onChangeText={setBbKrw}
+            keyboardType="numeric"
+            placeholder="예: 10000 (=1만원 BB)"
+            placeholderTextColor={colors.textMuted}
+          />
+          <Text style={[styles.hint, { textAlign: 'left' }]}>음성 입력 시 콜·림프 금액 자동계산에 사용. 비우면 차감 없이 raise 매칭.</Text>
         </Section>
 
         <Section title="포지션 & 카드">

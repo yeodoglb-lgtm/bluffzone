@@ -18,7 +18,7 @@ async function getAuthHeader(): Promise<string> {
 
 // ── 음성 텍스트 → 핸드 파싱 ──────────────────────────────────────────────────
 // 모델: gpt-4o (서버 기본값, 정확도 우선)
-export async function parseVoiceToHand(text: string): Promise<Partial<Hand>> {
+export async function parseVoiceToHand(text: string, bbKrw?: number): Promise<Partial<Hand>> {
   const authHeader = await getAuthHeader();
 
   const res = await fetch(`${FUNCTION_BASE}/parse-voice`, {
@@ -27,7 +27,7 @@ export async function parseVoiceToHand(text: string): Promise<Partial<Hand>> {
       Authorization: authHeader,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, bb_krw: bbKrw }),
   });
 
   if (!res.ok) {

@@ -9,6 +9,7 @@ interface SettingsState {
   autoReview: boolean;
   monthlyGoal: number | null;
   lossProtect: boolean;
+  defaultBbKrw: number; // 음성 핸드 입력 시 기본 빅블라인드 (원 단위), 0=미설정
   setCurrency: (currency: Currency) => void;
   setLocale: (locale: 'ko' | 'en') => void;
   setAiModel: (model: AiModel) => void;
@@ -16,6 +17,7 @@ interface SettingsState {
   setAutoReview: (value: boolean) => void;
   setMonthlyGoal: (goal: number | null) => void;
   setLossProtect: (value: boolean) => void;
+  setDefaultBbKrw: (bb: number) => void;
 }
 
 export const useSettingsStore = create<SettingsState>(set => ({
@@ -26,6 +28,7 @@ export const useSettingsStore = create<SettingsState>(set => ({
   autoReview: false,
   monthlyGoal: null,
   lossProtect: true,
+  defaultBbKrw: 10000, // 기본 1만원 BB
   setCurrency: currency => set({ currency }),
   setLocale: locale => set({ locale }),
   setAiModel: aiModel => set({ aiModel }),
@@ -33,4 +36,5 @@ export const useSettingsStore = create<SettingsState>(set => ({
   setAutoReview: autoReview => set({ autoReview }),
   setMonthlyGoal: monthlyGoal => set({ monthlyGoal }),
   setLossProtect: lossProtect => set({ lossProtect }),
+  setDefaultBbKrw: defaultBbKrw => set({ defaultBbKrw }),
 }));

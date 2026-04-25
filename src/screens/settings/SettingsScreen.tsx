@@ -65,10 +65,12 @@ export default function SettingsScreen() {
     locale, setLocale,
     monthlyGoal, setMonthlyGoal,
     lossProtect, setLossProtect,
+    defaultBbKrw, setDefaultBbKrw,
   } = useSettingsStore();
 
   const { profile, setProfile, reset } = useAuthStore();
   const [goalInput, setGoalInput] = useState(monthlyGoal?.toString() ?? '');
+  const [bbInput, setBbInput] = useState(defaultBbKrw ? String(defaultBbKrw) : '');
   const [signingOut, setSigningOut] = useState(false);
 
   // 닉네임 편집 상태
@@ -79,6 +81,11 @@ export default function SettingsScreen() {
   function handleGoalBlur() {
     const n = parseInt(goalInput, 10);
     setMonthlyGoal(isNaN(n) || n <= 0 ? null : n);
+  }
+
+  function handleBbBlur() {
+    const n = parseInt(bbInput, 10);
+    setDefaultBbKrw(isNaN(n) || n <= 0 ? 0 : n);
   }
 
   async function handleSaveName() {
@@ -209,6 +216,25 @@ export default function SettingsScreen() {
                   placeholderTextColor={colors.textMuted}
                 />
                 <Text style={styles.unitText}>{currency === 'KRW' ? '원' : '$'}</Text>
+              </View>
+            }
+          />
+          <View style={styles.divider} />
+          <SettingRow
+            label="기본 빅블라인드 (BB)"
+            sub="음성 핸드 입력 시 콜·림프 금액 자동계산에 사용 (원 단위)"
+            right={
+              <View style={styles.inputWrap}>
+                <TextInput
+                  style={styles.numInput}
+                  value={bbInput}
+                  onChangeText={setBbInput}
+                  onBlur={handleBbBlur}
+                  keyboardType="numeric"
+                  placeholder="10000"
+                  placeholderTextColor={colors.textMuted}
+                />
+                <Text style={styles.unitText}>원</Text>
               </View>
             }
           />
