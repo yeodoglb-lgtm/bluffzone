@@ -70,17 +70,44 @@ export default function InstallPwaCard() {
 
   // 인앱 브라우저: 친근한 "Chrome으로 접속해보세요" 안내
   if (isInAppBrowser()) {
+    // 카드 탭 시 동작:
+    // - Android: intent:// URL로 Chrome 직접 호출 (한 번에 이동)
+    // - iOS: Chrome 직접 호출 시도 후 모달 fallback (iOS는 자동 이동 보장 안 됨)
+    const handleInAppTap = () => {
+      const url = window.location.href;
+      if (isAndroid()) {
+        // intent:// 스킴: scheme=https;package=com.android.chrome;end
+        // S.browser_fallback_url로 Chrome 미설치 대비
+        const path = url.replace(/^https?:\/\//, '');
+        const intentUrl =
+          `intent://${path}#Intent;scheme=https;package=com.android.chrome;` +
+          `S.browser_fallback_url=${encodeURIComponent(url)};end`;
+        window.location.href = intentUrl;
+        return;
+      }
+      if (isIOS()) {
+        // iOS Chrome 앱이 설치돼 있으면 googlechromes:// 스킴으로 열림
+        // 단, 미설치면 무반응 → 1초 후 모달로 fallback
+        const chromeUrl = url.replace(/^https?:\/\//, 'googlechromes://');
+        window.location.href = chromeUrl;
+        setTimeout(() => setShowInAppModal(true), 1000);
+        return;
+      }
+      // 그 외(기타 인앱): 모달 안내
+      setShowInAppModal(true);
+    };
+
     return (
       <>
         <TouchableOpacity
           style={[styles.card, styles.inAppCard]}
-          onPress={() => setShowInAppModal(true)}
+          onPress={handleInAppTap}
           activeOpacity={0.85}
         >
           <Image source={APP_ICON} style={styles.iconImage} resizeMode="contain" />
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>이제 블러프존 앱으로 편하게 이용하세요</Text>
-            <Text style={styles.desc}>Chrome으로 접속하시면 앱을 설치하실 수 있습니다</Text>
+            <Text style={styles.desc}>탭하면 Chrome에서 앱을 설치할 수 있어요</Text>
           </View>
           <Text style={styles.arrow}>›</Text>
         </TouchableOpacity>
