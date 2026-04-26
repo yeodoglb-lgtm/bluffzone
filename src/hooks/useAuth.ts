@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from 'react';
+import * as Sentry from '@sentry/react-native';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { fetchProfile } from '../services/auth';
@@ -54,8 +55,12 @@ export function useAuthInit() {
         try {
           setSession(session);
           if (session?.user) {
+            // Sentry user 컨텍스트 (어떤 유저가 에러 났는지 추적용. PII 최소화)
+            Sentry.setUser({ id: session.user.id });
             await syncProfile(session.user.id);
           } else {
+            // 로그아웃 시 Sentry user 정보 클리어
+            Sentry.setUser(null);
             setProfile(null);
           }
         } catch (err) {
