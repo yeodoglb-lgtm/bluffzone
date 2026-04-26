@@ -261,6 +261,20 @@ export default function SettingsScreen() {
             - 음성 입력 엔진: Whisper 고정 (기기 STT는 미구현)
             의도적으로 UI에서 숨김. 필요 시 아래 블록 주석 해제. */}
 
+        {/* 의견 / 문의 */}
+        <SectionHeader title="고객 지원" />
+        <View style={styles.card}>
+          <TouchableOpacity style={styles.row} onPress={() => (navigation as any).navigate('Feedback')}>
+            <Text style={styles.rowLabel}>💬 의견 보내기</Text>
+            <Text style={styles.rowSub}>›</Text>
+          </TouchableOpacity>
+          <View style={styles.divider} />
+          <TouchableOpacity style={styles.row} onPress={() => (navigation as any).navigate('MyFeedback')}>
+            <Text style={styles.rowLabel}>📋 내 의견 이력</Text>
+            <Text style={styles.rowSub}>›</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* 약관 / 개인정보 */}
         <SectionHeader title="약관 및 정책" />
         <View style={styles.card}>

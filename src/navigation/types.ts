@@ -41,6 +41,9 @@ export type RootStackParamList = {
   AIChat: { chatId?: string };
   Terms: undefined;
   Privacy: undefined;
+  Feedback: undefined;
+  MyFeedback: undefined;
+  AdminFeedback: undefined;
 };
 
 // ── Screen Props helpers ───────────────────────────────────────────────────────

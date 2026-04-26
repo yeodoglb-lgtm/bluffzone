@@ -13,6 +13,9 @@ import MainTabNavigator from './MainTabNavigator';
 import AIChatScreen from '../screens/ai/AIChatScreen';
 import TermsScreen from '../screens/auth/TermsScreen';
 import PrivacyScreen from '../screens/auth/PrivacyScreen';
+import FeedbackScreen from '../screens/feedback/FeedbackScreen';
+import MyFeedbackListScreen from '../screens/feedback/MyFeedbackListScreen';
+import AdminFeedbackScreen from '../screens/admin/AdminFeedbackScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -32,6 +35,9 @@ const linking: LinkingOptions<RootStackParamList> = {
       Terms: 'terms',
       Privacy: 'privacy',
       AIChat: 'chat/:chatId?',
+      Feedback: 'feedback',
+      MyFeedback: 'feedback/mine',
+      AdminFeedback: 'admin/feedback',
       Main: {
         path: '',
         screens: {
@@ -124,6 +130,9 @@ export default function RootNavigator() {
             />
             <Stack.Screen name="Terms" component={TermsScreen} />
             <Stack.Screen name="Privacy" component={PrivacyScreen} />
+            <Stack.Screen name="Feedback" component={FeedbackScreen} />
+            <Stack.Screen name="MyFeedback" component={MyFeedbackListScreen} />
+            <Stack.Screen name="AdminFeedback" component={AdminFeedbackScreen} />
           </>
         ) : (
           <>

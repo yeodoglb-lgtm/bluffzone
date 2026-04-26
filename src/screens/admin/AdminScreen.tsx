@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import { useAdminOverview, useAdminUsers } from '../../hooks/useAdmin';
 import { useAuthStore } from '../../store/authStore';
@@ -58,6 +59,7 @@ function UserRow({ user, index }: { user: AdminUserStat; index: number }) {
 // ── 메인 화면 ────────────────────────────────────────────────────────────────
 export default function AdminScreen() {
   const { profile } = useAuthStore();
+  const navigation = useNavigation();
   const { data: overview, isLoading: overviewLoading } = useAdminOverview();
   const { data: users, isLoading: usersLoading } = useAdminUsers();
   const qc = useQueryClient();
@@ -95,6 +97,20 @@ export default function AdminScreen() {
           <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
       >
+        {/* 의견 관리 바로가기 */}
+        <TouchableOpacity
+          style={s.feedbackBtn}
+          onPress={() => (navigation as any).navigate('AdminFeedback')}
+          activeOpacity={0.85}
+        >
+          <Text style={s.feedbackEmoji}>💬</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.feedbackTitle}>사용자 의견 관리</Text>
+            <Text style={s.feedbackDesc}>버그·제안·칭찬 모음 + 답변 처리</Text>
+          </View>
+          <Text style={s.feedbackArrow}>›</Text>
+        </TouchableOpacity>
+
         {/* 전체 통계 */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>전체 현황</Text>
@@ -173,6 +189,15 @@ const s = StyleSheet.create({
   refreshBtn: { paddingHorizontal: spacing.sm, paddingVertical: 4 },
   refreshText: { fontSize: fontSize.sm, color: colors.primary },
   content: { padding: spacing.md, gap: spacing.md },
+  feedbackBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    backgroundColor: colors.surface, borderRadius: radius.card,
+    padding: spacing.base, borderWidth: 1, borderColor: colors.primary,
+  },
+  feedbackEmoji: { fontSize: 28 },
+  feedbackTitle: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.text },
+  feedbackDesc: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  feedbackArrow: { fontSize: 24, color: colors.primary },
   section: {
     backgroundColor: colors.surface, borderRadius: radius.card,
     padding: spacing.base, borderWidth: 1, borderColor: colors.line, gap: spacing.sm,

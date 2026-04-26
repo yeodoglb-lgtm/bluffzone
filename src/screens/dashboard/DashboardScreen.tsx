@@ -9,6 +9,7 @@ import { User, Bot } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import Logo from '../../components/common/Logo';
 import InstallPwaCard from '../../components/InstallPwaCard';
+import BetaBanner from '../../components/BetaBanner';
 import { useAuthStore } from '../../store/authStore';
 import { useHands } from '../../hooks/useHands';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
@@ -128,6 +129,9 @@ export default function DashboardScreen() {
 
         {/* 모바일 PWA 설치 안내 카드 (인앱 브라우저면 Chrome 안내) */}
         <InstallPwaCard />
+
+        {/* 베타 배너 — 정식 출시 후 제거 */}
+        <BetaBanner />
       </ScrollView>
     </SafeAreaView>
   );
