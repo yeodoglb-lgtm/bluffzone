@@ -274,14 +274,14 @@ const hav = StyleSheet.create({
     justifyContent: 'center',
   },
   posChipPos: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: fontWeight.bold,
-    lineHeight: 12,
+    lineHeight: 13,
   },
   posChipName: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: fontWeight.semibold,
-    lineHeight: 11,
+    lineHeight: 13,
     marginTop: 1,
   },
   bubble: {
