@@ -1,19 +1,22 @@
 import { supabase } from './supabase';
+import { withTimeout } from './queryTimeout';
 import type { Profile } from '../types/database';
 
 // ── 프로필 조회/동기화 ─────────────────────────────────────────────────────────
 export async function fetchProfile(userId: string): Promise<Profile | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
+  return withTimeout((async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
 
-  if (error) {
-    console.error('fetchProfile error:', error.message);
-    return null;
-  }
-  return data as Profile;
+    if (error) {
+      console.error('fetchProfile error:', error.message);
+      return null;
+    }
+    return data as Profile;
+  })());
 }
 
 export async function updateProfile(

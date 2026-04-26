@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { withTimeout } from './queryTimeout';
 import type { Session, SessionWithProfit } from '../types/database';
 
 // ── 월별 세션 조회 (캘린더용) ────────────────────────────────────────────────
@@ -8,21 +9,23 @@ export async function fetchSessionsByMonth(
   year: number,
   month: number
 ): Promise<SessionWithProfit[]> {
-  const start = `${year}-${String(month).padStart(2, '0')}-01`;
-  const end = new Date(year, month, 0).toISOString().split('T')[0];
+  return withTimeout((async () => {
+    const start = `${year}-${String(month).padStart(2, '0')}-01`;
+    const end = new Date(year, month, 0).toISOString().split('T')[0];
 
-  let query = supabase
-    .from('v_sessions')
-    .select('*')
-    .gte('played_on', start)
-    .lte('played_on', end)
-    .order('played_on', { ascending: true });
+    let query = supabase
+      .from('v_sessions')
+      .select('*')
+      .gte('played_on', start)
+      .lte('played_on', end)
+      .order('played_on', { ascending: true });
 
-  if (userId) query = query.eq('user_id', userId);
+    if (userId) query = query.eq('user_id', userId);
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data ?? []) as SessionWithProfit[];
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data ?? []) as SessionWithProfit[];
+  })());
 }
 
 // ── 특정 날짜 세션 조회 ────────────────────────────────────────────────────────
@@ -30,17 +33,19 @@ export async function fetchSessionsByDate(
   userId: string | null,
   date: string
 ): Promise<SessionWithProfit[]> {
-  let query = supabase
-    .from('v_sessions')
-    .select('*')
-    .eq('played_on', date)
-    .order('started_at', { ascending: true });
+  return withTimeout((async () => {
+    let query = supabase
+      .from('v_sessions')
+      .select('*')
+      .eq('played_on', date)
+      .order('started_at', { ascending: true });
 
-  if (userId) query = query.eq('user_id', userId);
+    if (userId) query = query.eq('user_id', userId);
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data ?? []) as SessionWithProfit[];
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data ?? []) as SessionWithProfit[];
+  })());
 }
 
 // ── 기간별 세션 조회 (통계용) ──────────────────────────────────────────────────
@@ -49,30 +54,33 @@ export async function fetchSessionsByRange(
   from: string,
   to: string
 ): Promise<SessionWithProfit[]> {
-  let query = supabase
-    .from('v_sessions')
-    .select('*')
-    .gte('played_on', from)
-    .lte('played_on', to)
-    .order('played_on', { ascending: true });
+  return withTimeout((async () => {
+    let query = supabase
+      .from('v_sessions')
+      .select('*')
+      .gte('played_on', from)
+      .lte('played_on', to)
+      .order('played_on', { ascending: true });
 
-  if (userId) query = query.eq('user_id', userId);
+    if (userId) query = query.eq('user_id', userId);
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data ?? []) as SessionWithProfit[];
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data ?? []) as SessionWithProfit[];
+  })());
 }
 
 // ── 세션 단건 조회 ─────────────────────────────────────────────────────────────
 export async function fetchSession(id: string): Promise<SessionWithProfit | null> {
-  const { data, error } = await supabase
-    .from('v_sessions')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (error) return null;
-  return data as SessionWithProfit;
+  return withTimeout((async () => {
+    const { data, error } = await supabase
+      .from('v_sessions')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) return null;
+    return data as SessionWithProfit;
+  })());
 }
 
 // ── 세션 생성 ─────────────────────────────────────────────────────────────────
@@ -116,16 +124,17 @@ export async function deleteSession(id: string): Promise<void> {
 
 // ── 어드민: 유저 프로필 맵 조회 (uid → display_name) ──────────────────────────
 export async function fetchUserNameMap(): Promise<Record<string, string>> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, display_name');
-
-  if (error) return {};
-  const map: Record<string, string> = {};
-  (data ?? []).forEach((p: any) => {
-    map[p.id] = p.display_name ?? p.id.slice(0, 6);
-  });
-  return map;
+  return withTimeout((async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, display_name');
+    if (error) return {};
+    const map: Record<string, string> = {};
+    (data ?? []).forEach((p: any) => {
+      map[p.id] = p.display_name ?? p.id.slice(0, 6);
+    });
+    return map;
+  })());
 }
 
 // ── 날짜별 집계 (캘린더 dot 데이터) ───────────────────────────────────────────

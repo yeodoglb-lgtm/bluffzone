@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { withTimeout } from './queryTimeout';
 import type {
   Card,
   HandAction,
@@ -47,36 +48,39 @@ export interface HandWithUser extends Hand {
 // ── 어드민 전용: 전체 유저 핸드 조회 (프로필 조인 없이 단순 조회)
 // display_name 은 호출 측에서 userNameMap 으로 주입
 export async function fetchAllHandsAdmin(limit = 200): Promise<Hand[]> {
-  const { data, error } = await supabase
-    .from('hands')
-    .select('*')
-    .order('played_at', { ascending: false })
-    .limit(limit);
-
-  if (error) throw error;
-  return (data ?? []) as Hand[];
+  return withTimeout((async () => {
+    const { data, error } = await supabase
+      .from('hands')
+      .select('*')
+      .order('played_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return (data ?? []) as Hand[];
+  })());
 }
 
 export async function fetchHands(limit = 50, offset = 0): Promise<Hand[]> {
-  const { data, error } = await supabase
-    .from('hands')
-    .select('*')
-    .order('played_at', { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  if (error) throw error;
-  return (data ?? []) as Hand[];
+  return withTimeout((async () => {
+    const { data, error } = await supabase
+      .from('hands')
+      .select('*')
+      .order('played_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (error) throw error;
+    return (data ?? []) as Hand[];
+  })());
 }
 
 export async function fetchHand(id: string): Promise<Hand | null> {
-  const { data, error } = await supabase
-    .from('hands')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (error) return null;
-  return data as Hand;
+  return withTimeout((async () => {
+    const { data, error } = await supabase
+      .from('hands')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) return null;
+    return data as Hand;
+  })());
 }
 
 export async function createHand(input: HandInsert): Promise<Hand> {
