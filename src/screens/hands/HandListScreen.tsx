@@ -173,8 +173,26 @@ export default function HandListScreen({ navigation }: Props) {
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
+              <Text style={styles.emptyEmoji}>🃏</Text>
               <Text style={styles.emptyTitle}>아직 기록된 핸드가 없습니다</Text>
-              <Text style={styles.emptySub}>+ 버튼으로 첫 핸드를 기록해보세요</Text>
+              <Text style={styles.emptySub}>
+                음성으로 1분 만에 첫 핸드를 기록해보세요{'\n'}
+                AI가 자동으로 정리해드립니다
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyCta}
+                onPress={() => navigation.push('HandEditor', {})}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.emptyCtaText}>🎙  음성으로 첫 핸드 기록</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.emptyCtaSecondary}
+                onPress={() => navigation.push('HandEditor', {})}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.emptyCtaSecondaryText}>직접 입력으로 기록</Text>
+              </TouchableOpacity>
             </View>
           }
         />
@@ -254,9 +272,27 @@ const styles = StyleSheet.create({
   empty: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 80,
-    gap: spacing.sm,
+    paddingTop: 60,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
   },
-  emptyTitle: { fontSize: fontSize.md, color: colors.text },
-  emptySub: { fontSize: fontSize.sm, color: colors.textMuted },
+  emptyEmoji: { fontSize: 56 },
+  emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  emptySub: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center', lineHeight: 22 },
+  emptyCta: {
+    marginTop: spacing.md,
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 28,
+    borderRadius: radius.button,
+    alignItems: 'center',
+    minWidth: 240,
+  },
+  emptyCtaText: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.bg },
+  emptyCtaSecondary: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  emptyCtaSecondaryText: { fontSize: fontSize.sm, color: colors.textMuted, textDecorationLine: 'underline' },
 });

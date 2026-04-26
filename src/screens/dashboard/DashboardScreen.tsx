@@ -9,6 +9,7 @@ import { User, Bot } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import Logo from '../../components/common/Logo';
 import { useAuthStore } from '../../store/authStore';
+import { useHands } from '../../hooks/useHands';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
 
 type DashboardNav = CompositeNavigationProp<
@@ -19,6 +20,9 @@ type DashboardNav = CompositeNavigationProp<
 export default function DashboardScreen() {
   const navigation = useNavigation<DashboardNav>();
   const { profile } = useAuthStore();
+  // 신규 유저 판단: 핸드 0개면 첫 핸드 입력 큰 CTA 노출
+  const { data: hands } = useHands(1);
+  const isNewUser = !hands || hands.length === 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -46,8 +50,31 @@ export default function DashboardScreen() {
           <Text style={styles.sectionTitle}>
             {profile?.display_name ? `${profile.display_name}님, 안녕하세요 👋` : '블러프존에 오신 것을 환영합니다 👋'}
           </Text>
-          <Text style={styles.sectionSub}>아래 기능으로 포커 실력을 키워보세요</Text>
+          <Text style={styles.sectionSub}>
+            {isNewUser
+              ? '음성으로 1분 만에 첫 핸드를 기록해보세요'
+              : '아래 기능으로 포커 실력을 키워보세요'}
+          </Text>
         </View>
+
+        {/* 신규 유저 전용 CTA — 핸드 0개일 때만 노출 */}
+        {isNewUser && (
+          <TouchableOpacity
+            style={styles.firstHandCta}
+            onPress={() => navigation.navigate('HandsTab', { screen: 'HandEditor', params: {} })}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.firstHandEmoji}>🎙</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.firstHandTitle}>음성으로 첫 핸드 기록하기</Text>
+              <Text style={styles.firstHandDesc}>
+                마이크로 자연스럽게 설명만 하면{'\n'}
+                AI가 자동으로 정리 + 리뷰까지
+              </Text>
+            </View>
+            <Text style={styles.firstHandArrow}>›</Text>
+          </TouchableOpacity>
+        )}
 
         {/* 메뉴 카드 3개 */}
         {[
@@ -131,6 +158,23 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   onboardingSection: { gap: spacing.xs, marginBottom: spacing.sm },
+  firstHandCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: radius.card,
+    padding: spacing.base,
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  firstHandEmoji: { fontSize: 36 },
+  firstHandTitle: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.bg },
+  firstHandDesc: { fontSize: fontSize.xs, color: colors.bg, opacity: 0.85, marginTop: 2, lineHeight: 18 },
+  firstHandArrow: { fontSize: 28, color: colors.bg, fontWeight: fontWeight.bold },
   sectionTitle: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,

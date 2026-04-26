@@ -434,6 +434,10 @@ export default function HandEditorScreen({ navigation, route }: Props) {
             <Text style={styles.voiceFullBtnText}>🎙 음성으로 핸드 입력</Text>
           )}
         </TouchableOpacity>
+        <Text style={styles.voiceHelpText}>
+          마이크 버튼을 누르고 핸드를 자연스럽게 설명하세요.{'\n'}
+          예: "버튼에서 에이스 킹 들고 3만 오픈, 빅블 콜, 플랍 K72…"
+        </Text>
 
         <Section title="기본 정보">
           <Label text="게임 타입" />
@@ -904,7 +908,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: radius.button,
     paddingVertical: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  voiceHelpText: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
     marginBottom: spacing.base,
+    paddingHorizontal: spacing.sm,
   },
   voiceFullBtnRecording: {
     backgroundColor: colors.danger,
