@@ -109,6 +109,16 @@ if (IS_WEB && typeof document !== 'undefined') {
   if (document.title === '' || document.title === 'Expo') {
     document.title = '블러프존 - 홀덤 핸드 매니저';
   }
+
+  // ── Service Worker 등록 (PWA 설치 프롬프트 활성화 + 새 버전 자동 반영) ───
+  // localhost 또는 prod에서만 등록 (file:// 같은 환경 제외)
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch((err) => {
+        console.warn('[SW] register failed:', err);
+      });
+    });
+  }
 }
 
 const queryClient = new QueryClient({
