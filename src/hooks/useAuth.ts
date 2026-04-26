@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import * as Sentry from '@sentry/react-native';
+import * as Sentry from '@sentry/browser';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { fetchProfile } from '../services/auth';
