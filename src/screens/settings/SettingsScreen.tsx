@@ -17,6 +17,7 @@ import { useAuthStore } from '../../store/authStore';
 import { signOut, updateProfile } from '../../services/auth';
 import { CURRENCIES } from '../../constants/poker';
 import type { Currency } from '../../constants/poker';
+import { useNavigation } from '@react-navigation/native';
 
 function SectionHeader({ title }: { title: string }) {
   return <Text style={styles.sectionHeader}>{title}</Text>;
@@ -69,6 +70,7 @@ export default function SettingsScreen() {
   } = useSettingsStore();
 
   const { profile, setProfile, reset } = useAuthStore();
+  const navigation = useNavigation();
   const [goalInput, setGoalInput] = useState(monthlyGoal?.toString() ?? '');
   const [bbInput, setBbInput] = useState(defaultBbKrw ? String(defaultBbKrw) : '');
   const [signingOut, setSigningOut] = useState(false);
@@ -258,6 +260,20 @@ export default function SettingsScreen() {
             - 자동 리뷰: 사용 안 함 (유저가 원할 때만 수동으로 요청)
             - 음성 입력 엔진: Whisper 고정 (기기 STT는 미구현)
             의도적으로 UI에서 숨김. 필요 시 아래 블록 주석 해제. */}
+
+        {/* 약관 / 개인정보 */}
+        <SectionHeader title="약관 및 정책" />
+        <View style={styles.card}>
+          <TouchableOpacity style={styles.row} onPress={() => (navigation as any).navigate('Terms')}>
+            <Text style={styles.rowLabel}>이용약관</Text>
+            <Text style={styles.rowSub}>›</Text>
+          </TouchableOpacity>
+          <View style={styles.divider} />
+          <TouchableOpacity style={styles.row} onPress={() => (navigation as any).navigate('Privacy')}>
+            <Text style={styles.rowLabel}>개인정보처리방침</Text>
+            <Text style={styles.rowSub}>›</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* 계정 */}
         <SectionHeader title="계정" />

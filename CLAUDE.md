@@ -93,6 +93,14 @@ Docker 없어도 됨 (WARNING은 무시). 배포 후 `functions list`로 VERSION
 
 기록 후에는 **"CLAUDE.md에 기록해뒀습니다"** 한 줄 언급해서 사용자가 확인 가능하게.
 
+## 🚨 정식 출시 전 필수 작업 (잊지 말 것)
+
+- **이메일 인증 절차**: 현재 회원가입에 이메일 인증이 빠져있음 (개발 편의상). 정식 출시 시 Supabase Auth의 email confirmation을 ON으로 돌려야 함.
+  - 위치: Supabase Dashboard → Authentication → Providers → Email → "Confirm email" 토글.
+  - 또는 SQL: `UPDATE auth.config SET enable_confirmations = true;`
+
+---
+
 ## 🧠 핸드리뷰 품질 강화 로드맵 (진행중)
 
 **목표**: 핸드리뷰 결과를 GTO 기반으로 더 깊이 있게.

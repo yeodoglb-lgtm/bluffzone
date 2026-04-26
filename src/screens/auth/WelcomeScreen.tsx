@@ -13,18 +13,27 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import { supabase } from '../../services/supabase';
+import type { RootStackParamList } from '../../navigation/types';
 
 type Mode = 'login' | 'signup';
+type Nav = StackNavigationProp<RootStackParamList>;
 
 export default function WelcomeScreen() {
+  const navigation = useNavigation<Nav>();
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  // 가입 약관 동의 상태
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [agreeAge, setAgreeAge] = useState(false);
 
   function switchMode(m: Mode) {
     setMode(m);
@@ -38,6 +47,10 @@ export default function WelcomeScreen() {
 
     if (!email || !password) {
       setErrorMsg('이메일과 비밀번호를 입력해주세요.');
+      return;
+    }
+    if (mode === 'signup' && (!agreeTerms || !agreePrivacy || !agreeAge)) {
+      setErrorMsg('이용약관·개인정보처리방침·만 19세 이상에 모두 동의해주세요.');
       return;
     }
     setLoading(true);
@@ -130,6 +143,50 @@ export default function WelcomeScreen() {
               </View>
             )}
 
+            {/* 회원가입일 때만 약관 동의 체크박스 */}
+            {mode === 'signup' && (
+              <View style={styles.agreementBox}>
+                <TouchableOpacity
+                  style={styles.checkRow}
+                  onPress={() => setAgreeAge(!agreeAge)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, agreeAge && styles.checkboxOn]}>
+                    {agreeAge && <Text style={styles.checkMark}>✓</Text>}
+                  </View>
+                  <Text style={styles.checkText}>
+                    [필수] 만 19세 이상입니다
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.checkRow}
+                  onPress={() => setAgreeTerms(!agreeTerms)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, agreeTerms && styles.checkboxOn]}>
+                    {agreeTerms && <Text style={styles.checkMark}>✓</Text>}
+                  </View>
+                  <Text style={styles.checkText}>
+                    [필수] <Text style={styles.linkText} onPress={() => navigation.navigate('Terms')}>이용약관</Text>에 동의합니다
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.checkRow}
+                  onPress={() => setAgreePrivacy(!agreePrivacy)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, agreePrivacy && styles.checkboxOn]}>
+                    {agreePrivacy && <Text style={styles.checkMark}>✓</Text>}
+                  </View>
+                  <Text style={styles.checkText}>
+                    [필수] <Text style={styles.linkText} onPress={() => navigation.navigate('Privacy')}>개인정보처리방침</Text>에 동의합니다 (OpenAI 등 국외 위탁 포함)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <TouchableOpacity
               style={styles.submitBtn}
               onPress={handleSubmit}
@@ -194,4 +251,14 @@ const styles = StyleSheet.create({
     paddingVertical: 15, alignItems: 'center',
   },
   submitText: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.bg },
+  agreementBox: { gap: spacing.sm, marginTop: spacing.xs },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 4, borderWidth: 1.5, borderColor: colors.line,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg,
+  },
+  checkboxOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  checkMark: { color: colors.bg, fontSize: 14, fontWeight: fontWeight.bold },
+  checkText: { fontSize: fontSize.sm, color: colors.text, flex: 1 },
+  linkText: { color: colors.primary, textDecorationLine: 'underline' },
 });

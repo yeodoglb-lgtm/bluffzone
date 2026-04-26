@@ -10,6 +10,8 @@ import type { RootStackParamList } from './types';
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import MainTabNavigator from './MainTabNavigator';
 import AIChatScreen from '../screens/ai/AIChatScreen';
+import TermsScreen from '../screens/auth/TermsScreen';
+import PrivacyScreen from '../screens/auth/PrivacyScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -66,9 +68,15 @@ export default function RootNavigator() {
               component={AIChatScreen}
               options={modalOptions}
             />
+            <Stack.Screen name="Terms" component={TermsScreen} />
+            <Stack.Screen name="Privacy" component={PrivacyScreen} />
           </>
         ) : (
-          <Stack.Screen name="Auth" component={WelcomeScreen} />
+          <>
+            <Stack.Screen name="Auth" component={WelcomeScreen} />
+            <Stack.Screen name="Terms" component={TermsScreen} />
+            <Stack.Screen name="Privacy" component={PrivacyScreen} />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>
