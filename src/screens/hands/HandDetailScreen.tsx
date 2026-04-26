@@ -90,6 +90,34 @@ function resolveActorColor(
   return colors.textMuted;
 }
 
+// ── KRW 금액을 "만" 단위로 짧게 ─────────────────────────────────────────────
+// 5000 → "0.5만", 10000 → "1만", 240000 → "24만", 1100000 → "110만"
+function formatAmountInMan(amount: number): string {
+  if (amount === 0) return '0';
+  const man = amount / 10000;
+  if (Math.abs(man) >= 1) {
+    // 1만 이상: 정수면 정수, 아니면 소수점 1자리
+    return Number.isInteger(man) ? `${man}만` : `${(Math.round(man * 10) / 10)}만`;
+  }
+  // 1만 미만: 0.5만, 0.3만 등 소수점 1자리
+  const rounded = Math.round(man * 10) / 10;
+  return `${rounded}만`;
+}
+
+// 가로형 뷰 전용 액션 텍스트 (금액 짧게)
+function actionDisplayShort(a: HandAction): string {
+  const amt = a.amount != null ? ` ${formatAmountInMan(a.amount)}` : '';
+  switch (a.action) {
+    case 'fold':  return '폴드';
+    case 'check': return '체크';
+    case 'call':  return `콜${amt}`;
+    case 'bet':   return `벳${amt}`;
+    case 'raise': return `레이즈${amt}`;
+    case 'allin': return `올인${amt}`;
+    default: return a.action;
+  }
+}
+
 // ── 가로형 액션 뷰 (스트리트별 컬럼 + 말풍선) ────────────────────────────────
 function HorizontalActionView({
   actions,
@@ -166,17 +194,20 @@ function HorizontalActionRow({
   const isAggressive = action.action === 'raise' || action.action === 'bet' || action.action === 'allin';
   const isFold = action.action === 'fold';
 
-  // 액터 표시: 포지션 우선, 없으면 actor 그대로
-  const actorLabel = pos ?? (action.actor === 'hero' || action.actor === '나' ? '나' : action.actor);
-  // 액션 텍스트: 한글 + 금액
-  const actionText = actionDisplayText(action);
+  // 칩 두 줄: 위=포지션, 아래=액터 이름
+  const actorName = action.actor === 'hero' || action.actor === '나' ? '나' : action.actor;
+  // 액션 텍스트 (만 단위 짧게)
+  const actionText = actionDisplayShort(action);
 
   return (
     <View style={hav.row}>
-      {/* 좌측: 포지션 칩 */}
+      {/* 좌측: 포지션 + 이름 두 줄 칩 */}
       <View style={[hav.posChip, { borderColor: color, backgroundColor: color + '22' }]}>
-        <Text style={[hav.posChipText, { color }]} numberOfLines={1}>
-          {actorLabel}
+        <Text style={[hav.posChipPos, { color }]} numberOfLines={1}>
+          {pos ?? '-'}
+        </Text>
+        <Text style={[hav.posChipName, { color }]} numberOfLines={1}>
+          {actorName}
         </Text>
       </View>
       {/* 우측: 말풍선 */}
@@ -234,16 +265,24 @@ const hav = StyleSheet.create({
   body: { padding: 8, gap: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   posChip: {
-    minWidth: 36,
+    minWidth: 44,
     paddingHorizontal: 6,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1.5,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  posChipText: {
+  posChipPos: {
     fontSize: 10,
     fontWeight: fontWeight.bold,
+    lineHeight: 12,
+  },
+  posChipName: {
+    fontSize: 9,
+    fontWeight: fontWeight.semibold,
+    lineHeight: 11,
+    marginTop: 1,
   },
   bubble: {
     flex: 1,
