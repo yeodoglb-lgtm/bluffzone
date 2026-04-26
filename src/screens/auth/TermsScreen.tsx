@@ -7,7 +7,7 @@ export default function TermsScreen() {
   const navigation = useNavigation();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* 헤더 */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -17,7 +17,7 @@ export default function TermsScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Text style={styles.lastUpdated}>최종 업데이트: 2026년 4월 26일</Text>
 
         <Text style={styles.h2}>제1조 (목적)</Text>
@@ -138,9 +138,6 @@ const styles = StyleSheet.create({
   backBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
   backText: { color: colors.primary, fontSize: fontSize.base },
   title: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  // 웹 PWA에서 flex 자식이 부모 높이 초과해도 내부 스크롤 발동 안 하던 이슈 해결
-  // (Flexbox 기본 min-height: auto가 자식 콘텐츠 크기에 맞춰 grow되는 동작 차단)
-  scroll: { flex: 1, minHeight: 0 },
   content: { padding: spacing.base },
   lastUpdated: { fontSize: fontSize.xs, color: colors.textMuted, marginBottom: spacing.lg },
   h2: {
