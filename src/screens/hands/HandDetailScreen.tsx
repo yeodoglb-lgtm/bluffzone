@@ -90,6 +90,191 @@ function resolveActorColor(
   return colors.textMuted;
 }
 
+// ── 가로형 액션 뷰 (스트리트별 컬럼 + 말풍선) ────────────────────────────────
+function HorizontalActionView({
+  actions,
+  heroPos,
+  villainData,
+}: {
+  actions: HandAction[];
+  heroPos: Position9Max | null;
+  villainData: Array<{ pos: Position9Max | null; name?: string }>;
+}) {
+  const STREET_LABEL: Record<string, string> = {
+    preflop: 'Pre-Flop', flop: 'Flop', turn: 'Turn', river: 'River',
+  };
+  const STREET_ORDER: Street[] = ['preflop', 'flop', 'turn', 'river'];
+
+  // 누적 팟 계산: 각 스트리트 종료 시점의 팟
+  let running = 0;
+  const potAtEnd: Record<string, number> = {};
+  STREET_ORDER.forEach(s => {
+    actions.filter(a => a.street === s).forEach(a => {
+      if (a.amount) running += a.amount;
+    });
+    potAtEnd[s] = running;
+  });
+
+  // 액션이 있는 스트리트만 표시
+  const visible = STREET_ORDER.filter(s => actions.some(a => a.street === s));
+  if (visible.length === 0) return null;
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator
+      contentContainerStyle={hav.scroll}
+    >
+      {visible.map(street => {
+        const streetActions = actions.filter(a => a.street === street);
+        return (
+          <View key={street} style={hav.column}>
+            {/* 헤더: 스트리트 이름 + 팟 */}
+            <View style={hav.header}>
+              <Text style={hav.headerTitle}>{STREET_LABEL[street]}</Text>
+              <Text style={hav.headerPot}>{potAtEnd[street].toLocaleString()}</Text>
+            </View>
+            {/* 액션 목록 */}
+            <View style={hav.body}>
+              {streetActions.map((a, i) => (
+                <HorizontalActionRow
+                  key={i}
+                  action={a}
+                  heroPos={heroPos}
+                  villainData={villainData}
+                />
+              ))}
+            </View>
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+function HorizontalActionRow({
+  action,
+  heroPos,
+  villainData,
+}: {
+  action: HandAction;
+  heroPos: Position9Max | null;
+  villainData: Array<{ pos: Position9Max | null; name?: string }>;
+}) {
+  const pos = resolveActorPos(action.actor, heroPos, villainData);
+  const color = resolveActorColor(action.actor, villainData);
+  const isAggressive = action.action === 'raise' || action.action === 'bet' || action.action === 'allin';
+  const isFold = action.action === 'fold';
+
+  // 액터 표시: 포지션 우선, 없으면 actor 그대로
+  const actorLabel = pos ?? (action.actor === 'hero' || action.actor === '나' ? '나' : action.actor);
+  // 액션 텍스트: 한글 + 금액
+  const actionText = actionDisplayText(action);
+
+  return (
+    <View style={hav.row}>
+      {/* 좌측: 포지션 칩 */}
+      <View style={[hav.posChip, { borderColor: color, backgroundColor: color + '22' }]}>
+        <Text style={[hav.posChipText, { color }]} numberOfLines={1}>
+          {actorLabel}
+        </Text>
+      </View>
+      {/* 우측: 말풍선 */}
+      <View
+        style={[
+          hav.bubble,
+          isAggressive && hav.bubbleAggressive,
+          isFold && hav.bubbleFold,
+        ]}
+      >
+        <Text
+          style={[
+            hav.bubbleText,
+            isAggressive && hav.bubbleTextAggressive,
+            isFold && hav.bubbleTextFold,
+          ]}
+          numberOfLines={2}
+        >
+          {actionText}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const hav = StyleSheet.create({
+  scroll: { padding: spacing.xs, gap: spacing.xs },
+  column: {
+    width: 150,
+    backgroundColor: colors.bg,
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  header: {
+    backgroundColor: colors.surfaceAlt,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+  headerPot: {
+    fontSize: fontSize.xs,
+    color: colors.warning,
+    fontWeight: fontWeight.semibold,
+    marginTop: 2,
+  },
+  body: { padding: 8, gap: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  posChip: {
+    minWidth: 36,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    alignItems: 'center',
+  },
+  posChipText: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+  },
+  bubble: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    minHeight: 28,
+    justifyContent: 'center',
+  },
+  bubbleAggressive: {
+    backgroundColor: '#FCD34D', // 노란색 — raise/bet/allin
+  },
+  bubbleFold: {
+    backgroundColor: '#E5E7EB',
+    opacity: 0.7,
+  },
+  bubbleText: {
+    fontSize: 11,
+    color: '#1F2937',
+    fontWeight: fontWeight.semibold,
+  },
+  bubbleTextAggressive: {
+    color: '#7C2D12',
+    fontWeight: fontWeight.bold,
+  },
+  bubbleTextFold: {
+    color: '#6B7280',
+  },
+});
+
 // ── 카드 뱃지 ────────────────────────────────────────────────────────────────
 function CardBadge({ card }: { card: Card }) {
   return (
@@ -584,65 +769,15 @@ export default function HandDetailScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        {/* 액션 */}
+        {/* 액션 — 가로형 스트리트 컬럼 */}
         {hand.actions.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>액션</Text>
-            {(() => {
-              const STREET_LABEL: Record<string, string> = {
-                preflop: '프리플랍', flop: '플랍', turn: '턴', river: '리버',
-              };
-              const STREET_COLOR: Record<string, string> = {
-                preflop: '#3b82f6', flop: '#22c55e', turn: '#f59e0b', river: '#a855f7',
-              };
-              const shown = (STREETS as readonly Street[]).filter(
-                s => hand.actions.some(a => a.street === s)
-              );
-              return shown.map((street, idx) => {
-                const streetActions = hand.actions.filter(a => a.street === street);
-                const sColor = STREET_COLOR[street] ?? colors.primary;
-                const isLast = idx === shown.length - 1;
-                return (
-                  <View
-                    key={street}
-                    style={[
-                      styles.streetBlock,
-                      !isLast && {
-                        borderBottomWidth: 1,
-                        borderStyle: 'dashed',
-                        borderBottomColor: colors.line,
-                        paddingBottom: spacing.sm,
-                        marginBottom: spacing.sm,
-                      },
-                    ]}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                      <View style={{ width: 3, height: 18, backgroundColor: sColor, marginRight: spacing.sm, borderRadius: 2 }} />
-                      <View style={{ backgroundColor: '#374151', paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.sm }}>
-                        <Text style={[styles.streetLabel, { color: sColor, fontSize: fontSize.sm }]}>
-                          {STREET_LABEL[street] ?? street.toUpperCase()}
-                        </Text>
-                      </View>
-                    </View>
-                    {streetActions.map((a, i) => (
-                    <View key={i} style={styles.actionLine}>
-                      <Text style={[styles.actionActor, {
-                        color: a.actor === 'hero' || a.actor === '나' ? HERO_COLOR
-                          : a.actor === 'villain' || a.actor === '빌런 1' ? VILLAIN_COLORS[0]
-                          : a.actor === '빌런 2' ? VILLAIN_COLORS[1]
-                          : a.actor === '빌런 3' ? VILLAIN_COLORS[2]
-                          : colors.primary,
-                      }]}>
-                        {a.actor === 'hero' ? '나' : a.actor === 'villain' ? '빌런 1' : a.actor}
-                      </Text>
-                      <Text style={styles.actionVerb}>{a.action}</Text>
-                      {a.amount != null && <Text style={styles.actionAmount}>{a.amount.toLocaleString()}</Text>}
-                    </View>
-                  ))}
-                </View>
-              );
-              });
-            })()}
+          <View style={[styles.card, { paddingHorizontal: 0, paddingVertical: spacing.sm }]}>
+            <Text style={[styles.cardTitle, { paddingHorizontal: spacing.base }]}>액션</Text>
+            <HorizontalActionView
+              actions={hand.actions as HandAction[]}
+              heroPos={hand.hero_position as Position9Max | null}
+              villainData={villainData}
+            />
           </View>
         )}
 
