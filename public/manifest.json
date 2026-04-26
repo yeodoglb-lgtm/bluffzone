@@ -1,0 +1,33 @@
+{
+  "name": "블러프존 - 홀덤 핸드 매니저",
+  "short_name": "블러프존",
+  "description": "AI가 분석해주는 홀덤 핸드 기록·리뷰 앱. 음성 입력으로 1분 만에 핸드를 기록하세요.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0A0A",
+  "theme_color": "#FF6B35",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["games", "lifestyle", "utilities"]
+}

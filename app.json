@@ -36,7 +36,17 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "블러프존 - 홀덤 핸드 매니저",
+      "shortName": "블러프존",
+      "description": "AI가 분석해주는 홀덤 핸드 기록·리뷰 앱. 음성 입력으로 1분 만에 핸드를 기록하세요.",
+      "themeColor": "#FF6B35",
+      "backgroundColor": "#0A0A0A",
+      "display": "standalone",
+      "orientation": "portrait",
+      "lang": "ko",
+      "startUrl": "/",
+      "scope": "/"
     },
     "extra": {
       "eas": {

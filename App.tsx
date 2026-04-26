@@ -28,6 +28,83 @@ if (SENTRY_DSN && IS_WEB) {
   (window as any).Sentry = Sentry;
 }
 
+// ── PWA 메타 태그 주입 (웹에서 홈 화면 추가 시 네이티브 앱처럼 동작) ────────
+if (IS_WEB && typeof document !== 'undefined') {
+  const head = document.head;
+  const ensure = (selector: string, create: () => HTMLElement) => {
+    if (!document.querySelector(selector)) head.appendChild(create());
+  };
+  // manifest 링크
+  ensure('link[rel="manifest"]', () => {
+    const l = document.createElement('link');
+    l.rel = 'manifest'; l.href = '/manifest.json';
+    return l;
+  });
+  // theme-color (브라우저 상단 색상)
+  ensure('meta[name="theme-color"]', () => {
+    const m = document.createElement('meta');
+    m.name = 'theme-color'; m.content = '#FF6B35';
+    return m;
+  });
+  // iOS PWA 활성화
+  ensure('meta[name="apple-mobile-web-app-capable"]', () => {
+    const m = document.createElement('meta');
+    m.name = 'apple-mobile-web-app-capable'; m.content = 'yes';
+    return m;
+  });
+  ensure('meta[name="apple-mobile-web-app-status-bar-style"]', () => {
+    const m = document.createElement('meta');
+    m.name = 'apple-mobile-web-app-status-bar-style'; m.content = 'black-translucent';
+    return m;
+  });
+  ensure('meta[name="apple-mobile-web-app-title"]', () => {
+    const m = document.createElement('meta');
+    m.name = 'apple-mobile-web-app-title'; m.content = '블러프존';
+    return m;
+  });
+  // iOS 홈화면 아이콘
+  ensure('link[rel="apple-touch-icon"]', () => {
+    const l = document.createElement('link');
+    l.rel = 'apple-touch-icon'; l.setAttribute('sizes', '180x180');
+    (l as HTMLLinkElement).href = '/apple-touch-icon.png';
+    return l;
+  });
+  // 모바일 뷰포트 (이미 expo가 설정하지만 안전장치)
+  ensure('meta[name="viewport"]', () => {
+    const m = document.createElement('meta');
+    m.name = 'viewport';
+    m.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+    return m;
+  });
+  // SEO/소셜 — Open Graph
+  ensure('meta[property="og:title"]', () => {
+    const m = document.createElement('meta');
+    m.setAttribute('property', 'og:title'); m.content = '블러프존 - 홀덤 핸드 매니저';
+    return m;
+  });
+  ensure('meta[property="og:description"]', () => {
+    const m = document.createElement('meta');
+    m.setAttribute('property', 'og:description');
+    m.content = 'AI가 분석해주는 홀덤 핸드 기록·리뷰 앱. 음성 입력으로 1분 만에 핸드를 기록하세요.';
+    return m;
+  });
+  ensure('meta[property="og:type"]', () => {
+    const m = document.createElement('meta');
+    m.setAttribute('property', 'og:type'); m.content = 'website';
+    return m;
+  });
+  ensure('meta[name="description"]', () => {
+    const m = document.createElement('meta');
+    m.name = 'description';
+    m.content = 'AI가 분석해주는 홀덤 핸드 기록·리뷰 앱. 음성 입력으로 1분 만에 핸드를 기록하세요.';
+    return m;
+  });
+  // 페이지 타이틀
+  if (document.title === '' || document.title === 'Expo') {
+    document.title = '블러프존 - 홀덤 핸드 매니저';
+  }
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
