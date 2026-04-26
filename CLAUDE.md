@@ -93,11 +93,11 @@ Docker 없어도 됨 (WARNING은 무시). 배포 후 `functions list`로 VERSION
 
 기록 후에는 **"CLAUDE.md에 기록해뒀습니다"** 한 줄 언급해서 사용자가 확인 가능하게.
 
-## 🚨 정식 출시 전 필수 작업 (잊지 말 것)
+## 🔐 이메일 인증 상태 (확인 완료)
 
-- **이메일 인증 절차**: 현재 회원가입에 이메일 인증이 빠져있음 (개발 편의상). 정식 출시 시 Supabase Auth의 email confirmation을 ON으로 돌려야 함.
-  - 위치: Supabase Dashboard → Authentication → Providers → Email → "Confirm email" 토글.
-  - 또는 SQL: `UPDATE auth.config SET enable_confirmations = true;`
+- **Supabase Auth → Authentication → Sign In / Providers → User Signups → Confirm email**: ✅ ON (2026-04-27 확인).
+- 신규 회원가입 시 이메일 인증 링크 발송 → 사용자가 클릭해야 로그인 가능.
+- 무료 티어 발송 한도: 시간당 ~30건 / 일 ~100건. 베타엔 충분, 폭발 시 SMTP 외부 연결 (SendGrid 등) 검토.
 
 ---
 
