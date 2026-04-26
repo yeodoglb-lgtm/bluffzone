@@ -5,10 +5,33 @@ const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
+// 월별 무료 한도 (claude-proxy의 FREE_LIMITS와 동기화)
+const WHISPER_FREE_LIMIT = 70;
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// ── 사용량 체크 ───────────────────────────────────────────────────────────────
+async function checkWhisperLimit(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<{ allowed: boolean; used: number; limit: number }> {
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const { count } = await supabase
+    .from('ai_usages')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('kind', 'whisper')
+    .gte('created_at', startOfMonth.toISOString());
+
+  const used = count ?? 0;
+  return { allowed: used < WHISPER_FREE_LIMIT, used, limit: WHISPER_FREE_LIMIT };
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -31,6 +54,16 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // ── 월별 무료 한도 체크 ──────────────────────────────────────────────────
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { allowed, used, limit } = await checkWhisperLimit(supabase, user.id);
+    if (!allowed) {
+      return new Response(JSON.stringify({
+        error: 'usage_limit',
+        message: `이번 달 음성 인식 무료 한도(${limit}회)를 초과했습니다. (사용: ${used}회)`,
+      }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // multipart/form-data로 오디오 파일 수신
@@ -66,8 +99,7 @@ serve(async (req) => {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error?.message ?? 'Whisper API error');
 
-    // Supabase에 사용량 기록
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // Supabase에 사용량 기록 (위에서 만든 supabase 클라이언트 재사용)
     await supabase.from('ai_usages').insert({
       user_id: user.id,
       kind: 'whisper',

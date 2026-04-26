@@ -7,9 +7,10 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '
 
 // 월별 무료 한도
 const FREE_LIMITS: Record<string, number> = {
-  'hand-review': 30,
+  'hand-review': 50,
   'chat': 100,
   'parse-voice': 50,
+  'whisper': 70,
 };
 
 const corsHeaders = {
