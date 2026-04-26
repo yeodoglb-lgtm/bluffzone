@@ -138,7 +138,9 @@ const styles = StyleSheet.create({
   backBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
   backText: { color: colors.primary, fontSize: fontSize.base },
   title: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  scroll: { flex: 1 },
+  // 웹 PWA에서 flex 자식이 부모 높이 초과해도 내부 스크롤 발동 안 하던 이슈 해결
+  // (Flexbox 기본 min-height: auto가 자식 콘텐츠 크기에 맞춰 grow되는 동작 차단)
+  scroll: { flex: 1, minHeight: 0 },
   content: { padding: spacing.base },
   lastUpdated: { fontSize: fontSize.xs, color: colors.textMuted, marginBottom: spacing.lg },
   h2: {
