@@ -23,15 +23,10 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// fetch 핸들러: PWA 설치 가능 조건 충족용 (network-first, 캐시 안 함)
-self.addEventListener('fetch', (event) => {
-  // GET 요청만 처리 (POST/PUT 등은 그대로 통과)
-  if (event.request.method !== 'GET') return;
-
-  event.respondWith(
-    fetch(event.request).catch(() => {
-      // 네트워크 실패 시 fallback (오프라인 지원은 안 하니 빈 응답)
-      return new Response('', { status: 503, statusText: 'Service Unavailable' });
-    })
-  );
+// fetch 핸들러: PWA 설치 조건만 충족, 실제 요청은 절대 건드리지 않음.
+// (이전에 모든 GET을 가로채서 Supabase API 콜드 스타트 시 멈추는 문제 발견 → 완전 패시브로 전환)
+// Chrome PWA install 요건상 fetch 리스너는 등록되어 있어야 하지만 respondWith를 호출하지 않으면
+// 브라우저가 평소처럼 처리한다.
+self.addEventListener('fetch', () => {
+  // 의도적 빈 핸들러
 });
