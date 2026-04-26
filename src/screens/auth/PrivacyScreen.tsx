@@ -1,10 +1,13 @@
-import { ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, fontSize, fontWeight } from '../../theme';
 
 export default function PrivacyScreen() {
   const navigation = useNavigation();
+  const { height: viewportHeight } = useWindowDimensions();
+  // 웹에서 ScrollView 높이 계산이 불안정해 내부 스크롤 발동 안 하던 이슈 회피.
+  const webScrollStyle = Platform.OS === 'web' ? { height: viewportHeight - 60 } : undefined;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -17,7 +20,7 @@ export default function PrivacyScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView style={webScrollStyle} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Text style={styles.lastUpdated}>최종 업데이트: 2026년 4월 26일</Text>
 
         <Text style={styles.intro}>
