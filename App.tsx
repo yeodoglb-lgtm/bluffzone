@@ -13,6 +13,7 @@ import * as Sentry from '@sentry/browser';
 import { colors } from './src/theme';
 import RootNavigator from './src/navigation/RootNavigator';
 import { useAuthInit } from './src/hooks/useAuth';
+import InstallPwaBanner from './src/components/InstallPwaBanner';
 
 // ── Sentry 초기화 (prod 에러 추적) ──────────────────────────────────────────
 // DSN이 설정된 경우만 활성화.
@@ -126,6 +127,7 @@ function AppContent() {
     <>
       <StatusBar style="light" backgroundColor={colors.bg} />
       <RootNavigator />
+      <InstallPwaBanner />
     </>
   );
 }
