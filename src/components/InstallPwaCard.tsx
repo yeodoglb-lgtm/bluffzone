@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Modal, Image } from 'react-native';
 import { showAlert } from '../utils/alert';
 import { colors, spacing, fontSize, fontWeight, radius } from '../theme';
+
+// 앱 아이콘 (검정 배경 + 주황 스페이드)
+const APP_ICON = require('../../assets/icon.png');
 
 // 'beforeinstallprompt' 이벤트 객체 타입 (Chrome 안드로이드/데스크톱)
 type BeforeInstallPromptEvent = Event & {
@@ -65,7 +68,7 @@ export default function InstallPwaCard() {
   if (Platform.OS !== 'web') return null;
   if (isStandalone()) return null;
 
-  // 인앱 브라우저: "Chrome에서 열기" 안내
+  // 인앱 브라우저: 친근한 "Chrome으로 접속해보세요" 안내
   if (isInAppBrowser()) {
     return (
       <>
@@ -74,10 +77,10 @@ export default function InstallPwaCard() {
           onPress={() => setShowInAppModal(true)}
           activeOpacity={0.85}
         >
-          <Text style={styles.icon}>⚠️</Text>
+          <Image source={APP_ICON} style={styles.iconImage} resizeMode="contain" />
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>Chrome에서 열어 설치하세요</Text>
-            <Text style={styles.desc}>인앱 브라우저에선 앱 설치가 안 돼요</Text>
+            <Text style={styles.title}>이제 블러프존 앱으로 편하게 이용하세요</Text>
+            <Text style={styles.desc}>Chrome으로 접속하시면 앱을 설치하실 수 있습니다</Text>
           </View>
           <Text style={styles.arrow}>›</Text>
         </TouchableOpacity>
@@ -85,10 +88,11 @@ export default function InstallPwaCard() {
         <Modal visible={showInAppModal} transparent animationType="fade">
           <View style={styles.overlay}>
             <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>📱 외부 브라우저로 열기</Text>
+              <Image source={APP_ICON} style={styles.modalIcon} resizeMode="contain" />
+              <Text style={styles.modalTitle}>블러프존 앱 설치하기</Text>
               <Text style={styles.modalText}>
-                현재 카톡·네이버 등 인앱 브라우저로 보고 있어요.{'\n'}
-                앱처럼 설치하려면 Chrome으로 다시 열어야 해요.
+                지금은 카톡·네이버 인앱 브라우저로 보고 계세요.{'\n'}
+                Chrome으로 다시 열면 홈 화면에 앱처럼 설치할 수 있어요.
               </Text>
               <View style={styles.stepBox}>
                 <Text style={styles.step}><Text style={styles.stepNum}>1.</Text> 화면 우상단 ⋮ 점 3개 메뉴 탭</Text>
@@ -108,7 +112,7 @@ export default function InstallPwaCard() {
                   }
                 }}
               >
-                <Text style={styles.copyBtnText}>📋 주소 복사하기</Text>
+                <Text style={styles.copyBtnText}>주소 복사하기</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.closeBtn}
@@ -201,10 +205,13 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   inAppCard: {
-    backgroundColor: 'rgba(255, 107, 53, 0.12)',
+    backgroundColor: colors.surface,
     borderColor: colors.primary,
+    borderWidth: 1.5,
   },
   icon: { fontSize: 24 },
+  iconImage: { width: 40, height: 40, borderRadius: 8 },
+  modalIcon: { width: 64, height: 64, borderRadius: 12, alignSelf: 'center', marginBottom: spacing.sm },
   title: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text },
   desc: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
   arrow: { fontSize: 20, color: colors.textMuted },
