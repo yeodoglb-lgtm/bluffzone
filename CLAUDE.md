@@ -93,6 +93,27 @@ Docker 없어도 됨 (WARNING은 무시). 배포 후 `functions list`로 VERSION
 
 기록 후에는 **"CLAUDE.md에 기록해뒀습니다"** 한 줄 언급해서 사용자가 확인 가능하게.
 
+## 🧠 핸드리뷰 품질 강화 로드맵 (진행중)
+
+**목표**: 핸드리뷰 결과를 GTO 기반으로 더 깊이 있게.
+
+### 2단계 전략
+- **1단계 (지금 진행)**: `claude-proxy` 안의 핸드리뷰 system prompt에 GTO 일반 지식 + 코칭 룰 직접 박기.
+  - 길이 가이드: 5K 토큰 안쪽 유지 (그 이상은 주의력 분산 위험).
+  - OpenAI prompt cache 자동 적용 → 비용 부담 적음.
+  - 추가할 카테고리 후보: 포지션별 오픈/3벳 레인지, C-bet 사이징(드라이/웻), SPR별 전략, 빌런 타입별 익스플로잇, 보드 텍스처별 예시.
+- **2단계 (자료 모이면)**: pgvector(Supabase 내장) + RAG. 책/Solver 출력/차트를 청크로 쪼개 임베딩 저장 → 핸드별로 유사 자료 검색해서 동적 첨부.
+
+### 현재 상태
+- GTO 자료 파일 없음 (사용자도, Claude도). Claude의 일반 GTO 지식만으로 1단계 진행.
+- 자료 확보 출처: GTOWizard 무료차트, Upswing 블로그, Modern Poker Theory 등.
+
+### 핸드리뷰 system prompt 위치
+`supabase/functions/claude-proxy/index.ts` line ~969 (`const systemPrompt = ...`).
+현재 구조: [페르소나] [분석 축 4개] [절대 규칙 10개] [출력 스키마] [풀 예시 1쌍].
+
+---
+
 ## 🔑 사용자 트리거 문구 (이 말 나오면 즉시 실행)
 
 - "메모리 노트에 기재해둬" / "CLAUDE.md에 적어둬" / "기록해둬" / "저장해둬"
