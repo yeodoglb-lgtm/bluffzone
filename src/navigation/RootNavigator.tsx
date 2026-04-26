@@ -1,8 +1,8 @@
 import { useNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 import type { LinkingOptions } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { ActivityIndicator, View, StyleSheet, BackHandler, Platform, ToastAndroid } from 'react-native';
-import { useEffect, useRef } from 'react';
+import { ActivityIndicator, View, Text, StyleSheet, BackHandler, Platform, ToastAndroid } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 
 import { useAuthStore } from '../store/authStore';
 import { colors } from '../theme';
@@ -108,11 +108,7 @@ export default function RootNavigator() {
   // → 사용자 경험 OK (홈 화면으로 돌아감)
 
   if (isLoading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={colors.primary} size="large" />
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   return (
@@ -141,11 +137,41 @@ export default function RootNavigator() {
   );
 }
 
+// 콜드 스타트 시 길게 기다리는 사용자에게 진행 안내
+function LoadingScreen() {
+  const [showSlowMsg, setShowSlowMsg] = useState(false);
+  const [showVerySlowMsg, setShowVerySlowMsg] = useState(false);
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setShowSlowMsg(true), 4000);
+    const t2 = setTimeout(() => setShowVerySlowMsg(true), 12000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+
+  return (
+    <View style={styles.loading}>
+      <ActivityIndicator color={colors.primary} size="large" />
+      {showSlowMsg && (
+        <Text style={styles.loadingText}>서버 연결 중...</Text>
+      )}
+      {showVerySlowMsg && (
+        <Text style={styles.loadingHint}>
+          첫 접속 시 서버를 깨우는 데 잠시 걸릴 수 있어요{'\n'}10초 정도 기다려주세요
+        </Text>
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   loading: {
     flex: 1,
     backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 16,
+    paddingHorizontal: 24,
   },
+  loadingText: { color: colors.text, fontSize: 14, marginTop: 8 },
+  loadingHint: { color: colors.textMuted, fontSize: 12, textAlign: 'center', lineHeight: 18 },
 });

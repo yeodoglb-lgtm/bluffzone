@@ -15,6 +15,22 @@ const storage = Platform.OS === 'web'
     }
   : AsyncStorage;
 
+// 모든 Supabase 요청에 12초 타임아웃 적용.
+// 무료 티어 콜드 스타트로 응답 안 올 때 영원히 펜딩 → React Query가 무한 로딩 보이는 문제 차단.
+// 타임아웃 발생 시 fetch가 throw → React Query retry 정책으로 자동 재시도.
+const fetchWithTimeout: typeof fetch = (input, init) => {
+  const controller = new AbortController();
+  // 외부에서 받은 signal과 우리 타임아웃 signal 합치기
+  const externalSignal = init?.signal;
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort();
+    else externalSignal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  return fetch(input, { ...init, signal: controller.signal })
+    .finally(() => clearTimeout(timeoutId));
+};
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     autoRefreshToken: true,
@@ -23,5 +39,8 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     storage,
     // 웹에서 Web Locks API 무한 대기 방지
     ...(Platform.OS === 'web' ? { lock: (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => fn() } : {}),
+  },
+  global: {
+    fetch: fetchWithTimeout,
   },
 });

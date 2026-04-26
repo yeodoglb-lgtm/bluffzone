@@ -69,9 +69,17 @@ if (IS_WEB && typeof document !== 'undefined') {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,           // 실패 시 1회만 재시도 (기본 2→1, 불안정 체감 감소)
-      retryDelay: 1000,   // 재시도 전 1초 대기
+      // Supabase 무료 티어 콜드 스타트(첫 요청 후 깨어나기 30초~1분) 대응:
+      // - 첫 요청이 12초 타임아웃에 걸려도 자동으로 2번 더 재시도
+      // - 지수 백오프로 점점 길게 (1초 → 2초 → 4초)
+      // - 총 약 30초 안에 3번 시도 → 콜드 스타트 깨어나는 동안 충분히 재시도
+      retry: 2,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
       staleTime: 1000 * 60 * 5,
+    },
+    mutations: {
+      retry: 1,
+      retryDelay: 1000,
     },
   },
 });

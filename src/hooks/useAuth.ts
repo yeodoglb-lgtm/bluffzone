@@ -35,19 +35,28 @@ export function useAuthInit() {
   useEffect(() => {
     let loadingDone = false;
 
-    // 2초 안에 인증이 완료되지 않으면 강제로 로딩 해제 (Web Locks 데드락 방지)
+    // Supabase 무료 티어 콜드 스타트가 30초까지 걸릴 수 있어서 fallback도 그만큼 길게.
+    // 너무 짧으면(2초 등) 콜드 스타트 중에 setLoading(false) → 앱 노출 → 쿼리들 동시에 시작 →
+    // auth가 아직 안 잡힌 상태로 RLS 거부되거나 무한 펜딩 → 무한 로딩 화면.
     const fallback = setTimeout(() => {
       if (!loadingDone) {
         loadingDone = true;
         setLoading(false);
       }
-    }, 2000);
+    }, 30000);
 
-    // Supabase 프리 티어 슬립 대응: 가벼운 ping으로 DB 깨우기
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).limit(1).then(
-      () => {},
-      () => {}
-    );
+    // Supabase 프리 티어 슬립 대응: 깨우기 ping을 백오프로 재시도
+    // (단발 ping은 콜드 스타트 시 자체가 timeout 걸림 → 재시도 필요)
+    (async () => {
+      for (let i = 0; i < 3; i++) {
+        try {
+          await supabase.from('profiles').select('id', { count: 'exact', head: true }).limit(1);
+          return; // 성공: DB 깨어남
+        } catch {
+          await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+        }
+      }
+    })();
 
     // onAuthStateChange만 사용 (getSession + onAuthStateChange 동시 호출 시 데드락 발생)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
