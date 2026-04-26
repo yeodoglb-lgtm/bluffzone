@@ -46,7 +46,12 @@ if (IS_WEB && typeof document !== 'undefined') {
     m.name = 'theme-color'; m.content = '#FF6B35';
     return m;
   });
-  // iOS PWA 활성화
+  // PWA 활성화 (deprecated 경고 방지 위해 두 개 모두 추가)
+  ensure('meta[name="mobile-web-app-capable"]', () => {
+    const m = document.createElement('meta');
+    m.name = 'mobile-web-app-capable'; m.content = 'yes';
+    return m;
+  });
   ensure('meta[name="apple-mobile-web-app-capable"]', () => {
     const m = document.createElement('meta');
     m.name = 'apple-mobile-web-app-capable'; m.content = 'yes';
