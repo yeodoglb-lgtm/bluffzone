@@ -168,8 +168,7 @@ export default function InstallPwaCard() {
       >
         <Text style={styles.icon}>📲</Text>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>홈 화면에 앱 설치</Text>
-          <Text style={styles.desc}>탭 한 번으로 풀스크린 앱처럼 사용</Text>
+          <Text style={styles.titleLarge}>홈 화면에 앱 설치</Text>
         </View>
         <Text style={styles.arrow}>›</Text>
       </TouchableOpacity>
@@ -187,7 +186,7 @@ export default function InstallPwaCard() {
         >
           <Text style={styles.icon}>📲</Text>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>홈 화면에 앱 설치</Text>
+            <Text style={styles.titleLarge}>홈 화면에 앱 설치</Text>
             <Text style={styles.desc}>Safari 공유 메뉴에서 추가하세요</Text>
           </View>
           <Text style={styles.arrow}>›</Text>
@@ -240,6 +239,7 @@ const styles = StyleSheet.create({
   iconImage: { width: 40, height: 40, borderRadius: 8 },
   modalIcon: { width: 64, height: 64, borderRadius: 12, alignSelf: 'center', marginBottom: spacing.sm },
   title: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text },
+  titleLarge: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
   desc: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
   arrow: { fontSize: 20, color: colors.textMuted },
 
