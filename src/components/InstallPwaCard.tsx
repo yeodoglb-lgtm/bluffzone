@@ -154,8 +154,9 @@ export default function InstallPwaCard() {
     );
   }
 
-  // Android Chrome (이벤트 받은 상태)
-  if (installEvent && isAndroid()) {
+  // Chrome (Android·데스크톱) — beforeinstallprompt 이벤트 받은 상태
+  if (installEvent) {
+    const isDesktop = !isAndroid() && !isIOS();
     return (
       <TouchableOpacity
         style={styles.card}
@@ -166,9 +167,14 @@ export default function InstallPwaCard() {
         }}
         activeOpacity={0.85}
       >
-        <Text style={styles.icon}>📲</Text>
+        <Text style={styles.icon}>{isDesktop ? '🖥️' : '📲'}</Text>
         <View style={{ flex: 1 }}>
-          <Text style={styles.titleLarge}>홈 화면에 앱 설치</Text>
+          <Text style={styles.titleLarge}>
+            {isDesktop ? '바탕화면에 앱 설치' : '홈 화면에 앱 설치'}
+          </Text>
+          {isDesktop && (
+            <Text style={styles.desc}>브라우저 없이 빠르게 실행</Text>
+          )}
         </View>
         <Text style={styles.arrow}>›</Text>
       </TouchableOpacity>
