@@ -946,21 +946,23 @@ const styles = StyleSheet.create({
   streetTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   streetTitleBar: {
-    width: 3,
-    height: 18,
+    width: 4,
+    height: 28,
     marginRight: spacing.sm,
     borderRadius: 2,
   },
   streetTitlePill: {
+    flex: 1, // 가로 전체 폭으로 늘림
     backgroundColor: '#374151',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: 7,
     borderRadius: radius.sm,
+    alignItems: 'center', // 텍스트 가운데 정렬
+    justifyContent: 'center',
   },
-  streetTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, letterSpacing: 0.3 },
+  streetTitle: { fontSize: fontSize.base, fontWeight: fontWeight.bold, letterSpacing: 0.5 },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' },
   actorChip: { paddingHorizontal: spacing.sm, paddingVertical: 4, backgroundColor: colors.surface, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary },
   actorText: { fontSize: fontSize.xs, color: colors.primary, fontWeight: fontWeight.medium },
