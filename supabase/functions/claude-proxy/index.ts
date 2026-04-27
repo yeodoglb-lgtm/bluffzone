@@ -1124,6 +1124,15 @@ SPR > 10 (깊음, 림프드 팟·콜드 콜 팟)
 ⑨ 진행 안 된 스트리트는 null (빈 객체 아님).
 ⑩ headline·recommended_line·actual_line·ev_note·mistake·tip 6개 필드는 반드시 채울 것. 빈 문자열도 안 됨 (mistake만 실수 없으면 "실수 없음"). headline은 짧게, ev_note·tip도 풀어 쓰되 60~100자 권장.
 ⑪ **액션 순서 절대 거꾸로 읽지 말 것.** userPrompt의 [스트리트별 진행]에 나열된 순서가 시간순서. "히어로 raise 80000 → 빌런 call 160000"이면 hero가 먼저 raise하고 빌런이 콜한 것. 빌런이 raise한 게 아님. 히어로가 첫 raise를 하면 그건 오픈 레이즈, 빌런이 그 뒤 raise하면 그게 3-bet.
+⑫ **올인 + 콜 후 자동 진행 스트리트 = 가상 액션 추천 절대 금지.**
+   - 어느 한쪽이 allin 했고 상대가 call 했다면, 그 시점부터 양 플레이어 모두 추가 액션 불가.
+   - 이후 모든 스트리트(예: 프리플랍 올인콜 → 플랍/턴/리버)는 단순 카드 공개일 뿐, 의사결정 X.
+   - 출력 시 해당 스트리트들은 **null로 처리** (절대 "체크 100%" 같은 가짜 액션 추천 금지).
+   - 검증: 액션 목록을 시간순으로 훑어 마지막 allin/call 쌍을 찾고, 그 이후 스트리트는 null.
+   - 예: 액션 = [hero open raise, villain allin, hero call] → 프리플랍에 액션 평가, flop/turn/river = null.
+   - 예: 액션 = [hero check, villain bet, hero allin, villain call] (플랍) → 프리플랍·플랍 평가, turn/river = null.
+   - 단, headline·ev_note·mistake·tip은 전체 핸드 관점에서 평가 가능 (e.g. "플랍 올인 콜이 적절했나").
+   - recommended_line·actual_line은 실제 의사결정 시점까지만 표기 (그 이후 액션 추가 X).
 
 [출력 스키마 — 이 구조 정확히 지켜라]
 {
