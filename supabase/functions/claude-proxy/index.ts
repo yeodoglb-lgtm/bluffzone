@@ -802,29 +802,37 @@ serve(async (req) => {
 
     // ── /hand-review-gpt ─────────────────────────────────────────────────────
     if (endpoint === 'hand-review-gpt') {
-      const { hand } = body;
+      const { hand, force_refresh } = body;
 
       // ── 캐시 키 생성 ──────────────────────────────────────────────────────
       // 같은 상황(포지션 + 핸드 + 보드 + 액션)이면 GPT를 다시 부르지 않는다
       const cacheKey = buildCacheKey(hand);
 
-      // ── 캐시 조회 ─────────────────────────────────────────────────────────
-      const { data: cached } = await supabase
-        .from('hand_review_cache')
-        .select('id, result, hit_count')
-        .eq('cache_key', cacheKey)
-        .maybeSingle();
+      // ── 캐시 조회 (force_refresh=true면 캐시 우회) ─────────────────────────
+      // "다시 분석" 버튼은 force_refresh: true로 호출 → GPT 새로 호출하고 캐시 갱신
+      if (!force_refresh) {
+        const { data: cached } = await supabase
+          .from('hand_review_cache')
+          .select('id, result, hit_count')
+          .eq('cache_key', cacheKey)
+          .maybeSingle();
 
-      if (cached) {
-        // hit_count 증가 (실패해도 응답은 그대로 반환)
+        if (cached) {
+          await supabase
+            .from('hand_review_cache')
+            .update({ hit_count: (cached.hit_count ?? 1) + 1, updated_at: new Date().toISOString() })
+            .eq('id', cached.id);
+
+          return new Response(JSON.stringify({ ...cached.result, _cached: true }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      } else {
+        // 강제 새로고침: 기존 캐시 삭제 (GPT 호출 후 새로 insert될 거라 충돌 회피)
         await supabase
           .from('hand_review_cache')
-          .update({ hit_count: (cached.hit_count ?? 1) + 1, updated_at: new Date().toISOString() })
-          .eq('id', cached.id);
-
-        return new Response(JSON.stringify({ ...cached.result, _cached: true }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+          .delete()
+          .eq('cache_key', cacheKey);
       }
 
       // ── 사용량 한도 체크 (캐시 미스일 때만) ─────────────────────────────────

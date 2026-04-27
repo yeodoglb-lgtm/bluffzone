@@ -591,7 +591,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
 
   const [isReviewing, setIsReviewing] = useState(false);
 
-  async function handleRequestReview() {
+  async function handleRequestReview(forceRefresh = false) {
     setIsReviewing(true);
     try {
       await updateHand.mutateAsync({ id: handId, data: { review_status: 'pending' } });
@@ -608,7 +608,8 @@ export default function HandDetailScreen({ navigation, route }: Props) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ hand }),
+          // force_refresh=true → 서버가 기존 캐시 삭제하고 GPT 새로 호출
+          body: JSON.stringify({ hand, force_refresh: forceRefresh }),
         }
       );
 
@@ -970,9 +971,9 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                   </View>
                 )}
 
-                {/* 재요청 버튼 */}
+                {/* 재요청 버튼 — 캐시 우회하고 GPT 새로 호출 */}
                 <TouchableOpacity
-                  onPress={handleRequestReview}
+                  onPress={() => handleRequestReview(true)}
                   disabled={isReviewing}
                   style={styles.reviewRetryBtn}
                   activeOpacity={0.7}
