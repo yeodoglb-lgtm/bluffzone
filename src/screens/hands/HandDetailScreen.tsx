@@ -600,8 +600,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('로그인이 필요합니다.');
 
-      // 서버가 실제로 사용하는 필드만 명시적으로 추출 → React DOM 참조 등 노이즈 차단
-      // (전체 hand를 JSON.stringify하면 React fiber 등이 섞여 circular structure 에러 발생할 수 있음)
+      // 서버가 실제로 사용하는 필드만 명시적으로 추출
       const handPayload = {
         game_type: hand.game_type,
         stakes: hand.stakes,
@@ -622,6 +621,28 @@ export default function HandDetailScreen({ navigation, route }: Props) {
         note: hand.note,
       };
 
+      // 안전 직렬화: React fiber 키, DOM 노드, 순환 참조 모두 제거
+      // (React Native Web 환경에서 가끔 데이터 객체에 __reactFiber 등이 붙는 케이스 회피)
+      function safeStringify(obj: any): string {
+        const seen = new WeakSet();
+        return JSON.stringify(obj, (key, value) => {
+          // React 내부 속성 제거
+          if (typeof key === 'string' && (key.startsWith('__react') || key.startsWith('_react'))) {
+            return undefined;
+          }
+          // 순환 참조 + DOM 노드 제거
+          if (value !== null && typeof value === 'object') {
+            if (seen.has(value)) return undefined;
+            seen.add(value);
+            // DOM Element / Node 제거 (브라우저 환경)
+            if (typeof Element !== 'undefined' && value instanceof Element) return undefined;
+            if (typeof Node !== 'undefined' && value instanceof Node) return undefined;
+            if ('nodeType' in value && typeof value.nodeType === 'number') return undefined;
+          }
+          return value;
+        });
+      }
+
       const res = await fetch(
         `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/claude-proxy/hand-review-gpt`,
         {
@@ -630,8 +651,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          // force_refresh=true → 서버가 기존 캐시 삭제하고 GPT 새로 호출
-          body: JSON.stringify({ hand: handPayload, force_refresh: forceRefresh }),
+          body: safeStringify({ hand: handPayload, force_refresh: forceRefresh }),
         }
       );
 
