@@ -1263,8 +1263,10 @@ ${richStreetsBlock}
       // 1) 핸드를 짧은 영어 쿼리로 요약 (책이 영어라 영어 매칭이 정확)
       // 2) text-embedding-3-small로 임베딩
       // 3) match_book_chunks RPC로 상위 5개 청크 검색
-      // 4) systemPrompt에 "[참고 자료 — Play Optimal Poker 인용]" 섹션으로 주입
+      // 4) systemPrompt에 권위 있는 GTO 톤으로 자료 주입
       let ragContext = '';
+      let ragChunkCount = 0;
+      let ragTopSimilarity = 0;
       try {
         const ragQuery = `Position: ${position}. Hero hand: ${handCards}. Board: ${boardCards}. SPR: ${sprStr}. Preflop aggressor: ${preflopAggressor}. Villain type: ${villainType}. Actions summary: ${richStreetsBlock.slice(0, 1500)}`;
         const embRes = await fetch('https://api.openai.com/v1/embeddings', {
@@ -1280,6 +1282,9 @@ ${richStreetsBlock}
             match_count: 5,
           });
           if (chunks && chunks.length > 0) {
+            ragChunkCount = chunks.length;
+            ragTopSimilarity = chunks[0]?.similarity ?? 0;
+            console.log(`[hand-review-gpt] RAG: ${chunks.length} chunks retrieved, top similarity ${(ragTopSimilarity * 100).toFixed(1)}%`);
             ragContext = '\n\n[전문 참고 자료 — 분석에 활용]\n' +
               '아래는 이 핸드와 관련된 GTO·포커 이론 자료입니다. 답변 작성 시 이 내용을 적극 반영·내재화하세요.\n\n' +
               '🚨 인용 규칙 (반드시 준수):\n' +
@@ -1393,6 +1398,12 @@ ${richStreetsBlock}
       }
 
       const reviewJson = result.json;
+      // RAG 메타데이터를 결과에 포함 (디버그·검증용, _ 접두사로 클라이언트에서 무시 가능)
+      reviewJson._rag = {
+        used: ragChunkCount > 0,
+        chunks: ragChunkCount,
+        top_similarity: Number(ragTopSimilarity.toFixed(4)),
+      };
       await recordUsage(supabase, user.id, 'hand-review', 'gpt-4o', totalInput, totalOutput);
 
       // ── 캐시 저장 (실패해도 응답은 그대로 반환) ─────────────────────────────
