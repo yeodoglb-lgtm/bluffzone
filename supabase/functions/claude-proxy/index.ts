@@ -1259,6 +1259,43 @@ ${richStreetsBlock}
 
 위 정보를 근거로 각 스트리트 추천 액션을 스키마대로 JSON으로만 반환해라.`;
 
+      // ── RAG: Play Optimal Poker 1, 2 책에서 이 핸드와 관련 청크 검색 ─────
+      // 1) 핸드를 짧은 영어 쿼리로 요약 (책이 영어라 영어 매칭이 정확)
+      // 2) text-embedding-3-small로 임베딩
+      // 3) match_book_chunks RPC로 상위 5개 청크 검색
+      // 4) systemPrompt에 "[참고 자료 — Play Optimal Poker 인용]" 섹션으로 주입
+      let ragContext = '';
+      try {
+        const ragQuery = `Position: ${position}. Hero hand: ${handCards}. Board: ${boardCards}. SPR: ${sprStr}. Preflop aggressor: ${preflopAggressor}. Villain type: ${villainType}. Actions summary: ${richStreetsBlock.slice(0, 1500)}`;
+        const embRes = await fetch('https://api.openai.com/v1/embeddings', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'text-embedding-3-small', input: ragQuery }),
+        });
+        if (embRes.ok) {
+          const embData = await embRes.json();
+          const queryEmbedding = embData.data[0].embedding;
+          const { data: chunks } = await supabase.rpc('match_book_chunks', {
+            query_embedding: queryEmbedding,
+            match_count: 5,
+          });
+          if (chunks && chunks.length > 0) {
+            ragContext = '\n\n[참고 자료 — Play Optimal Poker 인용]\n' +
+              '아래 청크들은 이 핸드와 가장 관련 깊은 책 본문입니다. 분석에 적극 활용·인용하세요.\n' +
+              '단, 원문이 영어라 한국어로 자연스럽게 풀어 인용. "Play Optimal Poker에 따르면..." 식.\n\n' +
+              chunks.map((c: any, i: number) =>
+                `[청크 #${i + 1}] (${c.book_title}, 유사도 ${(c.similarity * 100).toFixed(1)}%)\n${c.content}`
+              ).join('\n\n---\n\n');
+          }
+        }
+      } catch (e) {
+        // RAG 실패해도 기존 시스템 프롬프트만으로 진행 (graceful degradation)
+        console.warn('[hand-review-gpt] RAG retrieval failed:', e);
+      }
+
+      // RAG 컨텍스트가 있으면 systemPrompt에 추가
+      const finalSystemPrompt = systemPrompt + ragContext;
+
       // ── GPT 호출 헬퍼 (재시도 + JSON 파싱 fallback 포함) ─────────────────
       async function callGpt(): Promise<{
         json: any | null;
@@ -1278,7 +1315,7 @@ ${richStreetsBlock}
             temperature: 0.4,
             response_format: { type: 'json_object' },
             messages: [
-              { role: 'system', content: systemPrompt },
+              { role: 'system', content: finalSystemPrompt },
               { role: 'user', content: userPrompt },
             ],
           }),
