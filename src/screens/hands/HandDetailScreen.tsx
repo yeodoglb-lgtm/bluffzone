@@ -600,6 +600,28 @@ export default function HandDetailScreen({ navigation, route }: Props) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('로그인이 필요합니다.');
 
+      // 서버가 실제로 사용하는 필드만 명시적으로 추출 → React DOM 참조 등 노이즈 차단
+      // (전체 hand를 JSON.stringify하면 React fiber 등이 섞여 circular structure 에러 발생할 수 있음)
+      const handPayload = {
+        game_type: hand.game_type,
+        stakes: hand.stakes,
+        hero_position: hand.hero_position,
+        villain_position: hand.villain_position,
+        villain_known: hand.villain_known,
+        villain_cards: hand.villain_cards,
+        villain_data: (hand as any).villain_data,
+        hero_cards: hand.hero_cards,
+        board: hand.board,
+        actions: hand.actions,
+        result: hand.result,
+        pot_size: hand.pot_size,
+        hero_pl: hand.hero_pl,
+        preflop_aggressor: (hand as any).preflop_aggressor,
+        effective_stack: (hand as any).effective_stack,
+        villain_type: (hand as any).villain_type,
+        note: hand.note,
+      };
+
       const res = await fetch(
         `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/claude-proxy/hand-review-gpt`,
         {
@@ -609,7 +631,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
             'Authorization': `Bearer ${session.access_token}`,
           },
           // force_refresh=true → 서버가 기존 캐시 삭제하고 GPT 새로 호출
-          body: JSON.stringify({ hand, force_refresh: forceRefresh }),
+          body: JSON.stringify({ hand: handPayload, force_refresh: forceRefresh }),
         }
       );
 
