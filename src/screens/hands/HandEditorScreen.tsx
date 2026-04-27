@@ -77,7 +77,15 @@ const emptyVillain = (): VillainState => ({ pos: null, cards: [], cardsKnown: fa
 type Props = StackScreenProps<HandsStackParamList, 'HandEditor'>;
 
 // ── 미니 카드 ────────────────────────────────────────────────────────────────
-function MiniCard({ card, faceDown }: { card?: Card; faceDown?: boolean }) {
+function MiniCard({ card, faceDown, placeholder }: { card?: Card; faceDown?: boolean; placeholder?: boolean }) {
+  // 플레이스홀더: "다음 카드 입력 위치" 시각화 (밝은 회색 + ?)
+  if (placeholder) {
+    return (
+      <View style={mc.placeholder}>
+        <Text style={mc.placeholderText}>?</Text>
+      </View>
+    );
+  }
   if (faceDown || !card) {
     return <View style={mc.back}><View style={mc.backInner} /></View>;
   }
@@ -92,6 +100,13 @@ const mc = StyleSheet.create({
   card:      { width: 22, height: 34, backgroundColor: '#fff', borderRadius: 3, borderWidth: 0.5, borderColor: '#bbb', alignItems: 'center', justifyContent: 'center' },
   back:      { width: 22, height: 34, backgroundColor: '#1a56a0', borderRadius: 3, borderWidth: 0.5, borderColor: '#1245a0', alignItems: 'center', justifyContent: 'center' },
   backInner: { width: 15, height: 24, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 2 },
+  // 다음 카드 슬롯 — 액션 프리플랍 배경(#374151)보다 한 톤 밝게
+  placeholder: {
+    width: 22, height: 34, backgroundColor: '#6B7280', borderRadius: 3,
+    borderWidth: 1, borderColor: '#9CA3AF', borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  placeholderText: { fontSize: 16, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 18 },
   rank:      { fontSize: 17, fontWeight: 'bold', lineHeight: 17 },
   suit:      { fontSize: 14, lineHeight: 14 },
 });
@@ -789,17 +804,27 @@ function PokerTableEditor({
                 key={pos}
                 style={[ts.seatGroup, { left: groupLeft, top: groupTop, width: groupW, height: groupH }]}
               >
-                {/* 카드 영역 — 항상 탭 가능, 카드 입력 열기 */}
+                {/* 카드 영역 — 항상 탭 가능, 카드 입력 열기.
+                    1장 입력 후엔 빈 슬롯을 "?" 플레이스홀더로 표시 → 다음 카드 입력 유도 */}
                 {info ? (
                   <TouchableOpacity
                     style={[ts.cardsRowAbs, { top: cardsLocalTop, left: 2 }, isCardActive && ts.activeGlow]}
                     onPress={() => handleSeatCardPress(pos)}
                     activeOpacity={0.7}
                   >
-                    {info.cards.length > 0
-                      ? info.cards.map((c, i) => <MiniCard key={i} card={c} />)
-                      : [0, 1].map(i => <MiniCard key={i} faceDown />)
-                    }
+                    {info.cards.length === 0 ? (
+                      // 카드 0장: 양쪽 모두 face-down
+                      [0, 1].map(i => <MiniCard key={i} faceDown />)
+                    ) : info.cards.length === 1 ? (
+                      // 카드 1장: 입력된 카드 + 빈 슬롯 placeholder
+                      <>
+                        <MiniCard key={0} card={info.cards[0]} />
+                        <MiniCard key={1} placeholder />
+                      </>
+                    ) : (
+                      // 카드 2장: 둘 다 표시
+                      info.cards.map((c, i) => <MiniCard key={i} card={c} />)
+                    )}
                   </TouchableOpacity>
                 ) : null}
                 {/* 플레이어 뱃지 */}
