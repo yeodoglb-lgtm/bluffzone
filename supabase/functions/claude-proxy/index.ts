@@ -1141,6 +1141,20 @@ SPR > 10 (깊음, 림프드 팟·콜드 콜 팟)
    - 예: 액션 = [hero check, villain bet, hero allin, villain call] (플랍) → 프리플랍·플랍 평가, turn/river = null.
    - 단, headline·ev_note·mistake·tip은 전체 핸드 관점에서 평가 가능 (e.g. "플랍 올인 콜이 적절했나").
    - recommended_line·actual_line은 실제 의사결정 시점까지만 표기 (그 이후 액션 추가 X).
+⑬ **추천 액션은 반드시 실제로 가능한 액션이어야 함 (액션 유효성).**
+   - 포커 액션 순서:
+     · 프리플랍: UTG → UTG+1 → MP → HJ → CO → BTN → SB → BB
+     · 포스트플랍 (플랍·턴·리버): SB → BB → UTG → MP → HJ → CO → BTN
+   - **체크는 누구도 베팅 안 한 상태에서만 가능**. 누가 bet/raise/allin 한 다음 후속 플레이어 액션은 **call / raise / fold** 셋 중 하나만.
+     · 잘못된 예: 플랍에서 빌런 벳 → 히어로 체크 추천 (체크 불가능, call/raise/fold만 가능)
+     · 올바른 예: 플랍에서 히어로 첫 액션 → 체크 가능
+   - **히어로 IP/OOP에 따라 첫 액션 가능 여부 판단**:
+     · 포스트플랍 IP (CO/BTN) + 빌런 OOP → 빌런이 먼저, 히어로는 빌런 액션 후
+     · 포스트플랍 OOP (SB/BB/UTG/MP/HJ) + 빌런 IP → 히어로가 먼저, 체크 가능
+   - **각 스트리트의 추천 액션을 정할 때, 그 시점에 히어로가 실제로 가능한 액션 셋을 먼저 따져라.**
+     · 빌런이 이미 베팅한 상태 → 히어로는 call/raise/fold 중에서만 추천
+     · 히어로가 첫 액션 차례 → check/bet 중에서 추천
+   - **recommended_line도 합법적 시퀀스여야 함.** "플랍 체크" 추천했다면 빌런이 그 전에 안 쳤어야 함.
 
 [출력 스키마 — 이 구조 정확히 지켜라]
 {

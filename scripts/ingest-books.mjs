@@ -32,9 +32,9 @@ if (!SUPABASE_SERVICE_KEY) { console.error('❌ SUPABASE_SERVICE_ROLE_KEY 환경
 if (!OPENAI_KEY) { console.error('❌ OPENAI_API_KEY 환경변수 필요'); process.exit(1); }
 
 const BOOKS_DIR = 'C:\\Users\\ghkdr\\OneDrive\\바탕 화면\\GTO 책';
+// 처리할 책 목록 — 이미 들어간 책 제외, 새 책만.
 const FILES = [
-  { name: 'Play Optimal Poker 1', file: 'Play Optimal Poker 1.pdf', type: 'pdf' },
-  { name: 'Play Optimal Poker 2', file: 'Play Optimal Poker 2.docx', type: 'docx' },
+  { name: 'Modern Poker Theory', file: 'Modern Poker Theory_-_Michael_Acevedo.pdf', type: 'pdf' },
 ];
 
 // 청크 파라미터 — text-embedding-3-small 권장: 약 500토큰 (~2000자)
