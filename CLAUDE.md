@@ -129,24 +129,44 @@ Docker 없어도 됨 (WARNING은 무시). 배포 후 `functions list`로 VERSION
 
 ---
 
-## 🧠 핸드리뷰 품질 강화 로드맵 (진행중)
+## 🧠 핸드리뷰 RAG 시스템 (1, 2단계 모두 완료, 2026-04-27)
 
-**목표**: 핸드리뷰 결과를 GTO 기반으로 더 깊이 있게.
+### 1단계: 시스템 프롬프트에 GTO 지식 박기 ✅ 완료
+- `supabase/functions/claude-proxy/index.ts` `systemPrompt` 변수
+- 약 5K 토큰: [페르소나] + [분석 축 4개] + [GTO 가이드라인 5섹션] + [절대 규칙 ①~⑮] + [출력 스키마] + [풀 예시 3개]
 
-### 2단계 전략
-- **1단계 (지금 진행)**: `claude-proxy` 안의 핸드리뷰 system prompt에 GTO 일반 지식 + 코칭 룰 직접 박기.
-  - 길이 가이드: 5K 토큰 안쪽 유지 (그 이상은 주의력 분산 위험).
-  - OpenAI prompt cache 자동 적용 → 비용 부담 적음.
-  - 추가할 카테고리 후보: 포지션별 오픈/3벳 레인지, C-bet 사이징(드라이/웻), SPR별 전략, 빌런 타입별 익스플로잇, 보드 텍스처별 예시.
-- **2단계 (자료 모이면)**: pgvector(Supabase 내장) + RAG. 책/Solver 출력/차트를 청크로 쪼개 임베딩 저장 → 핸드별로 유사 자료 검색해서 동적 첨부.
+### 2단계: pgvector RAG ✅ 완료
+- **DB 테이블**: `book_chunks` (id, book_title, content, embedding vector(1536), token_count)
+- **검색 함수**: `match_book_chunks(query_embedding, match_count)` RPC, 코사인 유사도
+- **임베딩 모델**: `text-embedding-3-small` (1536차원)
+- **저장된 청크 (총 1,000개)**:
+  - Play Optimal Poker 1: 301 청크
+  - Play Optimal Poker 2: 256 청크
+  - Modern Poker Theory: 443 청크
+- **인제스션 스크립트**: `scripts/ingest-books.mjs` (pdf-parse 1.1.1 + mammoth + OpenAI embeddings)
+- **검색 동작**: hand-review-gpt 호출 시 핸드 정보 영어 요약 → 임베딩 → 상위 5 청크 검색 → systemPrompt에 동적 주입
+- **graceful degradation**: RAG 실패 시 기본 systemPrompt만으로 진행
+- **디버그 메타**: 응답 JSON `_rag = { used, chunks, top_similarity }` + 로그 `[hand-review-gpt] RAG: N chunks retrieved`
+- **비용**: 리뷰당 +$0.005 (임베딩 + 추가 토큰)
 
-### 현재 상태
-- GTO 자료 파일 없음 (사용자도, Claude도). Claude의 일반 GTO 지식만으로 1단계 진행.
-- 자료 확보 출처: GTOWizard 무료차트, Upswing 블로그, Modern Poker Theory 등.
+### RAG 인용 톤 정책
+- **책·저자 이름 절대 노출 금지** ("Play Optimal Poker", "Modern Poker Theory" 등)
+- 대신 권위 있는 표현 12개 변형 (system prompt 절대 규칙 ⑮):
+  - "GTO 이론에 따르면...", "솔버 기반 분석에 따르면...", "GTO 관점에서 이 스팟을 분석하면..." 등
+- streets[] comment 4개 중 **정확히 1개, 최대 2개**에만 사용 (전부 어색, 0개 무시)
+- 가장 중요한 의사결정 스트리트에 우선
 
-### 핸드리뷰 system prompt 위치
-`supabase/functions/claude-proxy/index.ts` line ~969 (`const systemPrompt = ...`).
-현재 구조: [페르소나] [분석 축 4개] [절대 규칙 10개] [출력 스키마] [풀 예시 1쌍].
+### 절대 규칙 ⑪~⑮ (액션 정확성 + 톤 강제)
+- ⑪ 액션 시간순 거꾸로 읽기 금지
+- ⑫ 올인+콜 후 자동진행 스트리트 = streets[s] = null (가짜 액션 추천 금지)
+- ⑬ 추천 액션 유효성: 빌런 베팅 후 히어로 체크 추천 금지 등
+- ⑭ 히어로 실제 액션 정확히 표현 (콜한 거 → "올인" 표현 금지)
+- ⑮ 권위 GTO 톤 의무 (1~2개 comment 필수)
+
+### 추가 개선 여지 (선택)
+- **3단계 (자료 더 모이면)**: GTOWizard 차트 수기 정리해서 system prompt에 추가
+- **MPT 영문 책이라 청크 일부 검색 적중률 낮을 수 있음**: 한국어 GTO 자료 추가 검토 가능
+- **RAG 효과 평가**: 베타 사용자 피드백 + 응답에 책 출처 디버그 노출 (어드민용)
 
 ---
 
@@ -245,6 +265,58 @@ Docker 없어도 됨 (WARNING은 무시). 배포 후 `functions list`로 VERSION
 ### 피드백 채널
 - 외부 채널(카톡 오픈채팅, 디스코드) 사용 안 함
 - **앱 안 의견 박스 단독** — 설정 메뉴 + 대시보드 BetaBanner
+
+---
+
+## 🔍 SEO 셋업 (2026-04-27 완료)
+
+### 등록·소유권 확인
+- **Google Search Console**: 소유권 확인 ✅, 사이트맵 제출 ✅, URL 색인 요청 ✅
+  - 인증: `<meta name="google-site-verification" content="NB2chWKouxCSiDRLlpHBkPfr0WNBqWWzunSWZjTDEUw">`
+- **네이버 서치 어드바이저**: 소유권 확인 ✅, 사이트맵 제출 ✅, 웹페이지 수집 요청 ✅
+  - 인증: `<meta name="naver-site-verification" content="7c3a14db08b83a90fa060434fd26ced33c6e9943">`
+
+### 정적 파일
+- `public/sitemap.xml`: 4개 URL (/, /login, /terms, /privacy)
+- `public/robots.txt`: User-agent: * Allow:/ + Sitemap 위치 + Disallow: /admin
+- `public/index.html`: title·description·keywords·canonical·OG·Twitter·JSON-LD WebApplication 구조화 데이터·소유권 인증 태그
+
+### 노출 예상 시기
+- Google: 첫 인덱싱 3~7일, 정상 노출 1~3주
+- 네이버: 1~2주 인덱싱, 2~4주 정상 노출
+- 백링크가 검색 순위 결정의 핵심 → 커뮤니티 글에 `bluffzone.kr` 링크 포함 활동이 SEO의 실질적 작업
+
+---
+
+## 🔑 외부 키 / 인증 정보 (참조용, 절대 공개 금지)
+
+⚠️ 아래 정보는 절대 외부 노출 금지. 채팅창·git·문서 등에 평문 노출 X.
+
+### Supabase
+- **Project ref**: `chxcayaehgwqrpjuajqx`
+- **URL**: `https://chxcayaehgwqrpjuajqx.supabase.co`
+- **anon key**: `.env`의 `EXPO_PUBLIC_SUPABASE_ANON_KEY` 참조
+- **service_role key**: Dashboard → Settings → API → service_role (🔒)
+
+### Sentry
+- **DSN**: `https://cd4a669386b59099fd4284485753708f@o4511286519267328.ingest.us.sentry.io/4511286554394624`
+- **Vercel env**: `EXPO_PUBLIC_SENTRY_DSN` (Production+Preview)
+- **프로젝트명**: `react-native`, **Org**: `yeodo`
+
+### OpenAI
+- **운영 키** (Supabase Edge Function `OPENAI_API_KEY` 비밀): claude-proxy / whisper-proxy 모두 사용
+- **Prepaid**: $5 (충전), 80%·100% 이메일 알림 등록
+- **임시 키 (RAG ingestion용 2026-04-27 발급)**: 사용 후 즉시 Revoke 권장
+- **사용 모델**: gpt-4o (review/parse-voice), gpt-4o-mini (chat), text-embedding-3-small (RAG), whisper-1
+
+### 도메인
+- **bluffzone.kr** (가비아, 2026-04-27 등록, 1년)
+- A 레코드: `@ → 216.198.79.1`
+- CNAME: `www → 22b58c8a0b8256c4.vercel-dns-017.com.`
+
+### GitHub Actions
+- **Workflow**: `.github/workflows/supabase-keep-alive.yml`
+- 5분마다 Supabase REST + Auth + Edge Function ping (cold start 방지)
 
 ---
 
