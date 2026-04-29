@@ -108,10 +108,15 @@ function HandCard({ hand, onPress, showUser }: { hand: HandWithUser; onPress: ()
   );
 }
 
+const PAGE_SIZES = [10, 30, 50] as const;
+type PageSize = typeof PAGE_SIZES[number];
+
 export default function HandListScreen({ navigation }: Props) {
   const { profile } = useAuthStore();
   const isAdmin = profile?.role === 'admin';
   const [filterUid, setFilterUid] = useState<string | null>(null);
+  const [pageSize, setPageSize] = useState<PageSize>(10);
+  const [page, setPage] = useState(0);
 
   // 어드민이면 전체 유저 핸드, 일반 유저면 본인 핸드만
   const { data: myHands, isLoading: loadingMy } = useHands();
@@ -122,7 +127,7 @@ export default function HandListScreen({ navigation }: Props) {
   const isLoading = isAdmin ? loadingAdmin : loadingMy;
 
   // 어드민: userNameMap 으로 display_name 주입 + 유저 필터링
-  const hands = useMemo<HandWithUser[]>(() => {
+  const allHands = useMemo<HandWithUser[]>(() => {
     const raw = (isAdmin ? adminHands : myHands) ?? [];
     const withNames: HandWithUser[] = raw.map(h => ({
       ...h,
@@ -131,6 +136,18 @@ export default function HandListScreen({ navigation }: Props) {
     if (!isAdmin || filterUid === null) return withNames;
     return withNames.filter(h => h.user_id === filterUid);
   }, [isAdmin, adminHands, myHands, filterUid, userNameMap]);
+
+  const totalPages = Math.max(1, Math.ceil(allHands.length / pageSize));
+  const safePage = Math.min(page, totalPages - 1);
+  const hands = useMemo(
+    () => allHands.slice(safePage * pageSize, (safePage + 1) * pageSize),
+    [allHands, safePage, pageSize]
+  );
+
+  const handleChangePageSize = (size: PageSize) => {
+    setPageSize(size);
+    setPage(0);
+  };
 
   // 타이틀: 어드민 + 필터 유저 이름 표시
   const titleSuffix = isAdmin
@@ -155,6 +172,35 @@ export default function HandListScreen({ navigation }: Props) {
       {/* 어드민 유저 필터 */}
       <AdminUserFilter selectedUid={filterUid} onChange={setFilterUid} />
 
+      {/* 페이지 크기 선택 + 총 개수 */}
+      {!isLoading && allHands.length > 0 && (
+        <View style={styles.pageSizeBar}>
+          <Text style={styles.pageSizeLabel}>페이지당</Text>
+          {PAGE_SIZES.map(size => (
+            <TouchableOpacity
+              key={size}
+              style={[
+                styles.pageSizeBtn,
+                pageSize === size && styles.pageSizeBtnActive,
+              ]}
+              onPress={() => handleChangePageSize(size)}
+              activeOpacity={0.75}
+            >
+              <Text
+                style={[
+                  styles.pageSizeBtnText,
+                  pageSize === size && styles.pageSizeBtnTextActive,
+                ]}
+              >
+                {size}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          <View style={{ flex: 1 }} />
+          <Text style={styles.totalText}>총 {allHands.length}개</Text>
+        </View>
+      )}
+
       {isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
@@ -171,6 +217,34 @@ export default function HandListScreen({ navigation }: Props) {
               onPress={() => navigation.push('HandDetail', { handId: item.id })}
             />
           )}
+          ListFooterComponent={
+            allHands.length > pageSize ? (
+              <View style={styles.pagination}>
+                <TouchableOpacity
+                  style={[styles.pageBtn, safePage === 0 && styles.pageBtnDisabled]}
+                  onPress={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={safePage === 0}
+                  activeOpacity={0.75}
+                >
+                  <Text style={styles.pageBtnText}>← 이전</Text>
+                </TouchableOpacity>
+                <Text style={styles.pageIndicator}>
+                  {safePage + 1} / {totalPages}
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.pageBtn,
+                    safePage >= totalPages - 1 && styles.pageBtnDisabled,
+                  ]}
+                  onPress={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                  disabled={safePage >= totalPages - 1}
+                  activeOpacity={0.75}
+                >
+                  <Text style={styles.pageBtnText}>다음 →</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>🃏</Text>
@@ -295,4 +369,47 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyCtaSecondaryText: { fontSize: fontSize.sm, color: colors.textMuted, textDecorationLine: 'underline' },
+  pageSizeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  pageSizeLabel: { fontSize: fontSize.xs, color: colors.textMuted, marginRight: spacing.xs },
+  pageSizeBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  pageSizeBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  pageSizeBtnText: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.medium },
+  pageSizeBtnTextActive: { color: colors.bg, fontWeight: fontWeight.bold },
+  totalText: { fontSize: fontSize.xs, color: colors.textMuted },
+  pagination: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    gap: spacing.sm,
+  },
+  pageBtn: {
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  pageBtnDisabled: { opacity: 0.35 },
+  pageBtnText: { fontSize: fontSize.sm, color: colors.text, fontWeight: fontWeight.medium },
+  pageIndicator: { fontSize: fontSize.sm, color: colors.text, fontWeight: fontWeight.bold },
 });

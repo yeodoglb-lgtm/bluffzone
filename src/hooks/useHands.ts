@@ -11,7 +11,7 @@ import {
   type HandInsert,
 } from '../services/hands';
 
-export function useHands(limit = 50) {
+export function useHands(limit = 500) {
   const { session } = useAuthStore();
   const uid = session?.user?.id ?? '';
   return useQuery({
