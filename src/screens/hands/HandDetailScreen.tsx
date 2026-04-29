@@ -13,7 +13,7 @@ import { useState, useEffect } from 'react';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import type { HandsStackParamList } from '../../navigation/types';
-import { SUIT_COLORS, SUIT_SYMBOLS, STREETS } from '../../constants/poker';
+import { SUIT_COLORS, SUIT_SYMBOLS } from '../../constants/poker';
 import type { Card, Street, Position9Max, HandAction } from '../../constants/poker';
 import { useHand, useDeleteHand, useUpdateHand } from '../../hooks/useHands';
 
@@ -592,6 +592,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
   const [isReviewing, setIsReviewing] = useState(false);
 
   async function handleRequestReview(forceRefresh = false) {
+    if (!hand) return;
     setIsReviewing(true);
     try {
       await updateHand.mutateAsync({ id: handId, data: { review_status: 'pending' } });
@@ -893,7 +894,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
           {(hand.review_status === 'none' || hand.review_status === 'error') && (
             <TouchableOpacity
               style={styles.reviewBtn}
-              onPress={handleRequestReview}
+              onPress={() => handleRequestReview()}
               disabled={isReviewing}
               activeOpacity={0.8}
             >

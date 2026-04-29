@@ -122,7 +122,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer ref={navRef} linking={linking}>
+    <NavigationContainer ref={navRef} linking={linking as any}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {session || DEV_SKIP_AUTH ? (
           <>

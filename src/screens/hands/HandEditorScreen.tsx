@@ -7,7 +7,6 @@ import {
   Switch,
   StyleSheet,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { showAlert } from '../../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -921,6 +920,7 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: spacing.sm, paddingVertical: 5, borderRadius: radius.button, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surfaceAlt },
   chipText: { fontSize: fontSize.xs, color: colors.textMuted },
   input: { backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, color: colors.text, fontSize: fontSize.base, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, marginTop: 4 },
+  hint: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 4 },
   textArea: { minHeight: 80, paddingTop: spacing.sm },
   noteRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
   micBtn: { width: 44, height: 44, borderRadius: radius.button, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', marginTop: 2 },

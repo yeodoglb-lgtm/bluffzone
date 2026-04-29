@@ -6,6 +6,7 @@ import { supabase } from './supabase';
 // ────────────────────────────────────────────────────────────────────────────
 export async function signInWithGoogle(): Promise<{ error: string | null }> {
   try {
+    // @ts-ignore - 네이티브 전용 모듈, 웹 빌드에서는 미설치
     const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
 
     GoogleSignin.configure({
@@ -76,6 +77,7 @@ export async function signInWithApple(): Promise<{ error: string | null }> {
 // ────────────────────────────────────────────────────────────────────────────
 export async function signInWithKakao(): Promise<{ error: string | null }> {
   try {
+    // @ts-ignore - 네이티브 전용 모듈, 웹 빌드에서는 미설치
     const { login, getProfile } = await import('@react-native-seoul/kakao-login');
 
     const token = await login();
