@@ -261,6 +261,15 @@ export default function SettingsScreen() {
             - 음성 입력 엔진: Whisper 고정 (기기 STT는 미구현)
             의도적으로 UI에서 숨김. 필요 시 아래 블록 주석 해제. */}
 
+        {/* GTO 가이드 */}
+        <SectionHeader title="GTO 가이드" />
+        <View style={styles.card}>
+          <TouchableOpacity style={styles.row} onPress={() => (navigation as any).navigate('GtoHub')}>
+            <Text style={styles.rowLabel}>🎯 GTO 도구 (푸시폴드 등)</Text>
+            <Text style={styles.rowSub}>›</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* 의견 / 문의 */}
         <SectionHeader title="고객 지원" />
         <View style={styles.card}>

@@ -98,6 +98,12 @@ export default function DashboardScreen() {
             desc: '내 주변 홀덤 클럽을\n지도에서 쉽게 찾기',
             onPress: () => navigation.navigate('PlacesTab', { screen: 'PlacesMap' }),
           },
+          {
+            icon: '🎯',
+            title: 'GTO 도구',
+            desc: '푸시폴드 차트 등\nGTO 의사결정 가이드',
+            onPress: () => navigation.navigate('GtoHub'),
+          },
         ].map(card => (
           <TouchableOpacity
             key={card.title}

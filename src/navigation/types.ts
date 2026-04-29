@@ -44,6 +44,8 @@ export type RootStackParamList = {
   Feedback: undefined;
   MyFeedback: undefined;
   AdminFeedback: undefined;
+  GtoHub: undefined;
+  PushfoldChart: undefined;
 };
 
 // ── Screen Props helpers ───────────────────────────────────────────────────────

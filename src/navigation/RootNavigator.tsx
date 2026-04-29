@@ -16,6 +16,8 @@ import PrivacyScreen from '../screens/auth/PrivacyScreen';
 import FeedbackScreen from '../screens/feedback/FeedbackScreen';
 import MyFeedbackListScreen from '../screens/feedback/MyFeedbackListScreen';
 import AdminFeedbackScreen from '../screens/admin/AdminFeedbackScreen';
+import GtoHubScreen from '../screens/gto/GtoHubScreen';
+import PushfoldChartScreen from '../screens/gto/PushfoldChartScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -38,6 +40,8 @@ const linking: LinkingOptions<RootStackParamList> = {
       Feedback: 'feedback',
       MyFeedback: 'feedback/mine',
       AdminFeedback: 'admin/feedback',
+      GtoHub: 'gto',
+      PushfoldChart: 'gto/pushfold',
       Main: {
         path: '',
         screens: {
@@ -133,6 +137,8 @@ export default function RootNavigator() {
             <Stack.Screen name="Feedback" component={FeedbackScreen} />
             <Stack.Screen name="MyFeedback" component={MyFeedbackListScreen} />
             <Stack.Screen name="AdminFeedback" component={AdminFeedbackScreen} />
+            <Stack.Screen name="GtoHub" component={GtoHubScreen} />
+            <Stack.Screen name="PushfoldChart" component={PushfoldChartScreen} />
           </>
         ) : (
           <>
