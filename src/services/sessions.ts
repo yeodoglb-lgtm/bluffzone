@@ -165,6 +165,13 @@ export type PeriodStats = {
   avgProfit: number;
   totalHours: number;
   hourlyProfit: number | null;
+  // 토너 전용 (토너 세션이 1개라도 있을 때만 의미)
+  tournamentCount: number;
+  tournamentBuyinTotal: number;   // 토너 총 비용 (바이인 합)
+  tournamentPayoutTotal: number;  // 토너 총 상금
+  tournamentRoi: number | null;   // ROI % = (수익/비용)*100
+  tournamentItmCount: number;     // 입상 횟수 (cash_out > 0)
+  tournamentItmRate: number | null; // ITM % = 입상/총토너
 };
 
 export function calcPeriodStats(sessions: SessionWithProfit[]): PeriodStats {
@@ -175,6 +182,14 @@ export function calcPeriodStats(sessions: SessionWithProfit[]): PeriodStats {
     const mins = (new Date(s.ended_at).getTime() - new Date(s.started_at).getTime()) / 60000;
     return sum + Math.max(0, mins) / 60;
   }, 0);
+
+  // 토너 통계
+  const tournaments = sessions.filter(s => s.is_tournament);
+  const tournamentBuyinTotal = tournaments.reduce((s, t) => s + Number(t.buy_in), 0);
+  const tournamentPayoutTotal = tournaments.reduce((s, t) => s + Number(t.cash_out), 0);
+  const tournamentItmCount = tournaments.filter(t => Number(t.cash_out) > 0).length;
+  const tournamentNetProfit = tournamentPayoutTotal - tournamentBuyinTotal;
+
   return {
     totalProfit,
     sessionCount: sessions.length,
@@ -183,5 +198,11 @@ export function calcPeriodStats(sessions: SessionWithProfit[]): PeriodStats {
     avgProfit: sessions.length > 0 ? totalProfit / sessions.length : 0,
     totalHours,
     hourlyProfit: totalHours > 0 ? totalProfit / totalHours : null,
+    tournamentCount: tournaments.length,
+    tournamentBuyinTotal,
+    tournamentPayoutTotal,
+    tournamentRoi: tournamentBuyinTotal > 0 ? (tournamentNetProfit / tournamentBuyinTotal) * 100 : null,
+    tournamentItmCount,
+    tournamentItmRate: tournaments.length > 0 ? (tournamentItmCount / tournaments.length) * 100 : null,
   };
 }

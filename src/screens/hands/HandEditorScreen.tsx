@@ -335,6 +335,20 @@ export default function HandEditorScreen({ navigation, route }: Props) {
   const [effectiveStack, setEffectiveStack] = useState('');
   const [villainType, setVillainType] = useState<string>('');
 
+  // ── 토너 핸드 컨텍스트 ─────────────────────────────────────────────────
+  const [isTournament, setIsTournament] = useState(false);
+  const [sbChips, setSbChips] = useState('');
+  const [bbChips, setBbChips] = useState('');
+  const [anteChips, setAnteChips] = useState('');
+
+  // 이펙티브 스택 BB 환산 (표시용)
+  const effectiveStackBb = useMemo(() => {
+    const stack = effectiveStack ? Number(effectiveStack) * amountUnit : 0;
+    const bb = Number(bbChips) || 0;
+    if (!stack || !bb) return null;
+    return Math.round(stack / bb);
+  }, [effectiveStack, bbChips, amountUnit]);
+
   // ── 팟 자동계산: bet/raise/call/allin 합산 ─────────────────────────────────
   const autoPot = useMemo(() =>
     actions
@@ -362,6 +376,10 @@ export default function HandEditorScreen({ navigation, route }: Props) {
     setPreflopAggressor((existingHand as any).preflop_aggressor ?? null);
     setEffectiveStack((existingHand as any).effective_stack != null ? formatAmountDisplay((existingHand as any).effective_stack, amountUnit) : '');
     setVillainType((existingHand as any).villain_type ?? '');
+    setIsTournament((existingHand as any).is_tournament ?? false);
+    setSbChips((existingHand as any).sb_chips != null ? String((existingHand as any).sb_chips) : '');
+    setBbChips((existingHand as any).bb_chips != null ? String((existingHand as any).bb_chips) : '');
+    setAnteChips((existingHand as any).ante_chips != null ? String((existingHand as any).ante_chips) : '');
     setNote(existingHand.note ?? '');
     setIsAutoPot(false); // 기존 팟 값 유지 (자동 덮어쓰기 방지)
     const vd = (existingHand as any).villain_data;
@@ -398,6 +416,10 @@ export default function HandEditorScreen({ navigation, route }: Props) {
         preflop_aggressor: preflopAggressor,
         effective_stack: effectiveStack ? Math.round(Number(effectiveStack) * amountUnit) : null,
         villain_type: villainType.trim() || null,
+        is_tournament: isTournament,
+        sb_chips: isTournament && sbChips ? Number(sbChips) : null,
+        bb_chips: isTournament && bbChips ? Number(bbChips) : null,
+        ante_chips: isTournament && anteChips ? Number(anteChips) : null,
         note: note.trim() || null, raw_voice_text: null,
         review_status: 'none' as const, review: null, reviewed_at: null, review_model: null, share_id: null, is_public: false,
       };
@@ -570,6 +592,69 @@ export default function HandEditorScreen({ navigation, route }: Props) {
           <Text style={styles.helpText}>
             ℹ️ 홀덤 알파고의 분석 정확도를 높여주는 정보입니다. 입력하지 않아도 분석은 가능합니다.
           </Text>
+
+          {/* 토너먼트 토글 */}
+          <Label text="🏆 토너먼트 핸드?" />
+          <Text style={styles.helpSub}>
+            토너 핸드면 ON. 단스택(≤25bb)은 푸시폴드 차트 기준으로, ICM 압박을 반영해 분석합니다.
+          </Text>
+          <View style={styles.chipRow}>
+            <Chip label="아니오 (캐시)" selected={!isTournament} onPress={() => setIsTournament(false)} />
+            <Chip label="네 (토너)" selected={isTournament} onPress={() => setIsTournament(true)} />
+          </View>
+
+          {/* 토너 전용 — 블라인드 */}
+          {isTournament && (
+            <>
+              <Label text="블라인드 / 앤티 (칩 단위)" />
+              <Text style={styles.helpSub}>
+                예: SB=2,000 / BB=4,000 / 앤티=500. 유효 스택 BB 환산에 사용됩니다.
+              </Text>
+              <View style={styles.row3}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.smallLabel}>SB</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="2000"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numeric"
+                    value={sbChips}
+                    onChangeText={setSbChips}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.smallLabel}>BB</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="4000"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numeric"
+                    value={bbChips}
+                    onChangeText={setBbChips}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.smallLabel}>앤티</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="500"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numeric"
+                    value={anteChips}
+                    onChangeText={setAnteChips}
+                  />
+                </View>
+              </View>
+              {effectiveStackBb != null && (
+                <View style={styles.bbHint}>
+                  <Text style={styles.bbHintText}>
+                    💡 유효 스택 ≈ <Text style={styles.bbHintHi}>{effectiveStackBb}bb</Text>
+                    {effectiveStackBb <= 25 ? ' (푸시폴드 영역)' : ''}
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
           <Text style={styles.helpSub}>
             💡 SPR (Stack-to-Pot Ratio) = 유효 스택 ÷ 팟 사이즈.{'\n'}
             · SPR 낮음(&lt;4): 탑페어도 스택 투입 OK{'\n'}
@@ -917,6 +1002,18 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.primary, marginBottom: spacing.sm, textTransform: 'uppercase', letterSpacing: 0.5 },
   label: { fontSize: fontSize.xs, color: colors.textMuted, marginBottom: 4, marginTop: spacing.sm },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  row3: { flexDirection: 'row', gap: spacing.sm, marginTop: 4 },
+  smallLabel: { fontSize: fontSize.xs, color: colors.textMuted, marginBottom: 4 },
+  bbHint: {
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+    backgroundColor: `${colors.primary}15`,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: `${colors.primary}33`,
+  },
+  bbHintText: { fontSize: fontSize.sm, color: colors.text },
+  bbHintHi: { color: colors.primary, fontWeight: fontWeight.bold },
   chip: { paddingHorizontal: spacing.sm, paddingVertical: 5, borderRadius: radius.button, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surfaceAlt },
   chipText: { fontSize: fontSize.xs, color: colors.textMuted },
   input: { backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, color: colors.text, fontSize: fontSize.base, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, marginTop: 4 },

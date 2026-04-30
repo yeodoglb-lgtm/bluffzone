@@ -886,6 +886,35 @@ export default function HandDetailScreen({ navigation, route }: Props) {
           </View>
         )}
 
+        {/* 토너 + 단스택(≤25bb) 핸드면 푸시폴드 차트 컨텍스트 링크 */}
+        {(() => {
+          const isT = (hand as any).is_tournament === true;
+          const eff = (hand as any).effective_stack;
+          const bb = (hand as any).bb_chips;
+          const effBb = isT && eff && bb ? Math.round(Number(eff) / Number(bb)) : null;
+          if (!isT || effBb == null || effBb > 25) return null;
+          return (
+            <TouchableOpacity
+              style={styles.gtoLinkCard}
+              onPress={() =>
+                (navigation as any).navigate('DashboardTab', { screen: 'PushfoldChart' })
+              }
+              activeOpacity={0.8}
+            >
+              <Text style={styles.gtoLinkEmoji}>🎯</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.gtoLinkTitle}>
+                  단스택 {effBb}bb — 푸시폴드 차트로 확인
+                </Text>
+                <Text style={styles.gtoLinkDesc}>
+                  Nash 차트상 이 핸드의 푸시·폴드 결정을 직접 비교해보세요
+                </Text>
+              </View>
+              <Text style={styles.gtoLinkArrow}>›</Text>
+            </TouchableOpacity>
+          );
+        })()}
+
         {/* 홀덤 알파고 리뷰 */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>블러프존 홀덤 알파고 핸드리뷰</Text>
@@ -1204,6 +1233,21 @@ const styles = StyleSheet.create({
   },
   resultText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold },
   noteText: { fontSize: fontSize.sm, color: colors.text, lineHeight: 20 },
+  gtoLinkCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.base,
+    marginVertical: spacing.sm,
+    backgroundColor: `${colors.primary}11`,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: `${colors.primary}55`,
+  },
+  gtoLinkEmoji: { fontSize: 28 },
+  gtoLinkTitle: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.primary },
+  gtoLinkDesc: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  gtoLinkArrow: { fontSize: 24, color: colors.primary, fontWeight: fontWeight.bold },
   reviewRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   reviewStatus: { fontSize: fontSize.sm, color: colors.textMuted },
   reviewStatusValue: { color: colors.text, fontWeight: fontWeight.medium },

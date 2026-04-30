@@ -211,6 +211,39 @@ export default function BankrollCalendarScreen() {
               <Text style={styles.hourlyDetailText}>📊 {hourlyDetailText}</Text>
             </View>
           )}
+
+          {/* 토너 통계 (토너 세션 1개 이상이고, 필터가 토너 또는 전체일 때) */}
+          {stats.tournamentCount > 0 && gameTypeFilter !== 'cash' && (
+            <View style={styles.tournamentStatsBar}>
+              <Text style={styles.tournamentStatsLabel}>🏆 토너 ({stats.tournamentCount}회)</Text>
+              <View style={styles.tournamentStatsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>ROI</Text>
+                  <Text style={[
+                    styles.statValueSm,
+                    {
+                      color: stats.tournamentRoi == null ? colors.textMuted
+                        : stats.tournamentRoi > 0 ? colors.success
+                        : colors.danger,
+                    },
+                  ]}>
+                    {stats.tournamentRoi != null
+                      ? `${stats.tournamentRoi > 0 ? '+' : ''}${stats.tournamentRoi.toFixed(0)}%`
+                      : '-'}
+                  </Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>ITM</Text>
+                  <Text style={styles.statValueSm}>
+                    {stats.tournamentItmRate != null
+                      ? `${stats.tournamentItmRate.toFixed(0)}% (${stats.tournamentItmCount}회)`
+                      : '-'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* 월 선택 + 금액/승패 토글 */}
@@ -418,6 +451,24 @@ const styles = StyleSheet.create({
   statItem: { flex: 1, alignItems: 'center', gap: 3 },
   statLabel: { fontSize: fontSize.xs, color: colors.textMuted },
   statValue: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text },
+  statValueSm: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.text },
+  tournamentStatsBar: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    gap: spacing.xs,
+  },
+  tournamentStatsLabel: {
+    fontSize: fontSize.xs,
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
+    paddingHorizontal: spacing.sm,
+  },
+  tournamentStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   statDivider: { width: 1, backgroundColor: colors.line, marginVertical: 4 },
   hourlyDetail: {
     borderTopWidth: 1, borderTopColor: colors.line,

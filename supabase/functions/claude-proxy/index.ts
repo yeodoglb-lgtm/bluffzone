@@ -904,6 +904,16 @@ serve(async (req) => {
           ? `${hand.result}${hand?.hero_pl != null ? ` (${hand.hero_pl >= 0 ? '+' : ''}${hand.hero_pl})` : ''}`
           : '(미기재)';
 
+      // ── 토너 컨텍스트 추출 ─────────────────────────────────────────────────
+      const isTournament = hand?.is_tournament === true;
+      const sbChips = hand?.sb_chips ?? null;
+      const bbChips = hand?.bb_chips ?? null;
+      const anteChips = hand?.ante_chips ?? null;
+      // 유효 스택 BB 환산
+      const effStackBb = (isTournament && hand?.effective_stack && bbChips)
+        ? Math.round(Number(hand.effective_stack) / Number(bbChips))
+        : null;
+
       // ── 서버 사전 계산: 보드 텍스처, 히어로 메이드 핸드, 드로우, SPR ─────────
       const heroP = parseCards(hand?.hero_cards);
       const boardP = parseCards(hand?.board);
@@ -1339,8 +1349,61 @@ ${richStreetsBlock}
         console.warn('[hand-review-gpt] RAG retrieval failed:', e);
       }
 
+      // ── 토너 컨텍스트 빌드 (분기) ─────────────────────────────────────────
+      // 토너 핸드면 ICM/푸시폴드 가이드 주입. 단스택(≤25bb)이면 차트 lookup도 추가.
+      let tournamentContext = '';
+      let pushfoldAdvice: string | null = null;
+      if (isTournament) {
+        tournamentContext = '\n\n[토너먼트 분석 컨텍스트]\n' +
+          '⚠️ 이 핸드는 **토너먼트 핸드**입니다. 캐시 게임 GTO와 다른 기준 적용:\n' +
+          '- ICM(Independent Chip Model) 압박 고려 — 칩EV ≠ $EV. 입상권 근처일수록 콜 기준 보수적.\n' +
+          '- 단스택(≤25bb)에서는 GTO 정밀 분석 대신 푸시·폴드 결정으로 단순화.\n' +
+          '- 블라인드 + 앤티 합산이 풀 사이즈에 결정적 — 베팅 사이징 계산 시 반드시 반영.\n' +
+          (sbChips && bbChips ? `- 블라인드: SB ${sbChips} / BB ${bbChips}${anteChips ? ` / 앤티 ${anteChips}` : ''}\n` : '') +
+          (effStackBb != null ? `- 유효 스택 BB 환산: 약 ${effStackBb}bb\n` : '') +
+          '- comment·tip에 ICM·스택 깊이를 명시적으로 언급할 것. (예: "20bb 단스택이라 …", "ICM 압박상 …")';
+
+        // 푸시폴드 차트 lookup (히어로 핸드 + 포지션 + ≤25bb 일 때)
+        if (effStackBb != null && effStackBb <= 25 && hand?.hero_position && Array.isArray(hand?.hero_cards) && hand.hero_cards.length === 2) {
+          // 핸드를 169핸드 표기로 변환 (예: AhKs → AKs, AhKd → AKo, 9c9d → 99)
+          const c1 = hand.hero_cards[0];
+          const c2 = hand.hero_cards[1];
+          const RANKS = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
+          const idx = (r: string) => RANKS.indexOf(r);
+          let handLabel = '';
+          if (c1?.rank && c2?.rank) {
+            if (c1.rank === c2.rank) handLabel = c1.rank + c2.rank;
+            else {
+              const [hi, lo] = idx(c1.rank) < idx(c2.rank) ? [c1.rank, c2.rank] : [c2.rank, c1.rank];
+              const suited = c1.suit === c2.suit;
+              handLabel = hi + lo + (suited ? 's' : 'o');
+            }
+          }
+          // 가장 가까운 스택 깊이 매핑 (5,8,10,12,15,20,25)
+          const stacks = [5, 8, 10, 12, 15, 20, 25];
+          const closestStack = stacks.reduce((p, c) =>
+            Math.abs(c - effStackBb) < Math.abs(p - effStackBb) ? c : p
+          );
+          if (handLabel) {
+            const { data: pfRow } = await supabase
+              .from('pushfold_charts')
+              .select('action')
+              .eq('position', hand.hero_position)
+              .eq('stack_bb', closestStack)
+              .eq('hand', handLabel)
+              .maybeSingle();
+            if (pfRow?.action) {
+              pushfoldAdvice = `\n\n[푸시폴드 차트 권고]\n` +
+                `히어로 ${hand.hero_position} ${closestStack}bb ${handLabel} → **Nash 차트상 ${pfRow.action.toUpperCase()}**\n` +
+                `이 정보를 분석에 반영하라. 사용자가 차트와 다르게 플레이했다면 명시적으로 지적하고 차트 기준을 설명할 것.`;
+              console.log(`[hand-review-gpt] Pushfold lookup: ${hand.hero_position} ${closestStack}bb ${handLabel} = ${pfRow.action}`);
+            }
+          }
+        }
+      }
+
       // RAG 컨텍스트가 있으면 systemPrompt에 추가
-      const finalSystemPrompt = systemPrompt + ragContext;
+      const finalSystemPrompt = systemPrompt + tournamentContext + (pushfoldAdvice ?? '') + ragContext;
 
       // ── GPT 호출 헬퍼 (재시도 + JSON 파싱 fallback 포함) ─────────────────
       async function callGpt(): Promise<{
