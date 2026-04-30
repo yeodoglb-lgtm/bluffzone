@@ -334,7 +334,7 @@ export default function SessionFormScreen({ route, navigation }: Props) {
                 onChangeText={v => onChange(v || null)}
                 placeholder={
                   isTournament
-                    ? '예: 부산 위클리 / WSOP #32'
+                    ? '예: 서울 위클리 / 서울 WSOP'
                     : '클럽명 또는 장소'
                 }
                 placeholderTextColor={colors.textMuted}

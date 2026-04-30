@@ -7,7 +7,10 @@ ALTER TABLE public.sessions
   ADD COLUMN IF NOT EXISTS finish_position INT CHECK (finish_position IS NULL OR finish_position >= 1);
 
 -- v_sessions 뷰 재정의 (새 컬럼 포함)
-CREATE OR REPLACE VIEW public.v_sessions AS
+-- DROP 후 재생성 — CREATE OR REPLACE는 컬럼 순서 변경 시 실패함
+DROP VIEW IF EXISTS public.v_sessions;
+
+CREATE VIEW public.v_sessions AS
   SELECT *, (cash_out - buy_in) AS net_profit
   FROM public.sessions;
 

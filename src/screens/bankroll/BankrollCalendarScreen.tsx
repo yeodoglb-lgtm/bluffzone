@@ -21,11 +21,18 @@ import AdminUserFilter from '../../components/AdminUserFilter';
 
 type Nav = StackNavigationProp<BankrollStackParamList, 'BankrollCalendar'>;
 type PeriodTab = 'week' | 'month' | 'year';
+type GameTypeFilter = 'all' | 'cash' | 'tournament';
 
 const PERIOD_TABS: { key: PeriodTab; label: string }[] = [
   { key: 'week',  label: '이번 주' },
   { key: 'month', label: '이번 달' },
   { key: 'year',  label: '올해' },
+];
+
+const GAME_TYPE_TABS: { key: GameTypeFilter; label: string }[] = [
+  { key: 'all',        label: '전체' },
+  { key: 'cash',       label: '캐시' },
+  { key: 'tournament', label: '토너' },
 ];
 
 const MONTH_LABELS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -44,13 +51,22 @@ export default function BankrollCalendarScreen() {
   const [pickerYear, setPickerYear] = useState(now.year());
   const [showHourlyDetail, setShowHourlyDetail] = useState(false);
   const [filterUid, setFilterUid] = useState<string | null>(null);
+  const [gameTypeFilter, setGameTypeFilter] = useState<GameTypeFilter>('all');
+
+  // 게임 타입 필터 적용 헬퍼
+  const applyGameTypeFilter = (sessions: any[]) => {
+    if (gameTypeFilter === 'all') return sessions;
+    if (gameTypeFilter === 'cash') return sessions.filter(s => !s.is_tournament);
+    return sessions.filter(s => s.is_tournament);
+  };
 
   // 월별 데이터 (캘린더용) — 어드민은 전체 fetch 후 클라이언트 필터링
   const { data: allMonthSessions = [], isLoading } = useSessionsByMonth(year, month);
-  const monthSessions = useMemo(() =>
-    isAdmin && filterUid ? allMonthSessions.filter(s => s.user_id === filterUid) : allMonthSessions,
-    [allMonthSessions, isAdmin, filterUid]
-  );
+  const monthSessions = useMemo(() => {
+    let filtered = allMonthSessions;
+    if (isAdmin && filterUid) filtered = filtered.filter(s => s.user_id === filterUid);
+    return applyGameTypeFilter(filtered);
+  }, [allMonthSessions, isAdmin, filterUid, gameTypeFilter]);
   const dayStats = useMemo(() => aggregateByDay(monthSessions), [monthSessions]);
 
   // 기간별 데이터 (상단 통계용)
@@ -66,10 +82,11 @@ export default function BankrollCalendarScreen() {
   }, [periodTab, year, month]);
 
   const { data: allPeriodSessions = [] } = useSessionsByRange(periodRange.start, periodRange.end);
-  const periodSessions = useMemo(() =>
-    isAdmin && filterUid ? allPeriodSessions.filter(s => s.user_id === filterUid) : allPeriodSessions,
-    [allPeriodSessions, isAdmin, filterUid]
-  );
+  const periodSessions = useMemo(() => {
+    let filtered = allPeriodSessions;
+    if (isAdmin && filterUid) filtered = filtered.filter(s => s.user_id === filterUid);
+    return applyGameTypeFilter(filtered);
+  }, [allPeriodSessions, isAdmin, filterUid, gameTypeFilter]);
   const stats = useMemo(() => calcPeriodStats(periodSessions), [periodSessions]);
 
   function handleDayPress(day: DateData) {
@@ -110,6 +127,30 @@ export default function BankrollCalendarScreen() {
       <AdminUserFilter selectedUid={filterUid} onChange={setFilterUid} />
 
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* 게임 타입 필터 (전체 / 캐시 / 토너) */}
+        <View style={styles.gameTypeFilterRow}>
+          {GAME_TYPE_TABS.map(tab => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[
+                styles.gameTypeFilterChip,
+                gameTypeFilter === tab.key && styles.gameTypeFilterChipActive,
+              ]}
+              onPress={() => setGameTypeFilter(tab.key)}
+              activeOpacity={0.75}
+            >
+              <Text
+                style={[
+                  styles.gameTypeFilterText,
+                  gameTypeFilter === tab.key && styles.gameTypeFilterTextActive,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* 기간 탭 */}
         <View style={styles.periodTabRow}>
           {PERIOD_TABS.map(tab => (
@@ -335,6 +376,34 @@ const styles = StyleSheet.create({
   periodTabActive: { backgroundColor: colors.surface },
   periodTabText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.medium },
   periodTabTextActive: { color: colors.text, fontWeight: fontWeight.semibold },
+
+  gameTypeFilterRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginHorizontal: spacing.base,
+    marginTop: spacing.sm,
+  },
+  gameTypeFilterChip: {
+    paddingHorizontal: spacing.base,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  gameTypeFilterChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  gameTypeFilterText: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    fontWeight: fontWeight.medium,
+  },
+  gameTypeFilterTextActive: {
+    color: colors.bg,
+    fontWeight: fontWeight.bold,
+  },
 
   statsCard: {
     margin: spacing.base,
