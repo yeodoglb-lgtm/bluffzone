@@ -33,6 +33,9 @@ export type HandsStackParamList = {
   HandList: undefined;
   HandEditor: { handId?: string; sessionId?: string };
   HandDetail: { handId: string };
+  // GTO 도구는 DashboardStack과 공유 — 탭 전환 없이 같은 스택 안에서 이동 → 뒤로가기 자연스러움
+  GtoHub: undefined;
+  PushfoldChart: undefined;
 };
 
 // ── Places Stack ───────────────────────────────────────────────────────────────

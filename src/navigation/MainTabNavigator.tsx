@@ -79,6 +79,8 @@ function HandsNavigator() {
       <HandsStack.Screen name="HandList" component={HandListScreen} />
       <HandsStack.Screen name="HandEditor" component={HandEditorScreen} />
       <HandsStack.Screen name="HandDetail" component={HandDetailScreen} />
+      <HandsStack.Screen name="GtoHub" component={GtoHubScreen} />
+      <HandsStack.Screen name="PushfoldChart" component={PushfoldChartScreen} />
     </HandsStack.Navigator>
   );
 }

@@ -620,6 +620,11 @@ export default function HandDetailScreen({ navigation, route }: Props) {
         effective_stack: (hand as any).effective_stack,
         villain_type: (hand as any).villain_type,
         note: hand.note,
+        // 토너 컨텍스트 (AI 분기 + 푸시폴드 lookup용)
+        is_tournament: (hand as any).is_tournament,
+        sb_chips: (hand as any).sb_chips,
+        bb_chips: (hand as any).bb_chips,
+        ante_chips: (hand as any).ante_chips,
       };
 
       // 안전 직렬화: React fiber 키, DOM 노드, 순환 참조 모두 제거
@@ -896,9 +901,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
           return (
             <TouchableOpacity
               style={styles.gtoLinkCard}
-              onPress={() =>
-                (navigation as any).navigate('DashboardTab', { screen: 'PushfoldChart' })
-              }
+              onPress={() => (navigation as any).push('PushfoldChart')}
               activeOpacity={0.8}
             >
               <Text style={styles.gtoLinkEmoji}>🎯</Text>

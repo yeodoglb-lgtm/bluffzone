@@ -124,6 +124,10 @@ export default function DayDetailScreen({ route, navigation }: Props) {
         activeOpacity={0.8}
       >
         <View style={styles.cardTop}>
+          {/* 캐시/토너 아이콘 */}
+          <View style={[styles.typeIcon, item.is_tournament ? styles.typeIconTour : styles.typeIconCash]}>
+            <Text style={styles.typeIconText}>{item.is_tournament ? '🏆' : '💰'}</Text>
+          </View>
           <View style={{ flex: 1, marginRight: spacing.sm }}>
             <Text style={styles.placeName} numberOfLines={1}>
               {item.place_name_snapshot ?? '장소 미지정'}
@@ -296,7 +300,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.sm,
   },
+  typeIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  typeIconCash: {
+    backgroundColor: `${colors.primary}22`,
+    borderColor: `${colors.primary}55`,
+  },
+  typeIconTour: {
+    backgroundColor: `${colors.warning}22`,
+    borderColor: `${colors.warning}55`,
+  },
+  typeIconText: { fontSize: 16 },
   placeName: {
     flex: 1,
     fontSize: fontSize.base,

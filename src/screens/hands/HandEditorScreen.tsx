@@ -49,8 +49,8 @@ const STREET_COLOR: Record<string, string> = {
 };
 
 const EDITOR_GAME_TYPES: { label: string; value: GameType }[] = [
-  { label: 'NLH', value: 'NLH' },
-  { label: 'Tournament', value: 'Tournament' },
+  { label: '홀덤', value: 'NLH' },
+  { label: '오마하', value: 'PLO' },
   { label: '기타', value: 'Mixed' },
 ];
 
@@ -480,21 +480,56 @@ export default function HandEditorScreen({ navigation, route }: Props) {
           <View style={styles.chipRow}>
             {EDITOR_GAME_TYPES.map(g => <Chip key={g.value} label={g.label} selected={gameType === g.value} onPress={() => setGameType(g.value)} />)}
           </View>
-          <Label text="금액 단위" />
+
+          {/* 캐시 / 토너 2차 분류 */}
+          <Label text="캐시 / 토너" />
           <View style={styles.chipRow}>
-            <Chip label="원" selected={amountUnit === 1} onPress={() => setAmountUnit(1)} />
-            <Chip label="만원" selected={amountUnit === 10000} onPress={() => setAmountUnit(10000)} />
+            <Chip
+              label="캐시 게임"
+              selected={!isTournament}
+              onPress={() => {
+                setIsTournament(false);
+              }}
+            />
+            <Chip
+              label="🏆 토너먼트"
+              selected={isTournament}
+              onPress={() => {
+                setIsTournament(true);
+                // 토너 선택 시 강제 칩 단위 — 만원 단위는 의미 없음
+                setAmountUnit(1);
+                setBbKrw('');
+              }}
+            />
           </View>
-          <Label text="빅블라인드 (원)" />
-          <TextInput
-            style={styles.input}
-            value={bbKrw}
-            onChangeText={setBbKrw}
-            keyboardType="numeric"
-            placeholder="예: 10000 (=1만원 BB)"
-            placeholderTextColor={colors.textMuted}
-          />
-          <Text style={[styles.hint, { textAlign: 'left' }]}>음성 입력 시 콜·림프 금액 자동계산에 사용. 비우면 차감 없이 raise 매칭.</Text>
+
+          {/* 금액 단위 — 캐시일 때만 노출 (토너는 칩 강제) */}
+          {!isTournament ? (
+            <>
+              <Label text="금액 단위" />
+              <View style={styles.chipRow}>
+                <Chip label="원" selected={amountUnit === 1} onPress={() => setAmountUnit(1)} />
+                <Chip label="만원" selected={amountUnit === 10000} onPress={() => setAmountUnit(10000)} />
+              </View>
+              <Label text="빅블라인드 (원)" />
+              <TextInput
+                style={styles.input}
+                value={bbKrw}
+                onChangeText={setBbKrw}
+                keyboardType="numeric"
+                placeholder="예: 10000 (=1만원 BB)"
+                placeholderTextColor={colors.textMuted}
+              />
+              <Text style={[styles.hint, { textAlign: 'left' }]}>음성 입력 시 콜·림프 금액 자동계산에 사용. 비우면 차감 없이 raise 매칭.</Text>
+            </>
+          ) : (
+            <View style={styles.tournamentNotice}>
+              <Text style={styles.tournamentNoticeText}>
+                🏆 토너먼트 모드 — 모든 금액은 <Text style={{ fontWeight: fontWeight.bold, color: colors.primary }}>칩 단위</Text>로 입력합니다.
+                {'\n'}블라인드(SB/BB/앤티)는 아래 "알파고 추가 정보" 섹션에서 설정.
+              </Text>
+            </View>
+          )}
         </Section>
 
         <Section title="포지션 & 카드">
@@ -593,22 +628,12 @@ export default function HandEditorScreen({ navigation, route }: Props) {
             ℹ️ 홀덤 알파고의 분석 정확도를 높여주는 정보입니다. 입력하지 않아도 분석은 가능합니다.
           </Text>
 
-          {/* 토너먼트 토글 */}
-          <Label text="🏆 토너먼트 핸드?" />
-          <Text style={styles.helpSub}>
-            토너 핸드면 ON. 단스택(≤25bb)은 푸시폴드 차트 기준으로, ICM 압박을 반영해 분석합니다.
-          </Text>
-          <View style={styles.chipRow}>
-            <Chip label="아니오 (캐시)" selected={!isTournament} onPress={() => setIsTournament(false)} />
-            <Chip label="네 (토너)" selected={isTournament} onPress={() => setIsTournament(true)} />
-          </View>
-
-          {/* 토너 전용 — 블라인드 */}
+          {/* 토너 전용 — 블라인드 (캐시·토너 토글은 상단 "기본 정보"에 있음) */}
           {isTournament && (
             <>
-              <Label text="블라인드 / 앤티 (칩 단위)" />
+              <Label text="🏆 블라인드 / 앤티 (칩 단위)" />
               <Text style={styles.helpSub}>
-                예: SB=2,000 / BB=4,000 / 앤티=500. 유효 스택 BB 환산에 사용됩니다.
+                예: SB=1,000 / BB=2,000 / 앤티=200. 유효 스택 BB 환산 + 푸시폴드 차트 lookup에 사용됩니다.
               </Text>
               <View style={styles.row3}>
                 <View style={{ flex: 1 }}>
@@ -671,11 +696,11 @@ export default function HandEditorScreen({ navigation, route }: Props) {
             <Chip label="모름/없음" selected={preflopAggressor === null} onPress={() => setPreflopAggressor(null)} color={colors.textMuted} />
           </View>
 
-          <Label text={`유효 스택${amountUnit === 10000 ? ' (만원)' : ''}`} />
+          <Label text={`유효 스택${isTournament ? ' (칩)' : amountUnit === 10000 ? ' (만원)' : ''}`} />
           <Text style={styles.helpSub}>히어로·빌런 중 더 적은 쪽의 시작 스택. SPR 계산으로 스택 투입 기준을 잡습니다.</Text>
           <TextInput
             style={styles.input}
-            placeholder={amountUnit === 10000 ? '예: 100 (=100만원)' : '예: 1000000'}
+            placeholder={isTournament ? '예: 20000 (=20,000칩)' : amountUnit === 10000 ? '예: 100 (=100만원)' : '예: 1000000'}
             placeholderTextColor={colors.textMuted}
             keyboardType="numeric"
             value={effectiveStack}
@@ -1014,6 +1039,15 @@ const styles = StyleSheet.create({
   },
   bbHintText: { fontSize: fontSize.sm, color: colors.text },
   bbHintHi: { color: colors.primary, fontWeight: fontWeight.bold },
+  tournamentNotice: {
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+    backgroundColor: `${colors.primary}11`,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: `${colors.primary}33`,
+  },
+  tournamentNoticeText: { fontSize: fontSize.sm, color: colors.text, lineHeight: 20 },
   chip: { paddingHorizontal: spacing.sm, paddingVertical: 5, borderRadius: radius.button, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surfaceAlt },
   chipText: { fontSize: fontSize.xs, color: colors.textMuted },
   input: { backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, color: colors.text, fontSize: fontSize.base, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, marginTop: 4 },

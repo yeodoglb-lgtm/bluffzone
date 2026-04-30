@@ -1,11 +1,10 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Target, BookOpen, Calculator, Cpu } from 'lucide-react-native';
-import type { StackScreenProps } from '@react-navigation/stack';
-import type { DashboardStackParamList } from '../../navigation/types';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 
-type Props = StackScreenProps<DashboardStackParamList, 'GtoHub'>;
+// 양쪽 스택(Dashboard·Hands)에서 모두 사용 — navigation 타입 generic
+type Props = { navigation: any };
 
 interface ToolItem {
   key: string;

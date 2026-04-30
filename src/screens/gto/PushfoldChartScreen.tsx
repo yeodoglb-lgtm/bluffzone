@@ -10,8 +10,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
-import type { StackScreenProps } from '@react-navigation/stack';
-import type { DashboardStackParamList } from '../../navigation/types';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import {
   fetchPushfoldChart,
@@ -21,7 +19,8 @@ import {
   type PushfoldStack,
 } from '../../services/gto';
 
-type Props = StackScreenProps<DashboardStackParamList, 'PushfoldChart'>;
+// 양쪽 스택(Dashboard·Hands)에서 모두 사용 — navigation 타입 generic 처리
+type Props = { navigation: any };
 
 const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 
