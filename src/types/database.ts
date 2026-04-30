@@ -28,6 +28,9 @@ export interface Session {
   cash_out: number;
   currency: Currency;
   note: string | null;
+  is_tournament: boolean;
+  reentry_count: number;
+  finish_position: number | null;
   created_at: string;
 }
 

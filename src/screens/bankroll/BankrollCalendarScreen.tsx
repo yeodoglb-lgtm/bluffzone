@@ -8,7 +8,7 @@ import { Calendar } from 'react-native-calendars';
 import type { DateData } from 'react-native-calendars';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
-import { BarChart2 } from 'lucide-react-native';
+import { BarChart2, Plus } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import { useSessionsByMonth, useSessionsByRange } from '../../hooks/useSessions';
 import { aggregateByDay, calcPeriodStats } from '../../services/sessions';
@@ -257,6 +257,16 @@ export default function BankrollCalendarScreen() {
         </View>
       </ScrollView>
 
+      {/* + 세션 추가 FAB (오늘 날짜 기본값) */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('SessionForm', { date: today() })}
+        activeOpacity={0.85}
+      >
+        <Plus color={colors.bg} size={20} strokeWidth={2.5} />
+        <Text style={styles.fabText}>세션 추가</Text>
+      </TouchableOpacity>
+
       {/* 월 선택 모달 */}
       <Modal visible={showMonthPicker} transparent animationType="fade" onRequestClose={() => setShowMonthPicker(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setShowMonthPicker(false)}>
@@ -374,6 +384,28 @@ const styles = StyleSheet.create({
   dayDot: { width: 6, height: 6, borderRadius: 3 },
   legend: { flexDirection: 'row', justifyContent: 'center', gap: spacing.xl, padding: spacing.base },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  fab: {
+    position: 'absolute',
+    right: spacing.base,
+    bottom: spacing.base,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
+    borderRadius: radius.full,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  fabText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.bg,
+  },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { fontSize: fontSize.xs, color: colors.textMuted },
 
