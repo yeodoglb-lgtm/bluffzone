@@ -1,10 +1,11 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Target, BookOpen, Calculator, Cpu } from 'lucide-react-native';
-import type { RootStackScreenProps } from '../../navigation/types';
+import type { StackScreenProps } from '@react-navigation/stack';
+import type { DashboardStackParamList } from '../../navigation/types';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 
-type Props = RootStackScreenProps<'GtoHub'>;
+type Props = StackScreenProps<DashboardStackParamList, 'GtoHub'>;
 
 interface ToolItem {
   key: string;

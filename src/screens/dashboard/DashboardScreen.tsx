@@ -12,11 +12,14 @@ import InstallPwaCard from '../../components/InstallPwaCard';
 import BetaBanner from '../../components/BetaBanner';
 import { useAuthStore } from '../../store/authStore';
 import { useHands } from '../../hooks/useHands';
-import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
+import type { MainTabParamList, RootStackParamList, DashboardStackParamList } from '../../navigation/types';
 
 type DashboardNav = CompositeNavigationProp<
-  BottomTabNavigationProp<MainTabParamList, 'DashboardTab'>,
-  StackNavigationProp<RootStackParamList>
+  StackNavigationProp<DashboardStackParamList, 'Dashboard'>,
+  CompositeNavigationProp<
+    BottomTabNavigationProp<MainTabParamList, 'DashboardTab'>,
+    StackNavigationProp<RootStackParamList>
+  >
 >;
 
 export default function DashboardScreen() {

@@ -4,12 +4,19 @@ import type { CompositeScreenProps, NavigatorScreenParams } from '@react-navigat
 
 // ── Bottom Tab Params ──────────────────────────────────────────────────────────
 export type MainTabParamList = {
-  DashboardTab: undefined;
+  DashboardTab: NavigatorScreenParams<DashboardStackParamList>;
   BankrollTab: NavigatorScreenParams<BankrollStackParamList>;
   HandsTab: NavigatorScreenParams<HandsStackParamList>;
   PlacesTab: NavigatorScreenParams<PlacesStackParamList>;
   SettingsTab: undefined;
   AdminTab: undefined;
+};
+
+// ── Dashboard Stack (홈 + GTO 도구) ────────────────────────────────────────
+export type DashboardStackParamList = {
+  Dashboard: undefined;
+  GtoHub: undefined;
+  PushfoldChart: undefined;
 };
 
 // ── Bankroll Stack ─────────────────────────────────────────────────────────────
@@ -44,8 +51,6 @@ export type RootStackParamList = {
   Feedback: undefined;
   MyFeedback: undefined;
   AdminFeedback: undefined;
-  GtoHub: undefined;
-  PushfoldChart: undefined;
 };
 
 // ── Screen Props helpers ───────────────────────────────────────────────────────

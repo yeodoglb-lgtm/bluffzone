@@ -14,6 +14,7 @@ import { colors, fontWeight, spacing } from '../theme';
 import { useAuthStore } from '../store/authStore';
 import type {
   MainTabParamList,
+  DashboardStackParamList,
   BankrollStackParamList,
   HandsStackParamList,
   PlacesStackParamList,
@@ -21,6 +22,8 @@ import type {
 
 // ── 화면 imports ──────────────────────────────────────────────────────────────
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
+import GtoHubScreen from '../screens/gto/GtoHubScreen';
+import PushfoldChartScreen from '../screens/gto/PushfoldChartScreen';
 
 import BankrollCalendarScreen from '../screens/bankroll/BankrollCalendarScreen';
 import DayDetailScreen from '../screens/bankroll/DayDetailScreen';
@@ -40,12 +43,23 @@ import AdminScreen from '../screens/admin/AdminScreen';
 
 // ── 네비게이터 인스턴스 ────────────────────────────────────────────────────────
 const Tab = createBottomTabNavigator<MainTabParamList>();
+const DashboardStack = createStackNavigator<DashboardStackParamList>();
 const BankrollStack = createStackNavigator<BankrollStackParamList>();
 const HandsStack = createStackNavigator<HandsStackParamList>();
 const PlacesStack = createStackNavigator<PlacesStackParamList>();
 
 // ── 스택 네비게이터들 ─────────────────────────────────────────────────────────
 const stackOptions = { headerShown: false };
+
+function DashboardNavigator() {
+  return (
+    <DashboardStack.Navigator screenOptions={stackOptions}>
+      <DashboardStack.Screen name="Dashboard" component={DashboardScreen} />
+      <DashboardStack.Screen name="GtoHub" component={GtoHubScreen} />
+      <DashboardStack.Screen name="PushfoldChart" component={PushfoldChartScreen} />
+    </DashboardStack.Navigator>
+  );
+}
 
 function BankrollNavigator() {
   return (
@@ -109,7 +123,7 @@ export default function MainTabNavigator() {
     >
       <Tab.Screen
         name="DashboardTab"
-        component={DashboardScreen}
+        component={DashboardNavigator}
         options={{
           tabBarLabel: '홈',
           tabBarIcon: ({ color, size }) => (

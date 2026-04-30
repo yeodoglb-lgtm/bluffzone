@@ -264,7 +264,10 @@ export default function SettingsScreen() {
         {/* GTO 가이드 */}
         <SectionHeader title="GTO 가이드" />
         <View style={styles.card}>
-          <TouchableOpacity style={styles.row} onPress={() => (navigation as any).navigate('GtoHub')}>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => (navigation as any).navigate('DashboardTab', { screen: 'GtoHub' })}
+          >
             <Text style={styles.rowLabel}>🎯 GTO 도구 (푸시폴드 등)</Text>
             <Text style={styles.rowSub}>›</Text>
           </TouchableOpacity>

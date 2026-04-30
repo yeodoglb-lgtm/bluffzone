@@ -10,7 +10,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
-import type { RootStackScreenProps } from '../../navigation/types';
+import type { StackScreenProps } from '@react-navigation/stack';
+import type { DashboardStackParamList } from '../../navigation/types';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import {
   fetchPushfoldChart,
@@ -20,7 +21,7 @@ import {
   type PushfoldStack,
 } from '../../services/gto';
 
-type Props = RootStackScreenProps<'PushfoldChart'>;
+type Props = StackScreenProps<DashboardStackParamList, 'PushfoldChart'>;
 
 const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 
@@ -65,6 +66,27 @@ export default function PushfoldChartScreen({ navigation }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {/* 사용법 안내 */}
+        <View style={styles.howto}>
+          <Text style={styles.howtoTitle}>📖 사용법</Text>
+          <Text style={styles.howtoText}>
+            토너 단스택(5~25bb)에서 <Text style={styles.howtoStrong}>"올인 vs 폴드"</Text> 결정용 차트입니다.
+          </Text>
+          <Text style={styles.howtoText}>
+            <Text style={styles.howtoStrong}>1.</Text> 본인 포지션과 스택 선택{'\n'}
+            <Text style={styles.howtoStrong}>2.</Text> 13×13 매트릭스에서 본인 핸드 위치 찾기{'\n'}
+            {'   '}· 대각선 = 페어 (AA, KK, …){'\n'}
+            {'   '}· 위쪽 (s) = 수티드, 아래쪽 (o) = 오프수트{'\n'}
+            <Text style={styles.howtoStrong}>3.</Text> 색깔 확인{'\n'}
+            {'   '}· 🟠 주황 = <Text style={styles.howtoStrong}>푸시 (올인)</Text>{'\n'}
+            {'   '}· ⬜ 회색 = <Text style={styles.howtoStrong}>폴드</Text>
+          </Text>
+          <Text style={styles.howtoTip}>
+            💡 스택이 적을수록 푸시 범위가 넓어집니다 (블라인드 살아남기 위해).
+            {'\n'}💡 뒤 포지션일수록 푸시 범위가 넓어집니다 (남은 인원이 적으니).
+          </Text>
+        </View>
+
         {/* 포지션 선택 */}
         <Text style={styles.label}>포지션</Text>
         <ScrollView
@@ -251,4 +273,24 @@ const styles = StyleSheet.create({
     borderColor: `${colors.primary}33`,
   },
   noticeText: { fontSize: fontSize.xs, color: colors.text, lineHeight: 18 },
+  howto: {
+    padding: spacing.base,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  howtoTitle: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.text },
+  howtoText: { fontSize: fontSize.sm, color: colors.text, lineHeight: 22 },
+  howtoStrong: { fontWeight: fontWeight.bold, color: colors.primary },
+  howtoTip: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    lineHeight: 18,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
 });
