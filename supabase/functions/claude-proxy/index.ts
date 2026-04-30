@@ -1354,14 +1354,20 @@ ${richStreetsBlock}
       let tournamentContext = '';
       let pushfoldAdvice: string | null = null;
       if (isTournament) {
-        tournamentContext = '\n\n[토너먼트 분석 컨텍스트]\n' +
-          '⚠️ 이 핸드는 **토너먼트 핸드**입니다. 캐시 게임 GTO와 다른 기준 적용:\n' +
-          '- ICM(Independent Chip Model) 압박 고려 — 칩EV ≠ $EV. 입상권 근처일수록 콜 기준 보수적.\n' +
-          '- 단스택(≤25bb)에서는 GTO 정밀 분석 대신 푸시·폴드 결정으로 단순화.\n' +
-          '- 블라인드 + 앤티 합산이 풀 사이즈에 결정적 — 베팅 사이징 계산 시 반드시 반영.\n' +
-          (sbChips && bbChips ? `- 블라인드: SB ${sbChips} / BB ${bbChips}${anteChips ? ` / 앤티 ${anteChips}` : ''}\n` : '') +
-          (effStackBb != null ? `- 유효 스택 BB 환산: 약 ${effStackBb}bb\n` : '') +
-          '- comment·tip에 ICM·스택 깊이를 명시적으로 언급할 것. (예: "20bb 단스택이라 …", "ICM 압박상 …")';
+        tournamentContext = '\n\n████████████████████████████████████████████████\n' +
+          '🏆 토너먼트 핸드 — 절대 우선 규칙 (다른 모든 규칙보다 우선)\n' +
+          '████████████████████████████████████████████████\n' +
+          '⛔ 이 핸드는 토너먼트 핸드다. 캐시 게임 GTO 분석 금지.\n' +
+          '⛔ "초저 SPR", "GTO 전략 원칙상" 같은 캐시 분석 표현 사용 금지.\n' +
+          '✅ 다음 토너 개념을 **반드시** 분석에 반영하고 comment·tip에 명시적으로 언급:\n' +
+          '   1. **이펙티브 스택 BB 환산** (예: "12bb 단스택", "20bb 미디엄") — 첫 comment에 반드시 노출\n' +
+          '   2. **ICM 압박** — 입상권 근처면 칩EV ≠ $EV, 보수적 콜 기준 (예: "ICM 압박상 콜 기준 강화")\n' +
+          '   3. **푸시폴드 영역 (≤25bb)** — GTO 정밀 분석 대신 푸시·폴드 이분법으로 단순화\n' +
+          '   4. **블라인드+앤티 합산** — 풀 오즈 계산에 반영 (예: "블라인드+앤티로 풀이 커서 콜 EV ↑")\n' +
+          (sbChips && bbChips ? `📊 이 핸드 데이터: SB ${sbChips} / BB ${bbChips}${anteChips ? ` / 앤티 ${anteChips}` : ''}\n` : '') +
+          (effStackBb != null ? `📊 유효 스택 BB 환산: **${effStackBb}bb** ${effStackBb <= 15 ? '(매우 단스택, 푸시폴드 필수)' : effStackBb <= 25 ? '(단스택, 푸시폴드 영역)' : effStackBb <= 50 ? '(미디엄)' : '(딥)'}\n` : '') +
+          '⚠️ tip 필드에 반드시 토너 관련 직관 1개 포함 (예: "12bb 단스택은 푸시·폴드 결정만 단순화", "ICM 버블 압박상 …")\n' +
+          '████████████████████████████████████████████████\n';
 
         // 푸시폴드 차트 lookup (히어로 핸드 + 포지션 + ≤25bb 일 때)
         if (effStackBb != null && effStackBb <= 25 && hand?.hero_position && Array.isArray(hand?.hero_cards) && hand.hero_cards.length === 2) {
@@ -1402,8 +1408,9 @@ ${richStreetsBlock}
         }
       }
 
-      // RAG 컨텍스트가 있으면 systemPrompt에 추가
-      const finalSystemPrompt = systemPrompt + tournamentContext + (pushfoldAdvice ?? '') + ragContext;
+      // 토너 컨텍스트는 systemPrompt **맨 앞**에 배치 (우선순위 높임)
+      // 일반 RAG는 뒤에 추가 (참고 자료)
+      const finalSystemPrompt = (isTournament ? tournamentContext + (pushfoldAdvice ?? '') + '\n\n' : '') + systemPrompt + ragContext;
 
       // ── GPT 호출 헬퍼 (재시도 + JSON 파싱 fallback 포함) ─────────────────
       async function callGpt(): Promise<{
