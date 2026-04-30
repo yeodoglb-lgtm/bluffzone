@@ -819,7 +819,10 @@ export default function HandDetailScreen({ navigation, route }: Props) {
             />
           )}
           {(hand as any).effective_stack != null && (
-            <Row label="유효 스택" value={`${(hand as any).effective_stack.toLocaleString()}원`} />
+            <Row
+              label="유효 스택"
+              value={`${(hand as any).effective_stack.toLocaleString()}${(hand as any).is_tournament ? '칩' : '원'}`}
+            />
           )}
           {(hand as any).villain_type && (
             <Row label="빌런 성향" value={(hand as any).villain_type} />
@@ -1058,6 +1061,29 @@ export default function HandDetailScreen({ navigation, route }: Props) {
               </View>
             );
           })()}
+
+          {/* 포커 용어 사전 (전문용어 풀이) */}
+          <View style={styles.glossary}>
+            <Text style={styles.glossaryTitle}>📖 용어 풀이</Text>
+            <Text style={styles.glossaryItem}>
+              <Text style={styles.glossaryTerm}>EV (Expected Value)</Text> — 기댓값. 이 결정을 무한히 반복했을 때 평균적으로 얼마를 따거나 잃는지. +EV는 장기적으로 이득, -EV는 손해.
+            </Text>
+            <Text style={styles.glossaryItem}>
+              <Text style={styles.glossaryTerm}>ICM (Independent Chip Model)</Text> — 토너 칩의 실제 상금 가치를 계산하는 모델. 입상권 근처에서는 칩EV(+)인 콜이 $EV(-)일 수 있어 더 보수적으로 플레이.
+            </Text>
+            <Text style={styles.glossaryItem}>
+              <Text style={styles.glossaryTerm}>SPR (Stack-to-Pot Ratio)</Text> — 유효 스택 ÷ 팟 사이즈. 낮으면(&lt;4) 톱페어로도 올인 가능, 높으면(&gt;10) 넛츠/세트급 아니면 보수적.
+            </Text>
+            <Text style={styles.glossaryItem}>
+              <Text style={styles.glossaryTerm}>GTO (Game Theory Optimal)</Text> — 게임 이론상 최적 전략. 빌런이 어떻게 플레이해도 손해 안 보는 균형점.
+            </Text>
+            <Text style={styles.glossaryItem}>
+              <Text style={styles.glossaryTerm}>푸시폴드</Text> — 단스택(보통 ≤25bb)에서 사용하는 단순화 전략. "올인 vs 폴드" 두 가지로만 결정.
+            </Text>
+            <Text style={styles.glossaryItem}>
+              <Text style={styles.glossaryTerm}>BB (Big Blind)</Text> — 빅 블라인드. 토너에서는 스택 크기를 BB 단위로 표현 (예: 12bb = 빅 블라인드의 12배).
+            </Text>
+          </View>
         </View>
 
         <View style={{ height: spacing.xl }} />
@@ -1370,6 +1396,28 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   reviewTipText: { fontSize: fontSize.sm, color: colors.text, lineHeight: 20 },
+  glossary: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.base,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    gap: 8,
+  },
+  glossaryTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textMuted,
+    marginBottom: 4,
+  },
+  glossaryItem: {
+    fontSize: 11,
+    color: colors.textMuted,
+    lineHeight: 16,
+  },
+  glossaryTerm: {
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
   reviewRetryBtn: { alignSelf: 'flex-end', paddingVertical: 4, paddingHorizontal: 8 },
   reviewRetryText: { fontSize: fontSize.xs, color: colors.textMuted },
   reviewContent: { fontSize: fontSize.sm, color: colors.text, lineHeight: 20, marginTop: spacing.sm },

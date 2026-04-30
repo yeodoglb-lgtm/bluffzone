@@ -1399,9 +1399,13 @@ ${richStreetsBlock}
               .eq('hand', handLabel)
               .maybeSingle();
             if (pfRow?.action) {
-              pushfoldAdvice = `\n\n[푸시폴드 차트 권고]\n` +
+              pushfoldAdvice = `\n\n[푸시폴드 차트 권고 — 추천 액션 결정 우선 기준]\n` +
                 `히어로 ${hand.hero_position} ${closestStack}bb ${handLabel} → **Nash 차트상 ${pfRow.action.toUpperCase()}**\n` +
-                `이 정보를 분석에 반영하라. 사용자가 차트와 다르게 플레이했다면 명시적으로 지적하고 차트 기준을 설명할 것.`;
+                `🔴 추천 액션 결정 규칙:\n` +
+                `1. 차트가 PUSH면 streets.preflop.action = "raise"(올인) 권장이 기본. ICM 압박은 comment에서 언급하되 추천을 뒤집지 말 것.\n` +
+                `2. 차트가 FOLD면 streets.preflop.action = "fold" 권장.\n` +
+                `3. 예외 (차트 무시 가능): 명확한 버블 직전(상위 N명 입상에서 N+1명 남음) 또는 칩리더 상황에서만. 그 외는 차트 따라가기.\n` +
+                `4. 추천 액션과 comment 톤 모순 금지 — "보수적 접근 필요" 같은 표현 쓰면 추천도 fold여야 함.`;
               console.log(`[hand-review-gpt] Pushfold lookup: ${hand.hero_position} ${closestStack}bb ${handLabel} = ${pfRow.action}`);
             }
           }
