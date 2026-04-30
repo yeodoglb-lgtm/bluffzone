@@ -370,13 +370,16 @@ export default function HandEditorScreen({ navigation, route }: Props) {
     setBoard(existingHand.board ?? []);
     setActions(existingHand.actions ?? []);
     setResult(existingHand.result);
-    // 기존 핸드 로드 시 amountUnit으로 나눠서 표시
-    setPotSize(existingHand.pot_size != null ? formatAmountDisplay(existingHand.pot_size, amountUnit) : '');
-    setHeroPl(existingHand.hero_pl != null ? formatAmountDisplay(existingHand.hero_pl, amountUnit) : '');
+    // 토너 핸드면 칩 단위(=1)로 강제, 아니면 현재 amountUnit 유지
+    const isT = (existingHand as any).is_tournament === true;
+    const loadUnit = isT ? 1 : amountUnit;
+    if (isT) setAmountUnit(1);
+    setPotSize(existingHand.pot_size != null ? formatAmountDisplay(existingHand.pot_size, loadUnit) : '');
+    setHeroPl(existingHand.hero_pl != null ? formatAmountDisplay(existingHand.hero_pl, loadUnit) : '');
     setPreflopAggressor((existingHand as any).preflop_aggressor ?? null);
-    setEffectiveStack((existingHand as any).effective_stack != null ? formatAmountDisplay((existingHand as any).effective_stack, amountUnit) : '');
+    setEffectiveStack((existingHand as any).effective_stack != null ? formatAmountDisplay((existingHand as any).effective_stack, loadUnit) : '');
     setVillainType((existingHand as any).villain_type ?? '');
-    setIsTournament((existingHand as any).is_tournament ?? false);
+    setIsTournament(isT);
     setSbChips((existingHand as any).sb_chips != null ? String((existingHand as any).sb_chips) : '');
     setBbChips((existingHand as any).bb_chips != null ? String((existingHand as any).bb_chips) : '');
     setAnteChips((existingHand as any).ante_chips != null ? String((existingHand as any).ante_chips) : '');
@@ -593,7 +596,7 @@ export default function HandEditorScreen({ navigation, route }: Props) {
           </View>
           {/* 팟 사이즈: 액션 합산 자동계산 */}
           <View style={styles.labelRow}>
-            <Label text={`팟 사이즈${amountUnit === 10000 ? ' (만원)' : ''}`} />
+            <Label text={`팟 사이즈${isTournament ? ' (칩)' : amountUnit === 10000 ? ' (만원)' : ''}`} />
             {!isAutoPot && (
               <TouchableOpacity onPress={() => setIsAutoPot(true)} style={styles.autoBtn}>
                 <Text style={styles.autoBtnText}>자동</Text>
@@ -612,7 +615,7 @@ export default function HandEditorScreen({ navigation, route }: Props) {
             onChangeText={v => { setIsAutoPot(false); setPotSize(v); }}
           />
           {/* 손익 */}
-          <Label text={`손익${amountUnit === 10000 ? ' (만원)' : ''}`} />
+          <Label text={`손익${isTournament ? ' (칩)' : amountUnit === 10000 ? ' (만원)' : ''}`} />
           <TextInput
             style={styles.input}
             placeholder={amountUnit === 10000 ? '예: -5, +12' : '예: -500, +1200'}
