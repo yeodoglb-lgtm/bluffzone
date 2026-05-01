@@ -25,26 +25,37 @@ type DashboardNav = CompositeNavigationProp<
 
 export default function DashboardScreen() {
   const navigation = useNavigation<DashboardNav>();
-  const { profile } = useAuthStore();
+  const { profile, session } = useAuthStore();
   const { requireAuth } = useLoginPrompt();
   // 신규 유저 판단: 핸드 0개면 첫 핸드 입력 큰 CTA 노출
   const { data: hands } = useHands(1);
   const isNewUser = !hands || hands.length === 0;
+  const isLoggedIn = !!session;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* 헤더 */}
       <View style={styles.header}>
         <Logo size="sm" variant="full" />
-        <TouchableOpacity
-          style={styles.avatarBtn}
-          onPress={() => navigation.navigate('SettingsTab')}
-          accessibilityLabel="설정으로 이동"
-        >
-          <View style={styles.avatar}>
-            <User color={colors.textMuted} size={18} strokeWidth={2} />
-          </View>
-        </TouchableOpacity>
+        {isLoggedIn ? (
+          <TouchableOpacity
+            style={styles.avatarBtn}
+            onPress={() => navigation.navigate('SettingsTab')}
+            accessibilityLabel="설정으로 이동"
+          >
+            <View style={styles.avatar}>
+              <User color={colors.textMuted} size={18} strokeWidth={2} />
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.loginBtn}
+            onPress={() => navigation.navigate('Auth')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.loginBtnText}>로그인 / 가입</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView
@@ -160,6 +171,18 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.line,
   },
   avatarBtn: { padding: 4 },
+  loginBtn: {
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  loginBtnText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+  },
   avatar: {
     width: 36,
     height: 36,
