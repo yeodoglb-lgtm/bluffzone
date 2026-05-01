@@ -46,3 +46,38 @@ export async function lookupPushfold(
   if (error) return null;
   return (data?.action as 'push' | 'fold') ?? null;
 }
+
+// ─── 프리플랍 차트 ──────────────────────────────────────────────────────────
+
+export interface PreflopEntry {
+  position: string;
+  scenario: string;
+  hand: string;
+  action: 'raise' | 'call' | 'fold' | 'mixed';
+  frequency: number;
+}
+
+export const PREFLOP_POSITIONS = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'] as const;
+export const PREFLOP_SCENARIOS = [
+  { key: 'open', label: '오픈 (RFI)', desc: '폴드되어 자기 차례에 처음 오픈' },
+  { key: '3bet', label: '3벳 (vs 오픈)', desc: '앞 포지션 오픈에 3벳' },
+  { key: 'call', label: '콜드콜 (vs 오픈)', desc: '앞 포지션 오픈에 콜만' },
+] as const;
+
+export type PreflopPosition = typeof PREFLOP_POSITIONS[number];
+export type PreflopScenario = typeof PREFLOP_SCENARIOS[number]['key'];
+
+export async function fetchPreflopChart(
+  position: PreflopPosition,
+  scenario: PreflopScenario
+): Promise<PreflopEntry[]> {
+  return withTimeout((async () => {
+    const { data, error } = await supabase
+      .from('preflop_ranges')
+      .select('position, scenario, hand, action, frequency')
+      .eq('position', position)
+      .eq('scenario', scenario);
+    if (error) throw error;
+    return (data ?? []) as PreflopEntry[];
+  })());
+}

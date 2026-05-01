@@ -29,10 +29,10 @@ export default function GtoHubScreen({ navigation }: Props) {
     {
       key: 'preflop',
       title: '프리플랍 가이드',
-      desc: 'Open / 3bet / 콜드콜 / 4bet 레인지 (캐시·토너)',
-      icon: <BookOpen color={colors.textMuted} size={28} strokeWidth={2} />,
-      enabled: false,
-      badge: '준비 중',
+      desc: 'Open / 3벳 / 콜드콜 레인지 (6-max 캐시 100bb)',
+      icon: <BookOpen color={colors.primary} size={28} strokeWidth={2} />,
+      enabled: true,
+      onPress: () => navigation.navigate('PreflopChart'),
     },
     {
       key: 'icm',

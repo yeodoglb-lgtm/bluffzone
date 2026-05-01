@@ -24,6 +24,7 @@ import type {
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import GtoHubScreen from '../screens/gto/GtoHubScreen';
 import PushfoldChartScreen from '../screens/gto/PushfoldChartScreen';
+import PreflopChartScreen from '../screens/gto/PreflopChartScreen';
 
 import BankrollCalendarScreen from '../screens/bankroll/BankrollCalendarScreen';
 import DayDetailScreen from '../screens/bankroll/DayDetailScreen';
@@ -57,6 +58,7 @@ function DashboardNavigator() {
       <DashboardStack.Screen name="Dashboard" component={DashboardScreen} options={{ title: '블러프존 - 홀덤 핸드 매니저' }} />
       <DashboardStack.Screen name="GtoHub" component={GtoHubScreen} options={{ title: 'GTO 도구 - 블러프존' }} />
       <DashboardStack.Screen name="PushfoldChart" component={PushfoldChartScreen} options={{ title: '푸시폴드 차트 - 블러프존' }} />
+      <DashboardStack.Screen name="PreflopChart" component={PreflopChartScreen} options={{ title: '프리플랍 차트 - 블러프존' }} />
     </DashboardStack.Navigator>
   );
 }
@@ -81,6 +83,7 @@ function HandsNavigator() {
       <HandsStack.Screen name="HandDetail" component={HandDetailScreen} options={{ title: '핸드 상세 - 블러프존' }} />
       <HandsStack.Screen name="GtoHub" component={GtoHubScreen} options={{ title: 'GTO 도구 - 블러프존' }} />
       <HandsStack.Screen name="PushfoldChart" component={PushfoldChartScreen} options={{ title: '푸시폴드 차트 - 블러프존' }} />
+      <HandsStack.Screen name="PreflopChart" component={PreflopChartScreen} options={{ title: '프리플랍 차트 - 블러프존' }} />
     </HandsStack.Navigator>
   );
 }

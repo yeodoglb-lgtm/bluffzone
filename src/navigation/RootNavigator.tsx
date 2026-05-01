@@ -50,6 +50,7 @@ const linking: LinkingOptions<RootStackParamList> = {
               Dashboard: '',
               GtoHub: 'gto',
               PushfoldChart: 'gto/pushfold',
+              PreflopChart: 'gto/preflop',
             },
           },
           BankrollTab: {
