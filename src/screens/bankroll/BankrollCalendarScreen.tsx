@@ -9,6 +9,7 @@ import type { DateData } from 'react-native-calendars';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { BarChart2, Plus } from 'lucide-react-native';
+import { useLoginPrompt } from '../../components/LoginPromptModal';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import { useSessionsByMonth, useSessionsByRange } from '../../hooks/useSessions';
 import { aggregateByDay, calcPeriodStats } from '../../services/sessions';
@@ -52,6 +53,7 @@ export default function BankrollCalendarScreen() {
   const [showHourlyDetail, setShowHourlyDetail] = useState(false);
   const [filterUid, setFilterUid] = useState<string | null>(null);
   const [gameTypeFilter, setGameTypeFilter] = useState<GameTypeFilter>('all');
+  const { requireAuth } = useLoginPrompt();
 
   // 게임 타입 필터 적용 헬퍼
   const applyGameTypeFilter = (sessions: any[]) => {
@@ -334,7 +336,7 @@ export default function BankrollCalendarScreen() {
       {/* + 세션 추가 FAB (오늘 날짜 기본값) */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => navigation.navigate('SessionForm', { date: today() })}
+        onPress={() => requireAuth(() => navigation.navigate('SessionForm', { date: today() }))}
         activeOpacity={0.85}
       >
         <Plus color={colors.bg} size={20} strokeWidth={2.5} />

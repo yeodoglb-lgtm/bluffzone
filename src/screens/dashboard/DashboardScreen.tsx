@@ -12,6 +12,7 @@ import InstallPwaCard from '../../components/InstallPwaCard';
 import BetaBanner from '../../components/BetaBanner';
 import { useAuthStore } from '../../store/authStore';
 import { useHands } from '../../hooks/useHands';
+import { useLoginPrompt } from '../../components/LoginPromptModal';
 import type { MainTabParamList, RootStackParamList, DashboardStackParamList } from '../../navigation/types';
 
 type DashboardNav = CompositeNavigationProp<
@@ -25,6 +26,7 @@ type DashboardNav = CompositeNavigationProp<
 export default function DashboardScreen() {
   const navigation = useNavigation<DashboardNav>();
   const { profile } = useAuthStore();
+  const { requireAuth } = useLoginPrompt();
   // 신규 유저 판단: 핸드 0개면 첫 핸드 입력 큰 CTA 노출
   const { data: hands } = useHands(1);
   const isNewUser = !hands || hands.length === 0;
@@ -66,7 +68,7 @@ export default function DashboardScreen() {
         {isNewUser && (
           <TouchableOpacity
             style={styles.firstHandCta}
-            onPress={() => navigation.navigate('HandsTab', { screen: 'HandEditor', params: {} })}
+            onPress={() => requireAuth(() => navigation.navigate('HandsTab', { screen: 'HandEditor', params: {} }))}
             activeOpacity={0.85}
           >
             <Text style={styles.firstHandEmoji}>🎙</Text>
@@ -126,7 +128,7 @@ export default function DashboardScreen() {
         {/* 블러프존 홀덤 알파고 배너 */}
         <TouchableOpacity
           style={styles.aiBtn}
-          onPress={() => navigation.navigate('AIChat', {})}
+          onPress={() => requireAuth(() => navigation.navigate('AIChat', {}))}
           activeOpacity={0.85}
         >
           <Bot color={colors.bg} size={24} strokeWidth={2} />

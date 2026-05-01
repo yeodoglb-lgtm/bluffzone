@@ -11,6 +11,7 @@ import type { RootStackParamList } from './types';
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import PreviewHomeScreen from '../screens/preview/PreviewHomeScreen';
 import MainTabNavigator from './MainTabNavigator';
+import { LoginPromptProvider } from '../components/LoginPromptModal';
 import AIChatScreen from '../screens/ai/AIChatScreen';
 import TermsScreen from '../screens/auth/TermsScreen';
 import PrivacyScreen from '../screens/auth/PrivacyScreen';
@@ -128,30 +129,33 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer ref={navRef} linking={linking as any}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {session || DEV_SKIP_AUTH ? (
-          <>
-            <Stack.Screen name="Main" component={MainTabNavigator} />
-            <Stack.Screen
-              name="AIChat"
-              component={AIChatScreen}
-              options={modalOptions}
-            />
-            <Stack.Screen name="Terms" component={TermsScreen} />
-            <Stack.Screen name="Privacy" component={PrivacyScreen} />
-            <Stack.Screen name="Feedback" component={FeedbackScreen} />
-            <Stack.Screen name="MyFeedback" component={MyFeedbackListScreen} />
-            <Stack.Screen name="AdminFeedback" component={AdminFeedbackScreen} />
-          </>
-        ) : (
-          <>
-            <Stack.Screen name="Home" component={PreviewHomeScreen} />
-            <Stack.Screen name="Auth" component={WelcomeScreen} />
-            <Stack.Screen name="Terms" component={TermsScreen} />
-            <Stack.Screen name="Privacy" component={PrivacyScreen} />
-          </>
-        )}
-      </Stack.Navigator>
+      <LoginPromptProvider>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {session || DEV_SKIP_AUTH ? (
+            <>
+              <Stack.Screen name="Main" component={MainTabNavigator} />
+              <Stack.Screen
+                name="AIChat"
+                component={AIChatScreen}
+                options={modalOptions}
+              />
+              <Stack.Screen name="Terms" component={TermsScreen} />
+              <Stack.Screen name="Privacy" component={PrivacyScreen} />
+              <Stack.Screen name="Feedback" component={FeedbackScreen} />
+              <Stack.Screen name="MyFeedback" component={MyFeedbackListScreen} />
+              <Stack.Screen name="AdminFeedback" component={AdminFeedbackScreen} />
+            </>
+          ) : (
+            <>
+              <Stack.Screen name="Home" component={PreviewHomeScreen} />
+              <Stack.Screen name="Main" component={MainTabNavigator} />
+              <Stack.Screen name="Auth" component={WelcomeScreen} />
+              <Stack.Screen name="Terms" component={TermsScreen} />
+              <Stack.Screen name="Privacy" component={PrivacyScreen} />
+            </>
+          )}
+        </Stack.Navigator>
+      </LoginPromptProvider>
     </NavigationContainer>
   );
 }

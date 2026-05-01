@@ -13,6 +13,7 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import type { HandsStackParamList } from '../../navigation/types';
 import { useHands, useAllHandsAdmin } from '../../hooks/useHands';
 import { useAuthStore } from '../../store/authStore';
+import { useLoginPrompt } from '../../components/LoginPromptModal';
 import { useUserNameMap } from '../../hooks/useSessions';
 import AdminUserFilter from '../../components/AdminUserFilter';
 import type { HandWithUser } from '../../services/hands';
@@ -117,6 +118,7 @@ export default function HandListScreen({ navigation }: Props) {
   const [filterUid, setFilterUid] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState<PageSize>(10);
   const [page, setPage] = useState(0);
+  const { requireAuth } = useLoginPrompt();
 
   // 어드민이면 전체 유저 핸드, 일반 유저면 본인 핸드만
   const { data: myHands, isLoading: loadingMy } = useHands();
@@ -162,7 +164,7 @@ export default function HandListScreen({ navigation }: Props) {
         <Text style={styles.title}>핸드 기록{titleSuffix}</Text>
         <TouchableOpacity
           style={styles.addBtn}
-          onPress={() => navigation.push('HandEditor', {})}
+          onPress={() => requireAuth(() => navigation.push('HandEditor', {}))}
           activeOpacity={0.75}
         >
           <Text style={styles.addBtnText}>+</Text>
@@ -255,14 +257,14 @@ export default function HandListScreen({ navigation }: Props) {
               </Text>
               <TouchableOpacity
                 style={styles.emptyCta}
-                onPress={() => navigation.push('HandEditor', {})}
+                onPress={() => requireAuth(() => navigation.push('HandEditor', {}))}
                 activeOpacity={0.8}
               >
                 <Text style={styles.emptyCtaText}>🎙  음성으로 첫 핸드 기록</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.emptyCtaSecondary}
-                onPress={() => navigation.push('HandEditor', {})}
+                onPress={() => requireAuth(() => navigation.push('HandEditor', {}))}
                 activeOpacity={0.8}
               >
                 <Text style={styles.emptyCtaSecondaryText}>직접 입력으로 기록</Text>
