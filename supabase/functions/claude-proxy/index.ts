@@ -872,6 +872,15 @@ serve(async (req) => {
         river: fmtCards(boardArr.slice(0, 5)),
       };
 
+      // 액터 라벨링 — 멀티웨이 (빌런 2~3명) 케이스에서 헷갈리지 않게 명시
+      const actorLabel = (a: any): string => {
+        if (a.actor === 'hero') return '★히어로';
+        if (a.actor === 'villain' || a.actor === 'villain1') return '빌런1';
+        if (a.actor === 'villain2') return '빌런2';
+        if (a.actor === 'villain3') return '빌런3';
+        return '빌런';
+      };
+
       const streetsBlock = streetOrder
         .map((s) => {
           const acts = actionsByStreet[s];
@@ -879,12 +888,22 @@ serve(async (req) => {
           const line = acts
             .map(
               (a: any) =>
-                `${a.actor === 'hero' ? '히어로' : '빌런'} ${a.action}${a.amount != null ? ' ' + a.amount : ''}`
+                `${actorLabel(a)} ${a.action}${a.amount != null ? ' ' + a.amount : ''}`
             )
             .join(' → ');
           return `  · ${s.toUpperCase()} [보드 ${boardAt[s]}]: ${line}`;
         })
         .join('\n');
+
+      // 히어로의 실제 액션만 추출 — AI가 멀티웨이에서 헷갈리지 않게 명시적으로 강조
+      const heroActionsByStreet = streetOrder.map(s => {
+        const heroActs = actionsByStreet[s].filter((a: any) => a.actor === 'hero');
+        if (heroActs.length === 0) return `  · ${s.toUpperCase()}: (히어로 액션 없음)`;
+        const line = heroActs.map((a: any) =>
+          `${a.action}${a.amount != null ? ' ' + a.amount : ''}`
+        ).join(' → ');
+        return `  · ${s.toUpperCase()}: ${line}`;
+      }).join('\n');
 
       const position = `${hand?.hero_position ?? '?'} (히어로) vs ${hand?.villain_position ?? '?'} (빌런)`;
       const handCards = fmtCards(hand?.hero_cards);
@@ -1303,6 +1322,9 @@ SPR > 10 (깊음, 림프드 팟·콜드 콜 팟)
 - 유효 스택: ${effStack}
 - SPR: ${sprStr}
 - 결과: ${heroResult}
+
+[★ 히어로의 실제 액션 — 이 값을 그대로 streets[s].actual / mistake / actual_line에 반영. 다른 액션으로 왜곡 금지!]
+${heroActionsByStreet}
 
 [스트리트별 진행 — 서버 사전 계산 포함]
 ${richStreetsBlock}
