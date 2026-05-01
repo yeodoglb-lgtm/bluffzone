@@ -1457,8 +1457,52 @@ ${richStreetsBlock}
       // 일반 RAG는 뒤에 추가 (참고 자료)
       const finalSystemPrompt = (isTournament ? tournamentContext + (pushfoldAdvice ?? '') + '\n\n' : '') + systemPrompt + ragContext;
 
-      // ── GPT 호출 헬퍼 (재시도 + JSON 파싱 fallback 포함) ─────────────────
-      async function callGpt(): Promise<{
+      // ── Claude (Anthropic) 호출 헬퍼 ─────────────────────────────────────
+      // 핸드 리뷰는 Claude Sonnet 4.5 사용 — GPT-4o보다 룰 준수·구조화 추론 우수
+      const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+      const USE_CLAUDE = !!ANTHROPIC_API_KEY;
+      const reviewModel = USE_CLAUDE ? 'claude-sonnet-4-5' : 'gpt-4o';
+
+      async function callClaude(): Promise<{
+        json: any | null;
+        inputTokens: number;
+        outputTokens: number;
+        raw: string;
+      }> {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': ANTHROPIC_API_KEY!,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-5',
+            max_tokens: 1500,
+            temperature: 0.4,
+            system: finalSystemPrompt + '\n\n⚠️ 출력은 JSON 객체 1개만. 다른 텍스트, 마크다운 코드블록, 설명 일절 금지.',
+            messages: [{ role: 'user', content: userPrompt }],
+          }),
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error?.message ?? 'Anthropic API error');
+
+        const raw: string = d.content?.[0]?.text ?? '';
+        const inputTokens = d.usage?.input_tokens ?? 0;
+        const outputTokens = d.usage?.output_tokens ?? 0;
+
+        try {
+          return { json: JSON.parse(raw), inputTokens, outputTokens, raw };
+        } catch {
+          const match = raw.match(/\{[\s\S]*\}/);
+          if (match) {
+            try { return { json: JSON.parse(match[0]), inputTokens, outputTokens, raw }; } catch { /* fall */ }
+          }
+          return { json: null, inputTokens, outputTokens, raw };
+        }
+      }
+
+      async function callOpenAi(): Promise<{
         json: any | null;
         inputTokens: number;
         outputTokens: number;
@@ -1488,20 +1532,19 @@ ${richStreetsBlock}
         const inputTokens = d.usage?.prompt_tokens ?? 0;
         const outputTokens = d.usage?.completion_tokens ?? 0;
 
-        // 1차 시도: 그대로 JSON.parse
         try {
           return { json: JSON.parse(raw), inputTokens, outputTokens, raw };
         } catch {
-          // 2차 시도: { ... } 구간만 추출해서 파싱 (마크다운 ```json 등 섞였을 때)
           const match = raw.match(/\{[\s\S]*\}/);
           if (match) {
-            try {
-              return { json: JSON.parse(match[0]), inputTokens, outputTokens, raw };
-            } catch { /* fall through */ }
+            try { return { json: JSON.parse(match[0]), inputTokens, outputTokens, raw }; } catch { /* fall */ }
           }
           return { json: null, inputTokens, outputTokens, raw };
         }
       }
+
+      // ANTHROPIC_API_KEY 등록되어 있으면 Claude, 없으면 GPT fallback
+      const callGpt = USE_CLAUDE ? callClaude : callOpenAi;
 
       // 1차 호출
       let result = await callGpt();
@@ -1519,7 +1562,7 @@ ${richStreetsBlock}
       // 재시도까지 실패 → 기본값으로 안전 응답 (사용량 차감은 하되, 에러 없이 fallback 반환)
       if (!result.json) {
         console.error('[hand-review-gpt] JSON parse failed after retry. raw:', result.raw);
-        await recordUsage(supabase, user.id, 'hand-review', 'gpt-4o', totalInput, totalOutput);
+        await recordUsage(supabase, user.id, 'hand-review', reviewModel, totalInput, totalOutput);
 
         const fallback = {
           headline: '분석 실패 — 다시 시도해주세요',
@@ -1550,7 +1593,7 @@ ${richStreetsBlock}
         chunks: ragChunkCount,
         top_similarity: Number(ragTopSimilarity.toFixed(4)),
       };
-      await recordUsage(supabase, user.id, 'hand-review', 'gpt-4o', totalInput, totalOutput);
+      await recordUsage(supabase, user.id, 'hand-review', reviewModel, totalInput, totalOutput);
 
       // ── 캐시 저장 (실패해도 응답은 그대로 반환) ─────────────────────────────
       await supabase.from('hand_review_cache').insert({
