@@ -149,6 +149,25 @@ export default function DashboardScreen() {
           </View>
         </TouchableOpacity>
 
+        {/* 비로그인 사용자 — 마케팅 CTA */}
+        {!isLoggedIn && (
+          <View style={styles.marketingCta}>
+            <Text style={styles.marketingEmoji}>🎁</Text>
+            <Text style={styles.marketingTitle}>지금 무료로 시작</Text>
+            <Text style={styles.marketingDesc}>
+              가입 30초 · AI 핸드 리뷰 · 푸시폴드 차트 · 뱅크롤 관리{'\n'}
+              한 앱에서 시작하세요
+            </Text>
+            <TouchableOpacity
+              style={styles.marketingButton}
+              onPress={() => navigation.navigate('Auth')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.marketingButtonText}>무료로 시작하기</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* 모바일 PWA 설치 안내 카드 (인앱 브라우저면 Chrome 안내) */}
         <InstallPwaCard />
 
@@ -183,6 +202,29 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: colors.primary,
   },
+  marketingCta: {
+    marginTop: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: spacing.lg,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  marketingEmoji: { fontSize: 36 },
+  marketingTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.primary },
+  marketingDesc: { fontSize: fontSize.sm, color: colors.text, textAlign: 'center', lineHeight: 22 },
+  marketingButton: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: radius.button,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+  marketingButtonText: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.bg },
   avatar: {
     width: 36,
     height: 36,
