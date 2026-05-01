@@ -9,6 +9,7 @@ import { colors } from '../theme';
 import type { RootStackParamList } from './types';
 
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
+import PreviewHomeScreen from '../screens/preview/PreviewHomeScreen';
 import MainTabNavigator from './MainTabNavigator';
 import AIChatScreen from '../screens/ai/AIChatScreen';
 import TermsScreen from '../screens/auth/TermsScreen';
@@ -31,6 +32,7 @@ const linking: LinkingOptions<RootStackParamList> = {
   ],
   config: {
     screens: {
+      Home: '',  // 비로그인 시 / 와 /home 모두 미리보기 홈으로
       Auth: 'login',
       Terms: 'terms',
       Privacy: 'privacy',
@@ -143,6 +145,7 @@ export default function RootNavigator() {
           </>
         ) : (
           <>
+            <Stack.Screen name="Home" component={PreviewHomeScreen} />
             <Stack.Screen name="Auth" component={WelcomeScreen} />
             <Stack.Screen name="Terms" component={TermsScreen} />
             <Stack.Screen name="Privacy" component={PrivacyScreen} />

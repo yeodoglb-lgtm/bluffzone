@@ -47,6 +47,7 @@ export type PlacesStackParamList = {
 // ── Root Stack ─────────────────────────────────────────────────────────────────
 export type RootStackParamList = {
   Auth: undefined;
+  Home: undefined;  // 비로그인 미리보기 홈
   Main: NavigatorScreenParams<MainTabParamList>;
   AIChat: { chatId?: string };
   Terms: undefined;
