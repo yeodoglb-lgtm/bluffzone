@@ -921,6 +921,38 @@ export default function HandDetailScreen({ navigation, route }: Props) {
           );
         })()}
 
+        {/* 캐시 게임 (또는 토너 25bb 초과) 프리플랍 액션 있는 핸드면 프리플랍 차트 컨텍스트 링크 */}
+        {(() => {
+          const isT = (hand as any).is_tournament === true;
+          const eff = (hand as any).effective_stack;
+          const bb = (hand as any).bb_chips;
+          const effBb = isT && eff && bb ? Math.round(Number(eff) / Number(bb)) : null;
+          // 토너 단스택은 푸시폴드 차트가 우선이라 여기선 제외
+          if (isT && effBb != null && effBb <= 25) return null;
+          // 프리플랍 액션이 있어야만 의미 있음
+          const preflopActions = (hand.actions ?? []).filter((a: any) => a.street === 'preflop');
+          const heroPreflopExists = preflopActions.some((a: any) => a.actor === 'hero');
+          if (!heroPreflopExists) return null;
+          return (
+            <TouchableOpacity
+              style={styles.gtoLinkCard}
+              onPress={() => (navigation as any).push('PreflopChart')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.gtoLinkEmoji}>📖</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.gtoLinkTitle}>
+                  프리플랍 차트로 확인
+                </Text>
+                <Text style={styles.gtoLinkDesc}>
+                  GTO 차트상 이 핸드의 권장 액션과 비교해보세요
+                </Text>
+              </View>
+              <Text style={styles.gtoLinkArrow}>›</Text>
+            </TouchableOpacity>
+          );
+        })()}
+
         {/* 홀덤 알파고 리뷰 */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>블러프존 홀덤 알파고 핸드리뷰</Text>

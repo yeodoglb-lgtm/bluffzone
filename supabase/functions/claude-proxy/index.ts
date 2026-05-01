@@ -1453,9 +1453,78 @@ ${richStreetsBlock}
         }
       }
 
+      // ── 프리플랍 차트 lookup ────────────────────────────────────────────
+      // 히어로 첫 프리플랍 액션을 시나리오(open/3bet/call) 분류 → 차트 조회 → AI에 컨텍스트 전달
+      let preflopAdvice: string | null = null;
+      if (hand?.hero_position && Array.isArray(hand?.hero_cards) && hand.hero_cards.length === 2) {
+        // 핸드 → 169 표기
+        const c1 = hand.hero_cards[0];
+        const c2 = hand.hero_cards[1];
+        const PRE_RANKS = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
+        const idx = (r: string) => PRE_RANKS.indexOf(r);
+        let handLabel = '';
+        if (c1?.rank && c2?.rank) {
+          if (c1.rank === c2.rank) handLabel = c1.rank + c2.rank;
+          else {
+            const [hi, lo] = idx(c1.rank) < idx(c2.rank) ? [c1.rank, c2.rank] : [c2.rank, c1.rank];
+            const suited = c1.suit === c2.suit;
+            handLabel = hi + lo + (suited ? 's' : 'o');
+          }
+        }
+
+        // 시나리오 판정
+        const preflopActions = (Array.isArray(hand.actions) ? hand.actions : []).filter((a: any) => a.street === 'preflop');
+        const heroIdx = preflopActions.findIndex((a: any) => a.actor === 'hero');
+        if (heroIdx >= 0 && handLabel) {
+          const heroPreflopAction = preflopActions[heroIdx];
+          const prior = preflopActions.slice(0, heroIdx);
+          const priorRaiseCount = prior.filter((a: any) =>
+            a.action === 'raise' || a.action === 'allin'
+          ).length;
+
+          let scenario: string | null = null;
+          if (heroPreflopAction.action === 'raise' || heroPreflopAction.action === 'allin') {
+            if (priorRaiseCount === 0) scenario = 'open';
+            else if (priorRaiseCount === 1) scenario = '3bet';
+            // 4벳 이상은 데이터 없음, skip
+          } else if (heroPreflopAction.action === 'call' && priorRaiseCount === 1) {
+            scenario = 'call';
+          }
+
+          if (scenario) {
+            const { data: pfRow } = await supabase
+              .from('preflop_ranges')
+              .select('action')
+              .eq('position', hand.hero_position)
+              .eq('scenario', scenario)
+              .eq('hand', handLabel)
+              .maybeSingle();
+
+            if (pfRow?.action) {
+              const heroActionLabel = heroPreflopAction.action;
+              const chartAction = pfRow.action;
+              // 차트 권장 vs 히어로 실제 일치 여부
+              const matches = (
+                (chartAction === 'raise' && (heroActionLabel === 'raise' || heroActionLabel === 'allin')) ||
+                (chartAction === 'call' && heroActionLabel === 'call') ||
+                (chartAction === 'fold' && heroActionLabel === 'fold')
+              );
+
+              const scenarioKr = scenario === 'open' ? '오픈 (RFI)' : scenario === '3bet' ? '3벳 (vs 오픈)' : '콜드콜 (vs 오픈)';
+              preflopAdvice = `\n\n[프리플랍 차트 권고]\n` +
+                `히어로 ${hand.hero_position} ${handLabel} (${scenarioKr}) → **차트상 ${chartAction.toUpperCase()}**\n` +
+                `히어로 실제: ${heroActionLabel}\n` +
+                `${matches ? '✅ 차트와 일치' : '⚠️ 차트와 다름 — 분석에서 명시적으로 지적할 것'}\n` +
+                `📌 분석 시 위 차트 권고를 반드시 언급하고, 일치/불일치 여부 명확히 표현. 6-max 100bb 캐시 GTO 기준이라는 것 코멘트.`;
+              console.log(`[hand-review-gpt] Preflop lookup: ${hand.hero_position} ${handLabel} ${scenario} → chart:${chartAction}, actual:${heroActionLabel}, match:${matches}`);
+            }
+          }
+        }
+      }
+
       // 토너 컨텍스트는 systemPrompt **맨 앞**에 배치 (우선순위 높임)
       // 일반 RAG는 뒤에 추가 (참고 자료)
-      const finalSystemPrompt = (isTournament ? tournamentContext + (pushfoldAdvice ?? '') + '\n\n' : '') + systemPrompt + ragContext;
+      const finalSystemPrompt = (isTournament ? tournamentContext + (pushfoldAdvice ?? '') + '\n\n' : '') + systemPrompt + (preflopAdvice ?? '') + ragContext;
 
       // ── Claude (Anthropic) 호출 헬퍼 ─────────────────────────────────────
       // 핸드 리뷰는 Claude Sonnet 4.5 사용 — GPT-4o보다 룰 준수·구조화 추론 우수
