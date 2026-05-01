@@ -32,7 +32,7 @@ const linking: LinkingOptions<RootStackParamList> = {
   ],
   config: {
     screens: {
-      Home: '',  // 비로그인 시 / 와 /home 모두 미리보기 홈으로
+      Home: 'home',  // /home 경로 (비로그인 시 / 도 자동으로 Home으로 fallback)
       Auth: 'login',
       Terms: 'terms',
       Privacy: 'privacy',
