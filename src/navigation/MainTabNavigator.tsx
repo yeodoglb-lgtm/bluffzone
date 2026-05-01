@@ -54,9 +54,9 @@ const stackOptions = { headerShown: false };
 function DashboardNavigator() {
   return (
     <DashboardStack.Navigator screenOptions={stackOptions}>
-      <DashboardStack.Screen name="Dashboard" component={DashboardScreen} />
-      <DashboardStack.Screen name="GtoHub" component={GtoHubScreen} />
-      <DashboardStack.Screen name="PushfoldChart" component={PushfoldChartScreen} />
+      <DashboardStack.Screen name="Dashboard" component={DashboardScreen} options={{ title: '블러프존 - 홀덤 핸드 매니저' }} />
+      <DashboardStack.Screen name="GtoHub" component={GtoHubScreen} options={{ title: 'GTO 도구 - 블러프존' }} />
+      <DashboardStack.Screen name="PushfoldChart" component={PushfoldChartScreen} options={{ title: '푸시폴드 차트 - 블러프존' }} />
     </DashboardStack.Navigator>
   );
 }
@@ -64,11 +64,11 @@ function DashboardNavigator() {
 function BankrollNavigator() {
   return (
     <BankrollStack.Navigator screenOptions={stackOptions}>
-      <BankrollStack.Screen name="BankrollCalendar" component={BankrollCalendarScreen} />
-      <BankrollStack.Screen name="DayDetail" component={DayDetailScreen} />
-      <BankrollStack.Screen name="SessionDetail" component={SessionDetailScreen} />
-      <BankrollStack.Screen name="SessionForm" component={SessionFormScreen} />
-      <BankrollStack.Screen name="BankrollStats" component={BankrollStatsScreen} />
+      <BankrollStack.Screen name="BankrollCalendar" component={BankrollCalendarScreen} options={{ title: '뱅크롤 관리 - 블러프존' }} />
+      <BankrollStack.Screen name="DayDetail" component={DayDetailScreen} options={{ title: '일별 세션 - 블러프존' }} />
+      <BankrollStack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: '세션 상세 - 블러프존' }} />
+      <BankrollStack.Screen name="SessionForm" component={SessionFormScreen} options={{ title: '세션 입력 - 블러프존' }} />
+      <BankrollStack.Screen name="BankrollStats" component={BankrollStatsScreen} options={{ title: '뱅크롤 통계 - 블러프존' }} />
     </BankrollStack.Navigator>
   );
 }
@@ -76,11 +76,11 @@ function BankrollNavigator() {
 function HandsNavigator() {
   return (
     <HandsStack.Navigator screenOptions={stackOptions}>
-      <HandsStack.Screen name="HandList" component={HandListScreen} />
-      <HandsStack.Screen name="HandEditor" component={HandEditorScreen} />
-      <HandsStack.Screen name="HandDetail" component={HandDetailScreen} />
-      <HandsStack.Screen name="GtoHub" component={GtoHubScreen} />
-      <HandsStack.Screen name="PushfoldChart" component={PushfoldChartScreen} />
+      <HandsStack.Screen name="HandList" component={HandListScreen} options={{ title: '핸드 기록 - 블러프존' }} />
+      <HandsStack.Screen name="HandEditor" component={HandEditorScreen} options={{ title: '핸드 입력 - 블러프존' }} />
+      <HandsStack.Screen name="HandDetail" component={HandDetailScreen} options={{ title: '핸드 상세 - 블러프존' }} />
+      <HandsStack.Screen name="GtoHub" component={GtoHubScreen} options={{ title: 'GTO 도구 - 블러프존' }} />
+      <HandsStack.Screen name="PushfoldChart" component={PushfoldChartScreen} options={{ title: '푸시폴드 차트 - 블러프존' }} />
     </HandsStack.Navigator>
   );
 }
@@ -88,8 +88,8 @@ function HandsNavigator() {
 function PlacesNavigator() {
   return (
     <PlacesStack.Navigator screenOptions={stackOptions}>
-      <PlacesStack.Screen name="PlacesMap" component={PlacesMapScreen} />
-      <PlacesStack.Screen name="PlaceDetail" component={PlaceDetailScreen} />
+      <PlacesStack.Screen name="PlacesMap" component={PlacesMapScreen} options={{ title: '홀덤 펍 검색 - 블러프존' }} />
+      <PlacesStack.Screen name="PlaceDetail" component={PlaceDetailScreen} options={{ title: '장소 상세 - 블러프존' }} />
     </PlacesStack.Navigator>
   );
 }
@@ -167,6 +167,7 @@ export default function MainTabNavigator() {
         name="SettingsTab"
         component={SettingsScreen}
         options={{
+          title: '설정 - 블러프존',
           tabBarLabel: '설정',
           tabBarIcon: ({ color, size }) => (
             <Settings color={color} size={size - 2} strokeWidth={2} />

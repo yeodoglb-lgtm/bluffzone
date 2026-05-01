@@ -133,25 +133,25 @@ export default function RootNavigator() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {session || DEV_SKIP_AUTH ? (
             <>
-              <Stack.Screen name="Main" component={MainTabNavigator} />
+              <Stack.Screen name="Main" component={MainTabNavigator} options={{ title: '블러프존 - 홀덤 핸드 매니저' }} />
               <Stack.Screen
                 name="AIChat"
                 component={AIChatScreen}
-                options={modalOptions}
+                options={{ ...modalOptions, title: '블러프존 홀덤 알파고' }}
               />
-              <Stack.Screen name="Terms" component={TermsScreen} />
-              <Stack.Screen name="Privacy" component={PrivacyScreen} />
-              <Stack.Screen name="Feedback" component={FeedbackScreen} />
-              <Stack.Screen name="MyFeedback" component={MyFeedbackListScreen} />
-              <Stack.Screen name="AdminFeedback" component={AdminFeedbackScreen} />
+              <Stack.Screen name="Terms" component={TermsScreen} options={{ title: '이용약관 - 블러프존' }} />
+              <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: '개인정보처리방침 - 블러프존' }} />
+              <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: '의견 보내기 - 블러프존' }} />
+              <Stack.Screen name="MyFeedback" component={MyFeedbackListScreen} options={{ title: '내 의견 이력 - 블러프존' }} />
+              <Stack.Screen name="AdminFeedback" component={AdminFeedbackScreen} options={{ title: '어드민 - 블러프존' }} />
             </>
           ) : (
             <>
-              <Stack.Screen name="Home" component={PreviewHomeScreen} />
-              <Stack.Screen name="Main" component={MainTabNavigator} />
-              <Stack.Screen name="Auth" component={WelcomeScreen} />
-              <Stack.Screen name="Terms" component={TermsScreen} />
-              <Stack.Screen name="Privacy" component={PrivacyScreen} />
+              <Stack.Screen name="Home" component={PreviewHomeScreen} options={{ title: '블러프존 - 홀덤 핸드 매니저' }} />
+              <Stack.Screen name="Main" component={MainTabNavigator} options={{ title: '블러프존 - 홀덤 핸드 매니저' }} />
+              <Stack.Screen name="Auth" component={WelcomeScreen} options={{ title: '로그인 / 가입 - 블러프존' }} />
+              <Stack.Screen name="Terms" component={TermsScreen} options={{ title: '이용약관 - 블러프존' }} />
+              <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: '개인정보처리방침 - 블러프존' }} />
             </>
           )}
         </Stack.Navigator>
