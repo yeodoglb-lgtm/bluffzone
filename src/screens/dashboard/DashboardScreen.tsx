@@ -93,8 +93,8 @@ export default function DashboardScreen() {
           },
           {
             icon: '🃏',
-            title: '핸드 기록',
-            desc: '어려웠던 핸드를 기록하고\n패턴을 분석해보세요',
+            title: '핸드 기록 및 분석',
+            desc: '어려웠던 핸드를 기록하고\n플레이를 분석해보세요',
             onPress: () => navigation.navigate('HandsTab', { screen: 'HandList' }),
           },
           {

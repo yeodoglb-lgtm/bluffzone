@@ -114,8 +114,22 @@ export default function SettingsScreen() {
       destructive: true,
       onConfirm: async () => {
         setSigningOut(true);
-        try { await signOut(); } catch (e) { console.error(e); }
-        finally { reset(); setSigningOut(false); }
+        // 1) 로컬 상태 먼저 즉시 초기화 — UI 즉시 반응
+        reset();
+        // 2) Supabase 로그아웃 (실패해도 UI는 이미 비로그인 상태) — 5초 타임아웃
+        try {
+          await Promise.race([
+            signOut(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('signout timeout')), 5000)),
+          ]);
+        } catch (e) {
+          console.error('signOut error:', e);
+        }
+        setSigningOut(false);
+        // 3) 웹: 강제로 홈 이동 (RootNavigator 분기 못 잡는 케이스 안전망)
+        if (typeof window !== 'undefined') {
+          window.location.href = '/home';
+        }
       },
     });
   }
