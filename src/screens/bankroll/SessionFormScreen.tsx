@@ -136,10 +136,24 @@ export default function SessionFormScreen({ route, navigation }: Props) {
 
   async function onSubmit(values: FormValues) {
     try {
+      // 종료 시각이 시작 시각보다 빠르면 익일로 처리 (예: 18:00~05:00 = 11시간)
+      let endedDate = values.played_on;
+      if (values.started_at && values.ended_at) {
+        const startMin = parseInt(values.started_at.replace(/\D/g, '').slice(0, 2), 10) * 60
+          + parseInt(values.started_at.replace(/\D/g, '').slice(2, 4) || '0', 10);
+        const endMin = parseInt(values.ended_at.replace(/\D/g, '').slice(0, 2), 10) * 60
+          + parseInt(values.ended_at.replace(/\D/g, '').slice(2, 4) || '0', 10);
+        if (endMin < startMin) {
+          // 익일로 +1 day
+          const next = new Date(values.played_on + 'T00:00:00');
+          next.setDate(next.getDate() + 1);
+          endedDate = next.toISOString().slice(0, 10);
+        }
+      }
       const input = {
         played_on: values.played_on,
         started_at: toTimestamp(values.played_on, values.started_at),
-        ended_at: toTimestamp(values.played_on, values.ended_at),
+        ended_at: toTimestamp(endedDate, values.ended_at),
         place_id: null,
         place_name_snapshot: values.place_name_snapshot,
         game_type: values.game_type,
