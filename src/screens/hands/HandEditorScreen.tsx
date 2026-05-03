@@ -197,7 +197,7 @@ function ActionRow({ action, villainNames, activeVillainCount, onChange, onRemov
       </ScrollView>
       {showAmount && (
         <TextInput style={styles.amountInput} placeholder="금액" placeholderTextColor={colors.textMuted}
-          keyboardType="numeric" value={displayAmt}
+          keyboardType="decimal-pad" inputMode="decimal" value={displayAmt}
           onChangeText={v => onChange({ amount: v ? Math.round(Number(v) * amountUnit) : undefined })} />
       )}
       <TouchableOpacity onPress={onRemove} style={styles.removeBtn}><Text style={styles.removeBtnText}>×</Text></TouchableOpacity>
@@ -522,7 +522,7 @@ export default function HandEditorScreen({ navigation, route }: Props) {
                 style={styles.input}
                 value={bbKrw}
                 onChangeText={setBbKrw}
-                keyboardType="numeric"
+                keyboardType="decimal-pad"
                 placeholder="예: 10000 (=1만원 BB)"
                 placeholderTextColor={colors.textMuted}
               />
@@ -613,7 +613,7 @@ export default function HandEditorScreen({ navigation, route }: Props) {
             style={styles.input}
             placeholder="0"
             placeholderTextColor={colors.textMuted}
-            keyboardType="numeric"
+            keyboardType="decimal-pad"
             value={potSize}
             onChangeText={v => { setIsAutoPot(false); setPotSize(v); }}
           />
@@ -623,7 +623,7 @@ export default function HandEditorScreen({ navigation, route }: Props) {
             style={styles.input}
             placeholder={amountUnit === 10000 ? '예: -5, +12' : '예: -500, +1200'}
             placeholderTextColor={colors.textMuted}
-            keyboardType="numeric"
+            keyboardType="decimal-pad"
             value={heroPl}
             onChangeText={setHeroPl}
           />
@@ -648,7 +648,7 @@ export default function HandEditorScreen({ navigation, route }: Props) {
                     style={styles.input}
                     placeholder="2000"
                     placeholderTextColor={colors.textMuted}
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
                     value={sbChips}
                     onChangeText={setSbChips}
                   />
@@ -659,7 +659,7 @@ export default function HandEditorScreen({ navigation, route }: Props) {
                     style={styles.input}
                     placeholder="4000"
                     placeholderTextColor={colors.textMuted}
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
                     value={bbChips}
                     onChangeText={setBbChips}
                   />
@@ -670,7 +670,7 @@ export default function HandEditorScreen({ navigation, route }: Props) {
                     style={styles.input}
                     placeholder="500"
                     placeholderTextColor={colors.textMuted}
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
                     value={anteChips}
                     onChangeText={setAnteChips}
                   />
@@ -708,7 +708,7 @@ export default function HandEditorScreen({ navigation, route }: Props) {
             style={styles.input}
             placeholder={isTournament ? '예: 20000 (=20,000칩)' : amountUnit === 10000 ? '예: 100 (=100만원)' : '예: 1000000'}
             placeholderTextColor={colors.textMuted}
-            keyboardType="numeric"
+            keyboardType="decimal-pad"
             value={effectiveStack}
             onChangeText={setEffectiveStack}
           />
