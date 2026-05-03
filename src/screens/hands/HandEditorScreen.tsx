@@ -28,8 +28,11 @@ const VILLAIN_COLORS = ['#ef4444', '#22c55e', '#a855f7'] as const;
 
 // ── 금액 표시 헬퍼 ─────────────────────────────────────────────────────────
 // amount(원) ÷ amountUnit(만원=10000) → "0.5", "1", "13.5" 처럼 소수점 보존
-function formatAmountDisplay(amount: number, unit: number): string {
-  const v = amount / unit;
+function formatAmountDisplay(amount: number | null | undefined, unit: number): string {
+  // null/undefined/NaN 모두 빈 문자열로 (NaN 표시 방지)
+  const n = Number(amount);
+  if (amount == null || !Number.isFinite(n) || !unit) return '';
+  const v = n / unit;
   if (Number.isInteger(v)) return String(v);
   return String(Math.round(v * 100) / 100); // 소수점 2자리까지
 }
