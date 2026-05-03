@@ -180,8 +180,18 @@ function ActionRow({ action, villainNames, activeVillainCount, onChange, onRemov
   }
   const ac = actorColor(cur);
   const showAmount = (['bet', 'raise', 'call', 'allin'] as Action[]).includes(action.action);
-  // 표시값: 저장값 ÷ amountUnit (소수점 보존: 5000원 / 10000 → "0.5")
-  const displayAmt = action.amount != null ? formatAmountDisplay(action.amount, amountUnit) : '';
+
+  // 입력 텍스트 로컬 state — 소수점 입력 중 "0." 같은 partial 값 보존
+  // prop의 amount가 외부에서 바뀌면 로컬 텍스트 동기화
+  const [amtText, setAmtText] = useState<string>(
+    action.amount != null ? formatAmountDisplay(action.amount, amountUnit) : ''
+  );
+  useEffect(() => {
+    const next = action.amount != null ? formatAmountDisplay(action.amount, amountUnit) : '';
+    // 사용자가 입력 중인 partial 값 ("0.", "1." 등)은 덮어쓰지 않음
+    if (amtText === '' || amtText.endsWith('.')) return;
+    if (Number(amtText) !== Number(next)) setAmtText(next);
+  }, [action.amount, amountUnit]);
 
   return (
     <View style={styles.actionRow}>
@@ -197,8 +207,19 @@ function ActionRow({ action, villainNames, activeVillainCount, onChange, onRemov
       </ScrollView>
       {showAmount && (
         <TextInput style={styles.amountInput} placeholder="금액" placeholderTextColor={colors.textMuted}
-          keyboardType="decimal-pad" inputMode="decimal" value={displayAmt}
-          onChangeText={v => onChange({ amount: v ? Math.round(Number(v) * amountUnit) : undefined })} />
+          keyboardType="decimal-pad" inputMode="decimal" value={amtText}
+          onChangeText={v => {
+            // 숫자·소수점만 허용 (예: "0", "0.", "0.5", "10.25")
+            const cleaned = v.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+            setAmtText(cleaned);
+            // 유효한 숫자일 때만 amount 업데이트 (partial "0." 같은 건 patch 안 함)
+            if (cleaned === '' || cleaned === '.') {
+              onChange({ amount: undefined });
+            } else if (!cleaned.endsWith('.')) {
+              const n = Number(cleaned);
+              if (Number.isFinite(n)) onChange({ amount: Math.round(n * amountUnit) });
+            }
+          }} />
       )}
       <TouchableOpacity onPress={onRemove} style={styles.removeBtn}><Text style={styles.removeBtnText}>×</Text></TouchableOpacity>
     </View>
