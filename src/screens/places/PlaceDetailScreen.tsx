@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { StackScreenProps } from '@react-navigation/stack';
@@ -95,9 +97,50 @@ export default function PlaceDetailScreen({ route, navigation }: Props) {
         )}
 
         {place.phone && (
-          <View style={styles.infoRow}>
+          <TouchableOpacity
+            style={styles.infoRow}
+            onPress={() => Linking.openURL(`tel:${place.phone!.replace(/-/g, '')}`)}
+            activeOpacity={0.6}
+          >
             <Text style={styles.infoIcon}>📞</Text>
-            <Text style={styles.infoText}>{place.phone}</Text>
+            <Text style={[styles.infoText, styles.infoTextLink]}>{place.phone}</Text>
+            <Text style={styles.callBtn}>전화걸기</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* 길찾기 / 카카오맵 연동 — 좌표 있으면 노출 */}
+        {((place as any).lat != null && (place as any).lng != null) && (
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => {
+                const lat = (place as any).lat;
+                const lng = (place as any).lng;
+                const name = encodeURIComponent(place.name);
+                // 카카오맵: https://map.kakao.com/link/to/{name},{lat},{lng}
+                const url = `https://map.kakao.com/link/to/${name},${lat},${lng}`;
+                Linking.openURL(url);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.actionBtnText}>🗺️ 카카오맵 길찾기</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => {
+                const lat = (place as any).lat;
+                const lng = (place as any).lng;
+                const name = encodeURIComponent(place.name);
+                // 네이버맵: nmap://place?lat=...&lng=...&name=...
+                const naverUrl = Platform.OS === 'web'
+                  ? `https://map.naver.com/p/search/${name}`
+                  : `nmap://place?lat=${lat}&lng=${lng}&name=${name}&appname=bluffzone.kr`;
+                Linking.openURL(naverUrl);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.actionBtnText}>🌍 네이버맵</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -127,9 +170,9 @@ export default function PlaceDetailScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        {sortedDays.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>영업시간</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>영업시간</Text>
+          {sortedDays.length > 0 ? (
             <View style={styles.hoursContainer}>
               {sortedDays.map((day) => {
                 const slot = place.hours![day];
@@ -143,8 +186,12 @@ export default function PlaceDetailScreen({ route, navigation }: Props) {
                 );
               })}
             </View>
-          </View>
-        )}
+          ) : (
+            <Text style={styles.emptyHours}>
+              영업시간 정보 없음 — {place.phone ? '전화 문의' : '문의 필요'}
+            </Text>
+          )}
+        </View>
 
         {place.amenities && place.amenities.length > 0 && (
           <View style={styles.section}>
@@ -165,6 +212,21 @@ export default function PlaceDetailScreen({ route, navigation }: Props) {
             <Text style={styles.descriptionText}>{place.description}</Text>
           </View>
         )}
+
+        {/* 사진 — 있으면 가로 스크롤, 없으면 안내 */}
+        {(place as any).photos && (place as any).photos.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>사진</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoScroll}>
+              {((place as any).photos as string[]).map((url, i) => (
+                <View key={i} style={styles.photoItem}>
+                  <Text style={styles.photoPlaceholder}>📷</Text>
+                  <Text style={styles.photoUrl} numberOfLines={1}>{url}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -315,4 +377,51 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     lineHeight: fontSize.base * 1.6,
   },
+  infoTextLink: { color: colors.primary, textDecorationLine: 'underline' },
+  callBtn: {
+    fontSize: fontSize.xs,
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.sm,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  actionBtn: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.button,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  actionBtnText: { fontSize: fontSize.sm, color: colors.primary, fontWeight: fontWeight.bold },
+  emptyHours: {
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    paddingVertical: spacing.sm,
+  },
+  photoScroll: { flexDirection: 'row' },
+  photoItem: {
+    width: 120,
+    height: 90,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginRight: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  photoPlaceholder: { fontSize: 24 },
+  photoUrl: { fontSize: 9, color: colors.textMuted, marginTop: 4 },
 });

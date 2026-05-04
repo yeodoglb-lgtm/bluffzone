@@ -138,7 +138,7 @@ export default function PlacesMapScreen({ navigation }: Props) {
           style={styles.searchInput}
           value={inputValue}
           onChangeText={handleChangeText}
-          placeholder="플레이스 검색"
+          placeholder="펍명, 지역, 주소 검색"
           placeholderTextColor={colors.textMuted}
           returnKeyType="search"
           clearButtonMode="while-editing"

@@ -10,7 +10,9 @@ export async function fetchPlaces(search?: string): Promise<Place[]> {
     .order('name', { ascending: true });
 
   if (search && search.trim().length > 0) {
-    query = query.ilike('name', `%${search.trim()}%`);
+    const term = `%${search.trim()}%`;
+    // 이름 OR 주소 OR 도로명 주소에서 검색
+    query = query.or(`name.ilike.${term},address.ilike.${term},road_address.ilike.${term}`);
   }
 
   const { data, error } = await query;
