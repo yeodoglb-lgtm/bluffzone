@@ -45,6 +45,7 @@ export default function KakaoMap({
   const mapEl = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<any>(null);
   const markerObjs = useRef<any[]>([]);
+  const didFitBounds = useRef(false);
 
   // 웹 전용 — 네이티브에선 placeholder
   if (Platform.OS !== 'web') {
@@ -158,15 +159,20 @@ export default function KakaoMap({
       }
     }
 
-    // 마커 다 보이도록 bounds 조정
-    if (markers.length > 0) {
+    // 마커 다 보이도록 bounds 조정 — 최초 1회, 마커 2개 이상일 때만
+    // (1개일 땐 setCenter로 충분, userLocation 변할 때마다 흔들리지 않게)
+    if (!didFitBounds.current && markers.length >= 2) {
       const bounds = new maps.LatLngBounds();
       markers.forEach(m => bounds.extend(new maps.LatLng(m.lat, m.lng)));
-      if (userLocation) bounds.extend(new maps.LatLng(userLocation.lat, userLocation.lng));
       mapInstance.current.setBounds(bounds);
+      didFitBounds.current = true;
+    } else if (!didFitBounds.current && markers.length === 1) {
+      // 마커 1개면 그 좌표로 센터
+      mapInstance.current.setCenter(new maps.LatLng(markers[0].lat, markers[0].lng));
+      didFitBounds.current = true;
     }
     } // end addMarkers
-  }, [markers, userLocation, onMarkerClick]);
+  }, [markers, onMarkerClick]);
 
   // panTarget이 변하면 지도 이동 (relayout 후 setCenter — 중앙 정확히 맞추기)
   useEffect(() => {
