@@ -10,6 +10,10 @@ interface MapMarker {
   lat: number;
   lng: number;
   name: string;
+  /** 라벨 보조 정보 (예: "10k~50k") */
+  subtitle?: string;
+  /** 선택 상태 (큰 핀 + 강조) */
+  selected?: boolean;
 }
 
 interface KakaoMapProps {
@@ -110,28 +114,45 @@ export default function KakaoMap({
     markerObjs.current.forEach(m => m.setMap(null));
     markerObjs.current = [];
 
-    // 새 마커 추가
+    // 핀 + 항상 표시되는 라벨 형태의 CustomOverlay 사용
+    // (기본 InfoWindow는 hover/click 필요해 모바일에서 가려지는 문제)
     markers.forEach(m => {
-      const marker = new maps.Marker({
+      const isSelected = !!m.selected;
+
+      // 라벨 HTML — 핀 + 펍명 (+선택 시 보조정보)
+      const labelHtml = `
+        <div class="bz-marker ${isSelected ? 'bz-marker-selected' : ''}" data-id="${m.id}">
+          <div class="bz-marker-pin">📍</div>
+          <div class="bz-marker-label">
+            <div class="bz-marker-name">${m.name}</div>
+            ${isSelected && m.subtitle ? `<div class="bz-marker-sub">${m.subtitle}</div>` : ''}
+          </div>
+        </div>
+      `;
+
+      const overlay = new maps.CustomOverlay({
         position: new maps.LatLng(m.lat, m.lng),
-        map: mapInstance.current,
-        title: m.name,
+        content: labelHtml,
+        yAnchor: 1,
       });
-
-      // 인포윈도우 (펍 이름)
-      const info = new maps.InfoWindow({
-        content: `<div style="padding:6px 10px;font-size:13px;font-weight:bold;color:#0A0A0A;">${m.name}</div>`,
-        removable: false,
-      });
-
-      maps.event.addListener(marker, 'mouseover', () => info.open(mapInstance.current, marker));
-      maps.event.addListener(marker, 'mouseout', () => info.close());
-      maps.event.addListener(marker, 'click', () => {
-        if (onMarkerClick) onMarkerClick(m.id);
-      });
-
-      markerObjs.current.push(marker);
+      overlay.setMap(mapInstance.current);
+      markerObjs.current.push(overlay);
     });
+
+    // CustomOverlay 클릭 핸들러는 DOM 이벤트로 위임
+    // (마커 클릭 → onMarkerClick 호출)
+    if (onMarkerClick) {
+      const handler = (e: any) => {
+        const target = e.target as HTMLElement;
+        const wrap = target.closest?.('.bz-marker') as HTMLElement | null;
+        if (wrap?.dataset.id) onMarkerClick(wrap.dataset.id);
+      };
+      const mapEl2 = mapEl.current;
+      if (mapEl2) {
+        mapEl2.addEventListener('click', handler, true);
+        markerObjs.current.push({ setMap: () => mapEl2.removeEventListener('click', handler, true) });
+      }
+    }
 
     // 마커 다 보이도록 bounds 조정
     if (markers.length > 0) {
