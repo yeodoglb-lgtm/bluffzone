@@ -168,15 +168,19 @@ export default function KakaoMap({
     } // end addMarkers
   }, [markers, userLocation, onMarkerClick]);
 
-  // panTarget이 변하면 지도 이동
+  // panTarget이 변하면 지도 이동 (relayout 후 setCenter — 중앙 정확히 맞추기)
   useEffect(() => {
     if (!panTarget || !mapInstance.current || !window.kakao?.maps) return;
+    const map = mapInstance.current;
     const ll = new window.kakao.maps.LatLng(panTarget.lat, panTarget.lng);
     try {
-      mapInstance.current.panTo(ll);
-    } catch {
-      mapInstance.current.setCenter(ll);
-    }
+      // 컨테이너 크기 변경 감지 (레이아웃 후 첫 호출 대비)
+      map.relayout();
+    } catch {}
+    // setCenter는 즉시 정확히 중앙, panTo는 부드럽지만 transition 중 측정 오차 있음
+    try {
+      map.setCenter(ll);
+    } catch {}
   }, [panTarget?.ts]);
 
   // 사용자 위치 마커 (별도 색상)

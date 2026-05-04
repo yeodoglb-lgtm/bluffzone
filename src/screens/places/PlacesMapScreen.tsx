@@ -130,8 +130,12 @@ export default function PlacesMapScreen({ navigation }: Props) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* 헤더 + 검색 */}
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* 헤더 */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>플레이스</Text>
+      </View>
+      {/* 검색 */}
       <View style={styles.searchContainer}>
         <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
@@ -271,6 +275,13 @@ export default function PlacesMapScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  header: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.base,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  headerTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
