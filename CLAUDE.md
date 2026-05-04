@@ -333,6 +333,16 @@ Docker 없어도 됨 (WARNING은 무시). 배포 후 `functions list`로 VERSION
   - 주소→좌표: `https://dapi.kakao.com/v2/local/search/address.json?query=...`
 - **헤더**: `Authorization: KakaoAK c2caf40017d212df12f9b050c7d74c56`
 
+### Kakao Maps JavaScript SDK (지도 임베드)
+- **JavaScript 키**: `1c42d577c0b7dc9f62da99bea9dc57f5`
+- **앱 ID**: 1447626 (BluffZone)
+- **로드 방법**: public/index.html에 script 태그
+  ```html
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=1c42d577c0b7dc9f62da99bea9dc57f5&autoload=false"></script>
+  ```
+- **도메인 등록**: 미등록 (B 옵션 — 등록 없이 시도 중, 차단되면 그때 등록)
+- **사용 위치**: PlacesMapScreen 풀 임베드 지도
+
 ---
 
 ## 🏪 홀덤펍 데이터 수집 (2026-05-04, 진행 중)

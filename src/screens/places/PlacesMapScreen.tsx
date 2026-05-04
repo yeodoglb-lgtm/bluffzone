@@ -14,6 +14,7 @@ import type { PlacesStackParamList } from '../../navigation/types';
 import type { Place } from '../../types/database';
 import { usePlaces } from '../../hooks/usePlaces';
 import { useUserLocation, calcDistanceKm, formatDistance } from '../../hooks/useUserLocation';
+import KakaoMap from '../../components/KakaoMap';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 
 type Props = StackScreenProps<PlacesStackParamList, 'PlacesMap'>;
@@ -174,6 +175,22 @@ export default function PlacesMapScreen({ navigation }: Props) {
           <Text style={styles.locBannerText}>이 환경에선 위치 정보 미지원</Text>
         </View>
       )}
+
+      {/* 카카오 지도 풀 임베드 */}
+      <KakaoMap
+        height={300}
+        center={userLocation.location ?? { lat: 37.5665, lng: 126.9780 }}
+        userLocation={userLocation.location}
+        markers={placesWithDistance
+          .filter(p => (p as any).lat != null && (p as any).lng != null)
+          .map(p => ({
+            id: p.id,
+            lat: (p as any).lat,
+            lng: (p as any).lng,
+            name: p.name,
+          }))}
+        onMarkerClick={(id) => navigation.navigate('PlaceDetail', { placeId: id })}
+      />
 
       {/* 정렬 토글 */}
       <View style={styles.sortRow}>
