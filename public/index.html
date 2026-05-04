@@ -115,64 +115,83 @@
         -webkit-touch-callout: default;
       }
 
-      /* BluffZone 펍 마커 — 둥근 알약 스타일 (러너러너 참고) */
-      .bz-marker {
+      /* BluffZone 펍 마커 — 핀 + 말풍선 (꼬리 달린 라벨) */
+      .bz-pin {
+        position: relative;
         display: inline-flex;
+        flex-direction: column;
         align-items: center;
-        gap: 4px;
-        background: #ffffff;
-        padding: 5px 10px 5px 6px;
-        border-radius: 20px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.08);
         cursor: pointer;
         user-select: none;
         font-family: 'Pretendard', 'Apple SD Gothic Neo', system-ui, sans-serif;
+        transition: transform 0.15s;
+      }
+      .bz-pin:hover { transform: translateY(-2px); }
+      .bz-pin-bubble {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #ffffff;
+        padding: 5px 10px 5px 6px;
+        border-radius: 18px;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.22), 0 1px 2px rgba(0,0,0,0.10);
         white-space: nowrap;
-        position: relative;
-        transition: all 0.15s;
-        border: 1.5px solid transparent;
+        border: 1.5px solid #ffffff;
       }
-      .bz-marker:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      .bz-pin-tail {
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 8px solid #ffffff;
+        margin-top: -1px;
+        filter: drop-shadow(0 2px 1px rgba(0,0,0,0.18));
       }
-      .bz-marker-icon {
-        width: 22px;
-        height: 22px;
+      .bz-pin-icon {
+        width: 20px; height: 20px;
         background: #2c2f3e;
         color: #FF6B35;
         border-radius: 50%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 800;
+        flex-shrink: 0;
       }
-      .bz-marker-name {
+      .bz-pin-name {
         font-size: 13px;
         font-weight: 600;
         color: #1a1d29;
       }
-      /* 선택된 마커 */
-      .bz-marker-selected {
+      .bz-pin-sub {
+        font-size: 11px;
+        color: #FF6B35;
+        font-weight: 700;
+        padding-left: 6px;
+        border-left: 1px solid #e0e0e0;
+        margin-left: 2px;
+      }
+      /* 선택된 핀 */
+      .bz-pin-selected {
+        z-index: 10;
+        transform: scale(1.08);
+      }
+      .bz-pin-selected .bz-pin-bubble {
         background: #FF6B35;
         border-color: #FF6B35;
-        transform: scale(1.05);
-        z-index: 10;
       }
-      .bz-marker-selected .bz-marker-icon {
+      .bz-pin-selected .bz-pin-tail {
+        border-top-color: #FF6B35;
+      }
+      .bz-pin-selected .bz-pin-icon {
         background: #ffffff;
         color: #FF6B35;
       }
-      .bz-marker-selected .bz-marker-name {
+      .bz-pin-selected .bz-pin-name { color: #ffffff; }
+      .bz-pin-selected .bz-pin-sub {
         color: #ffffff;
-      }
-      .bz-marker-sub {
-        font-size: 11px;
-        color: rgba(255,255,255,0.92);
-        margin-left: 2px;
-        padding-left: 6px;
-        border-left: 1px solid rgba(255,255,255,0.4);
+        border-left-color: rgba(255,255,255,0.5);
       }
     </style>
   </head>

@@ -25,6 +25,7 @@ export default function PlacesMapScreen({ navigation }: Props) {
   const [search, setSearch] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('distance');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [panTarget, setPanTarget] = useState<{ lat: number; lng: number; ts: number } | null>(null);
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: places, isLoading } = usePlaces(search);
@@ -57,6 +58,16 @@ export default function PlacesMapScreen({ navigation }: Props) {
     () => placesWithDistance.find((p) => p.id === selectedId),
     [placesWithDistance, selectedId]
   );
+
+  // 마커 선택 시 해당 위치로 지도 이동
+  React.useEffect(() => {
+    if (!selectedPlace) return;
+    const lat = (selectedPlace as any).lat;
+    const lng = (selectedPlace as any).lng;
+    if (lat != null && lng != null) {
+      setPanTarget({ lat, lng, ts: Date.now() });
+    }
+  }, [selectedId]);
 
   const handleChangeText = useCallback((text: string) => {
     setInputValue(text);
@@ -147,16 +158,23 @@ export default function PlacesMapScreen({ navigation }: Props) {
       {/* 지도 영역 (상단 50%) */}
       <View style={styles.mapWrap}>
         <KakaoMap
-          height={9999}
           center={userLocation.location ?? { lat: 37.5665, lng: 126.9780 }}
           userLocation={userLocation.location}
           markers={markers}
           onMarkerClick={(id) => setSelectedId(id)}
+          panTarget={panTarget}
         />
         {/* 내 위치 플로팅 버튼 */}
         <TouchableOpacity
           style={styles.locFab}
-          onPress={() => userLocation.request()}
+          onPress={() => {
+            if (userLocation.location) {
+              // 이미 받은 위치로 즉시 지도 이동
+              setPanTarget({ ...userLocation.location, ts: Date.now() });
+            }
+            // 최신 위치 다시 요청 (받아지면 status가 granted로 갱신됨)
+            userLocation.request();
+          }}
           activeOpacity={0.8}
         >
           <Text style={styles.locFabIcon}>🎯</Text>

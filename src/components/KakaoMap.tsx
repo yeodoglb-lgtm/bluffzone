@@ -23,6 +23,8 @@ interface KakaoMapProps {
   userLocation?: { lat: number; lng: number } | null;
   onMarkerClick?: (id: string) => void;
   height?: number;
+  /** 변경될 때마다 지도가 해당 좌표로 부드럽게 이동 (panTo) */
+  panTarget?: { lat: number; lng: number; ts: number } | null;
 }
 
 declare global {
@@ -37,7 +39,8 @@ export default function KakaoMap({
   markers = [],
   userLocation = null,
   onMarkerClick,
-  height = 400,
+  height,
+  panTarget = null,
 }: KakaoMapProps) {
   const mapEl = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<any>(null);
@@ -46,7 +49,7 @@ export default function KakaoMap({
   // 웹 전용 — 네이티브에선 placeholder
   if (Platform.OS !== 'web') {
     return (
-      <View style={[styles.placeholder, { height }]}>
+      <View style={[styles.placeholder, height ? { height } : { flex: 1 }]}>
         <Text style={styles.placeholderText}>📍 지도는 웹 또는 PWA에서 이용 가능</Text>
       </View>
     );
@@ -119,12 +122,15 @@ export default function KakaoMap({
     markers.forEach(m => {
       const isSelected = !!m.selected;
 
-      // 라벨 HTML — 알약 스타일 (스페이드 아이콘 + 펍명)
+      // 핀 + 말풍선 (꼬리 달린 라벨) — 참고 사이트(러너러너/카우보이) 스타일
       const labelHtml = `
-        <div class="bz-marker ${isSelected ? 'bz-marker-selected' : ''}" data-id="${m.id}">
-          <div class="bz-marker-icon">♠</div>
-          <div class="bz-marker-name">${m.name}</div>
-          ${isSelected && m.subtitle ? `<div class="bz-marker-sub">${m.subtitle}</div>` : ''}
+        <div class="bz-pin ${isSelected ? 'bz-pin-selected' : ''}" data-id="${m.id}">
+          <div class="bz-pin-bubble">
+            <span class="bz-pin-icon">♠</span>
+            <span class="bz-pin-name">${m.name}</span>
+            ${m.subtitle ? `<span class="bz-pin-sub">${m.subtitle}</span>` : ''}
+          </div>
+          <div class="bz-pin-tail"></div>
         </div>
       `;
 
@@ -142,7 +148,7 @@ export default function KakaoMap({
     if (onMarkerClick) {
       const handler = (e: any) => {
         const target = e.target as HTMLElement;
-        const wrap = target.closest?.('.bz-marker') as HTMLElement | null;
+        const wrap = target.closest?.('.bz-pin') as HTMLElement | null;
         if (wrap?.dataset.id) onMarkerClick(wrap.dataset.id);
       };
       const mapEl2 = mapEl.current;
@@ -161,6 +167,17 @@ export default function KakaoMap({
     }
     } // end addMarkers
   }, [markers, userLocation, onMarkerClick]);
+
+  // panTarget이 변하면 지도 이동
+  useEffect(() => {
+    if (!panTarget || !mapInstance.current || !window.kakao?.maps) return;
+    const ll = new window.kakao.maps.LatLng(panTarget.lat, panTarget.lng);
+    try {
+      mapInstance.current.panTo(ll);
+    } catch {
+      mapInstance.current.setCenter(ll);
+    }
+  }, [panTarget?.ts]);
 
   // 사용자 위치 마커 (별도 색상)
   useEffect(() => {
@@ -181,7 +198,7 @@ export default function KakaoMap({
   }, [userLocation]);
 
   return (
-    <View style={[styles.container, { height }]}>
+    <View style={[styles.container, height ? { height } : { flex: 1 }]}>
       {/* @ts-ignore — RN에서 div 직접 사용 (web only) */}
       <div ref={mapEl} style={{ width: '100%', height: '100%' }} />
     </View>
