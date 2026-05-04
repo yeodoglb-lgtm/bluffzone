@@ -91,15 +91,22 @@
         height: 100%;
         flex: 1;
       }
-      /* 모바일 텍스트 선택 차단 (선택 시 구글검색 팝업 등 방지) */
-      /* 입력 필드·textarea는 예외로 선택 가능 유지 */
-      *,
-      *::before,
-      *::after {
+      /* 기본: 텍스트 선택·복사 가능 (주소·전화·설명 등) */
+      body {
+        -webkit-user-select: text;
+        -webkit-touch-callout: default;
+        user-select: text;
+      }
+      /* 클릭 가능한 요소(버튼, 칩, 카드)에서는 선택 차단 → 구글 검색 팝업 방지 */
+      [role="button"],
+      button,
+      [data-no-select],
+      [aria-roledescription="button"] {
         -webkit-user-select: none;
         -webkit-touch-callout: none;
         user-select: none;
       }
+      /* 입력 필드는 항상 선택 가능 */
       input,
       textarea,
       [contenteditable="true"] {
