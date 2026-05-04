@@ -315,12 +315,21 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* 계정 */}
+        {/* 계정 — 로그인 상태에 따라 버튼 분기 */}
         <SectionHeader title="계정" />
         <View style={styles.card}>
-          <TouchableOpacity style={styles.dangerBtn} onPress={handleSignOut} disabled={signingOut}>
-            <Text style={styles.dangerBtnText}>{signingOut ? '로그아웃 중...' : '로그아웃'}</Text>
-          </TouchableOpacity>
+          {profile ? (
+            <TouchableOpacity style={styles.dangerBtn} onPress={handleSignOut} disabled={signingOut}>
+              <Text style={styles.dangerBtnText}>{signingOut ? '로그아웃 중...' : '로그아웃'}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.loginBtn}
+              onPress={() => (navigation as any).navigate('Auth')}
+            >
+              <Text style={styles.loginBtnText}>로그인 / 가입</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <Text style={styles.version}>BluffZone v1.0.0</Text>
@@ -392,5 +401,10 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.danger,
   },
   dangerBtnText: { fontSize: fontSize.base, color: colors.danger, fontWeight: fontWeight.semibold },
+  loginBtn: {
+    paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.button,
+    backgroundColor: colors.primary,
+  },
+  loginBtnText: { fontSize: fontSize.base, color: colors.bg, fontWeight: fontWeight.bold },
   version: { textAlign: 'center', fontSize: fontSize.xs, color: colors.textMuted, paddingTop: spacing.md },
 });
