@@ -119,14 +119,12 @@ export default function KakaoMap({
     markers.forEach(m => {
       const isSelected = !!m.selected;
 
-      // 라벨 HTML — 핀 + 펍명 (+선택 시 보조정보)
+      // 라벨 HTML — 알약 스타일 (스페이드 아이콘 + 펍명)
       const labelHtml = `
         <div class="bz-marker ${isSelected ? 'bz-marker-selected' : ''}" data-id="${m.id}">
-          <div class="bz-marker-pin">📍</div>
-          <div class="bz-marker-label">
-            <div class="bz-marker-name">${m.name}</div>
-            ${isSelected && m.subtitle ? `<div class="bz-marker-sub">${m.subtitle}</div>` : ''}
-          </div>
+          <div class="bz-marker-icon">♠</div>
+          <div class="bz-marker-name">${m.name}</div>
+          ${isSelected && m.subtitle ? `<div class="bz-marker-sub">${m.subtitle}</div>` : ''}
         </div>
       `;
 

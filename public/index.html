@@ -115,49 +115,64 @@
         -webkit-touch-callout: default;
       }
 
-      /* 카카오맵 커스텀 마커 (BluffZone places) */
+      /* BluffZone 펍 마커 — 둥근 알약 스타일 (러너러너 참고) */
       .bz-marker {
-        display: flex;
-        flex-direction: column;
+        display: inline-flex;
         align-items: center;
+        gap: 4px;
+        background: #ffffff;
+        padding: 5px 10px 5px 6px;
+        border-radius: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.08);
         cursor: pointer;
         user-select: none;
-      }
-      .bz-marker-pin {
-        font-size: 28px;
-        line-height: 1;
-        filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
-        transition: transform 0.15s;
-      }
-      .bz-marker-selected .bz-marker-pin {
-        font-size: 36px;
-        transform: translateY(-2px);
-      }
-      .bz-marker-label {
-        background: white;
-        border-radius: 14px;
-        padding: 4px 10px;
-        margin-top: 2px;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+        font-family: 'Pretendard', 'Apple SD Gothic Neo', system-ui, sans-serif;
         white-space: nowrap;
-        border: 1.5px solid #FF6B35;
+        position: relative;
+        transition: all 0.15s;
+        border: 1.5px solid transparent;
       }
-      .bz-marker-selected .bz-marker-label {
-        background: #FF6B35;
-        border-color: #FF6B35;
+      .bz-marker:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      }
+      .bz-marker-icon {
+        width: 22px;
+        height: 22px;
+        background: #2c2f3e;
+        color: #FF6B35;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 800;
       }
       .bz-marker-name {
-        font-size: 12px;
-        font-weight: bold;
-        color: #0A0A0A;
+        font-size: 13px;
+        font-weight: 600;
+        color: #1a1d29;
+      }
+      /* 선택된 마커 */
+      .bz-marker-selected {
+        background: #FF6B35;
+        border-color: #FF6B35;
+        transform: scale(1.05);
+        z-index: 10;
+      }
+      .bz-marker-selected .bz-marker-icon {
+        background: #ffffff;
+        color: #FF6B35;
       }
       .bz-marker-selected .bz-marker-name {
-        color: white;
+        color: #ffffff;
       }
       .bz-marker-sub {
         font-size: 11px;
-        color: rgba(255,255,255,0.9);
-        margin-top: 1px;
+        color: rgba(255,255,255,0.92);
+        margin-left: 2px;
+        padding-left: 6px;
+        border-left: 1px solid rgba(255,255,255,0.4);
       }
     </style>
   </head>
