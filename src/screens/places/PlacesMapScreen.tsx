@@ -14,6 +14,7 @@ import type { PlacesStackParamList } from '../../navigation/types';
 import type { Place } from '../../types/database';
 import { usePlaces } from '../../hooks/usePlaces';
 import { useUserLocation, calcDistanceKm, formatDistance } from '../../hooks/useUserLocation';
+import Svg, { Circle, Line } from 'react-native-svg';
 import KakaoMap from '../../components/KakaoMap';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 
@@ -181,7 +182,17 @@ export default function PlacesMapScreen({ navigation }: Props) {
           }}
           activeOpacity={0.8}
         >
-          <Text style={styles.locFabIcon}>🎯</Text>
+          <Svg width={22} height={22} viewBox="0 0 24 24">
+            {/* 십자선 */}
+            <Line x1="12" y1="1" x2="12" y2="5" stroke={colors.text} strokeWidth={2} strokeLinecap="round" />
+            <Line x1="12" y1="19" x2="12" y2="23" stroke={colors.text} strokeWidth={2} strokeLinecap="round" />
+            <Line x1="1" y1="12" x2="5" y2="12" stroke={colors.text} strokeWidth={2} strokeLinecap="round" />
+            <Line x1="19" y1="12" x2="23" y2="12" stroke={colors.text} strokeWidth={2} strokeLinecap="round" />
+            {/* 외곽 원 */}
+            <Circle cx="12" cy="12" r="7" stroke={colors.text} strokeWidth={2} fill="none" />
+            {/* 중앙 점 */}
+            <Circle cx="12" cy="12" r="2" fill={colors.primary} />
+          </Svg>
         </TouchableOpacity>
       </View>
 
