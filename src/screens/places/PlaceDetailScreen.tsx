@@ -227,6 +227,18 @@ export default function PlaceDetailScreen({ route, navigation }: Props) {
             </ScrollView>
           </View>
         ) : null}
+
+        {/* 면책 고지 — 회색지대 회피, 매장 자율 운영 명시 */}
+        <View style={styles.disclaimer}>
+          <Text style={styles.disclaimerTitle}>ⓘ 안내</Text>
+          <Text style={styles.disclaimerText}>
+            본 정보는 매장이 직접 제공한 토너먼트 및 운영 정보만 표시합니다.
+            그 외 운영 사항은 각 매장에 직접 문의해주세요.
+            {'\n\n'}
+            블러프존은 매장 운영에 관여하지 않으며,
+            불법 사행행위를 권장하거나 중개하지 않습니다.
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -424,4 +436,24 @@ const styles = StyleSheet.create({
   },
   photoPlaceholder: { fontSize: 24 },
   photoUrl: { fontSize: 9, color: colors.textMuted, marginTop: 4 },
+
+  disclaimer: {
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: spacing.xs,
+  },
+  disclaimerTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textMuted,
+  },
+  disclaimerText: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    lineHeight: fontSize.xs * 1.7,
+  },
 });
