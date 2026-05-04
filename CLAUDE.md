@@ -318,6 +318,44 @@ Docker 없어도 됨 (WARNING은 무시). 배포 후 `functions list`로 VERSION
 - **Workflow**: `.github/workflows/supabase-keep-alive.yml`
 - 5분마다 Supabase REST + Auth + Edge Function ping (cold start 방지)
 
+### Anthropic (Claude API — 핸드 리뷰)
+- **API 키**: Supabase Edge Function 시크릿 `ANTHROPIC_API_KEY`
+- **모델**: claude-sonnet-4-5 (hand-review-gpt 엔드포인트, 2026-05-01 전환)
+- **요금**: $5 충전 (~150회 리뷰)
+- **fallback**: 키 없으면 자동으로 GPT-4o 사용
+
+### Kakao Local API (좌표 변환 + 펍 검색)
+- **REST API 키**: `c2caf40017d212df12f9b050c7d74c56`
+- **사용**: 주소 → 좌표 변환, "홀덤펍" 키워드 검색
+- **무료 한도**: 일 100,000 호출
+- **엔드포인트 예시**:
+  - 키워드 검색: `https://dapi.kakao.com/v2/local/search/keyword.json?query=...`
+  - 주소→좌표: `https://dapi.kakao.com/v2/local/search/address.json?query=...`
+- **헤더**: `Authorization: KakaoAK c2caf40017d212df12f9b050c7d74c56`
+
+---
+
+## 🏪 홀덤펍 데이터 수집 (2026-05-04, 진행 중)
+
+### 수집 완료
+저장 위치: `C:\Users\ghkdr\OneDrive\바탕 화면\블러프존_펍데이터`
+- **runnerrunner-pubs.json/csv** (890개) — lat/lng·전화·게임타입·바이인 다 포함, **카카오 변환 불필요**
+- **holdempeople-pubs.json/csv** (159개) — 이름·시구만 추출, 좌표·전화 비어있음 → **카카오 검색으로 보완 필요**
+
+### 데이터 source 분석
+- 러너러너 890 vs 홀덤민족 159 → 겹침 47개, 홀덤민족만 112개
+- 러너러너 only: 843 / 홀덤민족 only: 112 / 합치면 약 1,000개
+
+### 러너러너 API
+- 엔드포인트: `https://api.runnerrunner.co.kr/nest/pub/search` (POST)
+- 인증: JWT Bearer (사용자 계정 토큰)
+- Payload: `{ lat, lon, km, sort: 'distance' }`
+- **사용자 토큰은 30일 만료** — 다시 받으려면 사용자가 F12 → Network → pub/search 헤더 재추출
+
+### 다음 단계 (보류 — 사용자 요청)
+- 사용자가 "플레이스 메뉴 정비 먼저 하자" 라고 함 (2026-05-04)
+- 등록 작업은 메뉴 정비 후 진행
+
 ---
 
 ## 🔑 사용자 트리거 문구 (이 말 나오면 즉시 실행)

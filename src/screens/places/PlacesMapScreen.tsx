@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,16 +13,45 @@ import type { StackScreenProps } from '@react-navigation/stack';
 import type { PlacesStackParamList } from '../../navigation/types';
 import type { Place } from '../../types/database';
 import { usePlaces } from '../../hooks/usePlaces';
+import { useUserLocation, calcDistanceKm, formatDistance } from '../../hooks/useUserLocation';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 
 type Props = StackScreenProps<PlacesStackParamList, 'PlacesMap'>;
+type SortMode = 'distance' | 'name';
 
 export default function PlacesMapScreen({ navigation }: Props) {
   const [inputValue, setInputValue] = useState('');
   const [search, setSearch] = useState('');
+  const [sortMode, setSortMode] = useState<SortMode>('distance');
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: places, isLoading } = usePlaces(search);
+  // 진입 시 자동으로 위치 권한 요청
+  const userLocation = useUserLocation(true);
+
+  // 거리 계산 + 정렬
+  const placesWithDistance = useMemo(() => {
+    if (!places) return [];
+    const list = places.map((p) => {
+      const lat = (p as any).lat;
+      const lng = (p as any).lng;
+      const distKm =
+        userLocation.location && lat != null && lng != null
+          ? calcDistanceKm(userLocation.location, { lat, lng })
+          : null;
+      return { ...p, _distKm: distKm };
+    });
+    if (sortMode === 'distance' && userLocation.location) {
+      list.sort((a, b) => {
+        if (a._distKm == null) return 1;
+        if (b._distKm == null) return -1;
+        return a._distKm - b._distKm;
+      });
+    } else {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return list;
+  }, [places, userLocation.location, sortMode]);
 
   const handleChangeText = useCallback((text: string) => {
     setInputValue(text);
@@ -33,7 +62,7 @@ export default function PlacesMapScreen({ navigation }: Props) {
   }, []);
 
   const renderItem = useCallback(
-    ({ item }: { item: Place }) => (
+    ({ item }: { item: Place & { _distKm?: number | null } }) => (
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.7}
@@ -43,6 +72,11 @@ export default function PlacesMapScreen({ navigation }: Props) {
           <Text style={styles.cardName} numberOfLines={1}>
             {item.name}
           </Text>
+          {item._distKm != null && (
+            <View style={styles.distBadge}>
+              <Text style={styles.distBadgeText}>📍 {formatDistance(item._distKm)}</Text>
+            </View>
+          )}
           {item.featured && (
             <View style={styles.featuredBadge}>
               <Text style={styles.featuredBadgeText}>⭐ 추천</Text>
@@ -111,10 +145,65 @@ export default function PlacesMapScreen({ navigation }: Props) {
         />
       </View>
 
-      <View style={styles.mapBanner}>
-        <Text style={styles.mapBannerText}>
-          📍 지도는 네이티브 앱에서 이용 가능합니다
-        </Text>
+      {/* 위치 권한 상태 배너 */}
+      {userLocation.status === 'loading' && (
+        <View style={styles.locBanner}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={styles.locBannerText}>위치 정보를 받는 중…</Text>
+        </View>
+      )}
+      {userLocation.status === 'denied' && (
+        <View style={[styles.locBanner, styles.locBannerWarn]}>
+          <Text style={styles.locBannerEmoji}>📍</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.locBannerText}>
+              위치 권한이 거부되어 거리순 정렬이 안 돼요
+            </Text>
+            <Text style={styles.locBannerSub}>
+              브라우저 주소창 옆 자물쇠 아이콘 → 위치 허용
+            </Text>
+          </View>
+          <TouchableOpacity onPress={userLocation.request} style={styles.locBannerBtn}>
+            <Text style={styles.locBannerBtnText}>다시 시도</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {userLocation.status === 'unsupported' && (
+        <View style={[styles.locBanner, styles.locBannerWarn]}>
+          <Text style={styles.locBannerEmoji}>⚠️</Text>
+          <Text style={styles.locBannerText}>이 환경에선 위치 정보 미지원</Text>
+        </View>
+      )}
+
+      {/* 정렬 토글 */}
+      <View style={styles.sortRow}>
+        <TouchableOpacity
+          style={[styles.sortBtn, sortMode === 'distance' && styles.sortBtnActive]}
+          onPress={() => setSortMode('distance')}
+          disabled={!userLocation.location}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[
+              styles.sortBtnText,
+              sortMode === 'distance' && styles.sortBtnTextActive,
+              !userLocation.location && styles.sortBtnDisabled,
+            ]}
+          >
+            📍 거리순
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.sortBtn, sortMode === 'name' && styles.sortBtnActive]}
+          onPress={() => setSortMode('name')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.sortBtnText, sortMode === 'name' && styles.sortBtnTextActive]}>
+            🔤 이름순
+          </Text>
+        </TouchableOpacity>
+        <View style={{ flex: 1 }} />
+        <Text style={styles.totalText}>총 {placesWithDistance.length}곳</Text>
       </View>
 
       {isLoading ? (
@@ -123,7 +212,7 @@ export default function PlacesMapScreen({ navigation }: Props) {
         </View>
       ) : (
         <FlatList
-          data={places}
+          data={placesWithDistance}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           ListEmptyComponent={listEmpty}
@@ -187,6 +276,64 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textMuted,
   },
+  locBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.base,
+    marginBottom: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  locBannerWarn: {
+    backgroundColor: `${colors.warning}11`,
+    borderColor: `${colors.warning}55`,
+  },
+  locBannerEmoji: { fontSize: 18 },
+  locBannerText: { fontSize: fontSize.sm, color: colors.text, flex: 1 },
+  locBannerSub: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  locBannerBtn: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  locBannerBtnText: { fontSize: fontSize.xs, color: colors.primary, fontWeight: fontWeight.bold },
+  sortRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginHorizontal: spacing.base,
+    marginBottom: spacing.sm,
+  },
+  sortBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  sortBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  sortBtnText: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.medium },
+  sortBtnTextActive: { color: colors.bg, fontWeight: fontWeight.bold },
+  sortBtnDisabled: { opacity: 0.4 },
+  totalText: { fontSize: fontSize.xs, color: colors.textMuted },
+  distBadge: {
+    backgroundColor: `${colors.primary}22`,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  distBadgeText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.primary },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
