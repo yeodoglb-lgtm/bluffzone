@@ -48,25 +48,62 @@ export default function KakaoMap({
     );
   }
 
-  // 지도 초기화 (1회)
+  // 지도 초기화 — SDK 로드 대기 후 실행
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.kakao || !window.kakao.maps) {
-      console.warn('[KakaoMap] SDK 로드 안 됨');
-      return;
+    if (typeof window === 'undefined') return;
+
+    let cancelled = false;
+    let pollCount = 0;
+    const maxPolls = 50; // 5초 (100ms × 50)
+
+    function tryInit() {
+      if (cancelled) return;
+      // SDK 로드 대기
+      if (!window.kakao || !window.kakao.maps) {
+        if (pollCount++ < maxPolls) {
+          setTimeout(tryInit, 100);
+        } else {
+          console.warn('[KakaoMap] SDK 로드 시간 초과 (5초)');
+        }
+        return;
+      }
+      // autoload=false 라서 명시적 load 호출
+      window.kakao.maps.load(() => {
+        if (cancelled || !mapEl.current) return;
+        try {
+          const opts = {
+            center: new window.kakao.maps.LatLng(center.lat, center.lng),
+            level,
+          };
+          mapInstance.current = new window.kakao.maps.Map(mapEl.current, opts);
+          console.log('[KakaoMap] 초기화 완료');
+        } catch (e) {
+          console.error('[KakaoMap] 초기화 실패:', e);
+        }
+      });
     }
-    window.kakao.maps.load(() => {
-      if (!mapEl.current) return;
-      const opts = {
-        center: new window.kakao.maps.LatLng(center.lat, center.lng),
-        level,
-      };
-      mapInstance.current = new window.kakao.maps.Map(mapEl.current, opts);
-    });
+
+    tryInit();
+    return () => { cancelled = true; };
   }, []);
 
-  // 마커 동기화
+  // 마커 동기화 — mapInstance가 늦게 준비될 수 있어 폴링
   useEffect(() => {
-    if (!mapInstance.current || !window.kakao?.maps) return;
+    if (typeof window === 'undefined') return;
+    let cancelled = false;
+    let pollCount = 0;
+    function tryAddMarkers() {
+      if (cancelled) return;
+      if (!mapInstance.current || !window.kakao?.maps) {
+        if (pollCount++ < 50) setTimeout(tryAddMarkers, 100);
+        return;
+      }
+      addMarkers();
+    }
+    tryAddMarkers();
+    return () => { cancelled = true; };
+
+    function addMarkers() {
     const maps = window.kakao.maps;
 
     // 기존 마커 제거
@@ -103,6 +140,7 @@ export default function KakaoMap({
       if (userLocation) bounds.extend(new maps.LatLng(userLocation.lat, userLocation.lng));
       mapInstance.current.setBounds(bounds);
     }
+    } // end addMarkers
   }, [markers, userLocation, onMarkerClick]);
 
   // 사용자 위치 마커 (별도 색상)
