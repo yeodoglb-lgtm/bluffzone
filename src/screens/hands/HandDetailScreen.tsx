@@ -17,6 +17,7 @@ import type { HandsStackParamList } from '../../navigation/types';
 import { SUIT_COLORS, SUIT_SYMBOLS } from '../../constants/poker';
 import type { Card, Street, Position9Max, HandAction } from '../../constants/poker';
 import { useHand, useDeleteHand, useUpdateHand, useHands } from '../../hooks/useHands';
+import { findBestFiveIndices, isInBestFive } from '../../utils/handEval';
 
 type Props = StackScreenProps<HandsStackParamList, 'HandDetail'>;
 
@@ -1098,18 +1099,36 @@ export default function HandDetailScreen({ navigation, route }: Props) {
 
                 {/* 공유 카드 헤더 — 캡처해서 공유하기 좋게 디자인 */}
                 {(() => {
-                  // 보드에서 하이라이트할 카드 계산:
-                  //   히어로/빌런 hand의 rank가 보드에 있거나, 보드 자체가 페어/트립 → 하이라이트
-                  const heroRanks = new Set((hand.hero_cards ?? []).map(c => c.rank));
-                  const villainRanks = new Set((hand.villain_known && hand.villain_cards ? hand.villain_cards : []).map(c => c.rank));
-                  const boardArr = hand.board ?? [];
-                  const boardRankCount: Record<string, number> = {};
-                  boardArr.forEach(c => { boardRankCount[c.rank] = (boardRankCount[c.rank] || 0) + 1; });
-                  const isBoardHighlight = (rank: string) =>
-                    (heroRanks as Set<string>).has(rank) || (villainRanks as Set<string>).has(rank) || (boardRankCount[rank] ?? 0) >= 2;
-
                   const heroWon = hand.result === 'won';
                   const villainWon = hand.result === 'lost';
+                  const boardArr = hand.board ?? [];
+
+                  // 승자의 베스트 5장 인덱스 — 보드 + 하이라이트할 hole/board 카드 결정
+                  // 히어로 승: 히어로 hole 2 + 보드 5 → 베스트 5
+                  // 빌런 승 + 카드 공개: 빌런 hole 2 + 보드 5 → 베스트 5
+                  // 그 외(폴드 / 빌런 카드 미공개): 단순 매칭 rank만
+                  let winnerBest5: Set<number> | null = null;
+                  if (heroWon && hand.hero_cards?.length === 2 && boardArr.length >= 3) {
+                    winnerBest5 = findBestFiveIndices(hand.hero_cards, boardArr);
+                  } else if (villainWon && hand.villain_known && hand.villain_cards?.length === 2 && boardArr.length >= 3) {
+                    winnerBest5 = findBestFiveIndices(hand.villain_cards, boardArr);
+                  }
+
+                  // 폴백 로직 (winnerBest5 없을 때): 매칭 rank만 하이라이트
+                  const heroRanks = new Set((hand.hero_cards ?? []).map(c => c.rank));
+                  const villainRanks = new Set((hand.villain_known && hand.villain_cards ? hand.villain_cards : []).map(c => c.rank));
+                  const boardRankCount: Record<string, number> = {};
+                  boardArr.forEach(c => { boardRankCount[c.rank] = (boardRankCount[c.rank] || 0) + 1; });
+                  const isBoardHighlight = (rank: string, idx: number) => {
+                    if (winnerBest5) return isInBestFive(winnerBest5, null, idx);
+                    return (heroRanks as Set<string>).has(rank) || (villainRanks as Set<string>).has(rank) || (boardRankCount[rank] ?? 0) >= 2;
+                  };
+                  const isHoleHighlight = (idx: number, isHero: boolean) => {
+                    if (!winnerBest5) return false;
+                    if (isHero && !heroWon) return false;
+                    if (!isHero && !villainWon) return false;
+                    return isInBestFive(winnerBest5, idx, null);
+                  };
 
                   return (
                 <View ref={shareCardRef} style={styles.reviewShareCard}>
@@ -1127,13 +1146,16 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                           {heroWon ? '🏆 내 카드' : '내 카드'}
                         </Text>
                         <View style={{ flexDirection: 'row', gap: 4 }}>
-                          {hand.hero_cards.map((c, i) => (
-                            <View key={i} style={[styles.reviewShareCardItem, heroWon && styles.reviewShareCardWinner]}>
-                              <Text style={[styles.reviewShareCardText, { color: SUIT_COLORS[c.suit] }]}>
-                                {c.rank}{SUIT_SYMBOLS[c.suit]}
-                              </Text>
-                            </View>
-                          ))}
+                          {hand.hero_cards.map((c, i) => {
+                            const hl = winnerBest5 ? isHoleHighlight(i, true) : heroWon;
+                            return (
+                              <View key={i} style={[styles.reviewShareCardItem, hl && styles.reviewShareCardWinner]}>
+                                <Text style={[styles.reviewShareCardText, { color: SUIT_COLORS[c.suit] }]}>
+                                  {c.rank}{SUIT_SYMBOLS[c.suit]}
+                                </Text>
+                              </View>
+                            );
+                          })}
                         </View>
                       </View>
                     )}
@@ -1144,13 +1166,16 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                           {villainWon ? '🏆 빌런' : '빌런'}
                         </Text>
                         <View style={{ flexDirection: 'row', gap: 4 }}>
-                          {hand.villain_cards.map((c, i) => (
-                            <View key={i} style={[styles.reviewShareCardItem, villainWon && styles.reviewShareCardWinner]}>
-                              <Text style={[styles.reviewShareCardText, { color: SUIT_COLORS[c.suit] }]}>
-                                {c.rank}{SUIT_SYMBOLS[c.suit]}
-                              </Text>
-                            </View>
-                          ))}
+                          {hand.villain_cards.map((c, i) => {
+                            const hl = winnerBest5 ? isHoleHighlight(i, false) : villainWon;
+                            return (
+                              <View key={i} style={[styles.reviewShareCardItem, hl && styles.reviewShareCardWinner]}>
+                                <Text style={[styles.reviewShareCardText, { color: SUIT_COLORS[c.suit] }]}>
+                                  {c.rank}{SUIT_SYMBOLS[c.suit]}
+                                </Text>
+                              </View>
+                            );
+                          })}
                         </View>
                       </View>
                     ) : (
@@ -1174,7 +1199,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                       <Text style={styles.reviewShareCardLabel}>보드</Text>
                       <View style={{ flexDirection: 'row', gap: 4, justifyContent: 'center' }}>
                         {hand.board.map((c, i) => {
-                          const hl = isBoardHighlight(c.rank);
+                          const hl = isBoardHighlight(c.rank, i);
                           return (
                             <View key={i} style={[styles.reviewShareCardItem, hl && styles.reviewShareCardHighlight]}>
                               <Text style={[styles.reviewShareCardText, { color: SUIT_COLORS[c.suit] }]}>
