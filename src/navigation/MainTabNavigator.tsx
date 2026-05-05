@@ -156,16 +156,19 @@ export default function MainTabNavigator() {
           ),
         }}
       />
-      <Tab.Screen
-        name="PlacesTab"
-        component={PlacesNavigator}
-        options={{
-          tabBarLabel: '플레이스',
-          tabBarIcon: ({ color, size }) => (
-            <MapPin color={color} size={size - 2} strokeWidth={2} />
-          ),
-        }}
-      />
+      {/* 플레이스 탭 — 베타 동안 어드민만 노출 (유튜브 광고 시 수익성 목적 인상 회피) */}
+      {isAdmin && (
+        <Tab.Screen
+          name="PlacesTab"
+          component={PlacesNavigator}
+          options={{
+            tabBarLabel: '플레이스',
+            tabBarIcon: ({ color, size }) => (
+              <MapPin color={color} size={size - 2} strokeWidth={2} />
+            ),
+          }}
+        />
+      )}
       <Tab.Screen
         name="SettingsTab"
         component={SettingsScreen}
