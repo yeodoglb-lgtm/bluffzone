@@ -290,9 +290,21 @@ function buildCacheKey(hand: any): string {
   const potBucket = hand?.pot_size ? Math.round(Math.log10(hand.pot_size + 1) * 2) : 0;
   const stackBucket = hand?.effective_stack ? Math.round(Math.log10(hand.effective_stack + 1) * 2) : 0;
 
-  // v3: 넛츠 로직 강화 + 모든 필드 필수화 — 이전 캐시 무효화
-  const SCHEMA_VERSION = 'v3';
-  return [SCHEMA_VERSION, heroPos, villainPos, aggressor, heroCards, board, actions, potBucket, stackBucket].join('_');
+  // 토너 / 빌런 타입 / 빌런 카드 공개 — 분석 분기에 영향
+  const tournamentFlag = hand?.is_tournament === true ? 'T' : 'C';
+  const bbChips = hand?.bb_chips != null ? `bb${hand.bb_chips}` : '';
+  const villainTypeKey = norm(hand?.villain_type).slice(0, 8); // 첫 8자만 (피쉬/TAG/NIT 등)
+  const villainKnown = hand?.villain_known === true ? 'VK' : 'VU';
+  const villainCardsKey = hand?.villain_known ? cardsStr(hand?.villain_cards) : '';
+
+  // v4: 토너/빌런타입/빌런카드 추가 — 동일 액션이지만 컨텍스트 다르면 별도 캐시
+  const SCHEMA_VERSION = 'v4';
+  return [
+    SCHEMA_VERSION, tournamentFlag, bbChips,
+    heroPos, villainPos, aggressor, villainTypeKey,
+    heroCards, villainKnown, villainCardsKey, board,
+    actions, potBucket, stackBucket
+  ].filter(Boolean).join('_');
 }
 
 // ── 음성 파싱 시스템 프롬프트 ────────────────────────────────────────────────
@@ -921,10 +933,29 @@ serve(async (req) => {
         const heroActs = actionsByStreet[s].filter((a: any) => a.actor === 'hero');
         if (heroActs.length === 0) return `  · ${s.toUpperCase()}: (히어로 액션 없음)`;
         const line = heroActs.map((a: any) =>
-          `${a.action}${a.amount != null ? ' ' + a.amount : ''}`
+          `${a.action}${a.amount != null ? ' ' + fmtMoney(a.amount) : ''}`
         ).join(' → ');
         return `  · ${s.toUpperCase()}: ${line}`;
       }).join('\n');
+
+      // preflop_aggressor 검증 — 사용자 입력값과 실제 첫 raise 액터가 일치하는지
+      // 불일치 시 AI에게 경고 표시
+      let preflopAggressorValidation = '';
+      const userPreflopAgg = (hand?.preflop_aggressor ?? '').toString().trim();
+      const preflopActs = actionsByStreet['preflop'] ?? [];
+      const firstRaiser = preflopActs.find((a: any) =>
+        a.action === 'raise' || a.action === 'allin'
+      );
+      if (userPreflopAgg && firstRaiser) {
+        const heroIsAgg = firstRaiser.actor === 'hero';
+        const userClaimsHero = /hero|히어로|나|btn|co|sb|bb|utg|hj|mp|lj/i.test(userPreflopAgg);
+        // 단순 일치 체크: 사용자가 "hero/나"라고 했는데 첫 raise가 빌런이면 모순
+        if (heroIsAgg && /빌런|villain/i.test(userPreflopAgg)) {
+          preflopAggressorValidation = '\n  ⚠️ preflop_aggressor 입력값과 실제 액션 불일치 — 액션 데이터 우선.';
+        } else if (!heroIsAgg && /나|hero|히어로/.test(userPreflopAgg)) {
+          preflopAggressorValidation = '\n  ⚠️ preflop_aggressor "히어로" 표기됐으나 실제 첫 raise는 빌런 — 액션 데이터 우선.';
+        }
+      }
 
       const position = `${hand?.hero_position ?? '?'} (히어로) vs ${hand?.villain_position ?? '?'} (빌런)`;
       const handCards = fmtCards(hand?.hero_cards);
@@ -949,10 +980,18 @@ serve(async (req) => {
       const sbChips = hand?.sb_chips ?? null;
       const bbChips = hand?.bb_chips ?? null;
       const anteChips = hand?.ante_chips ?? null;
-      // 유효 스택 BB 환산
-      const effStackBb = (isTournament && hand?.effective_stack && bbChips)
-        ? Math.round(Number(hand.effective_stack) / Number(bbChips))
-        : null;
+      // 유효 스택 BB 환산 — 가드: BB 환산 결과가 합리적 범위(0.5 ~ 500bb) 안일 때만 사용
+      // 사용자가 effective_stack에 이미 BB값을 입력한 경우(예: 30) bbChips=1000 → 0.03bb 같은 결과 나옴 → 차단
+      let effStackBb: number | null = null;
+      if (isTournament && hand?.effective_stack && bbChips) {
+        const computed = Number(hand.effective_stack) / Number(bbChips);
+        if (computed >= 0.5 && computed <= 500) {
+          effStackBb = Math.round(computed);
+        } else if (computed < 0.5 && Number(hand.effective_stack) >= 0.5 && Number(hand.effective_stack) <= 500) {
+          // 사용자가 effective_stack에 이미 BB 단위로 입력한 케이스 추정 → 그 값 그대로 사용
+          effStackBb = Math.round(Number(hand.effective_stack));
+        }
+      }
 
       // ── 서버 사전 계산: 보드 텍스처, 히어로 메이드 핸드, 드로우, SPR ─────────
       const heroP = parseCards(hand?.hero_cards);
@@ -1014,6 +1053,14 @@ serve(async (req) => {
       }
 
       // 스트리트 블록 재구성: 보드 텍스처 + 히어로 핸드 강도 + 사이즈 정보 포함
+      // 멀티웨이 빌런 식별 보존 — actor 별로 ★히어로 / 빌런1 / 빌런2 / 빌런3 표기
+      const actorLabelRich = (actor: string): string => {
+        if (actor === 'hero') return '★히어로';
+        if (actor === 'villain1') return '빌런1';
+        if (actor === 'villain2') return '빌런2';
+        if (actor === 'villain3') return '빌런3';
+        return '빌런';
+      };
       const richStreetsBlock = streetOrder
         .map((s) => {
           const acts = actionsByStreet[s];
@@ -1025,7 +1072,7 @@ serve(async (req) => {
           const line = acts
             .map(
               (a: any) =>
-                `${a.actor === 'hero' ? '히어로' : '빌런'} ${a.action}${a.amount != null ? ' ' + fmtMoney(a.amount) : ''}`
+                `${actorLabelRich(a.actor)} ${a.action}${a.amount != null ? ' ' + fmtMoney(a.amount) : ''}`
             )
             .join(' → ');
           return `${header}${meta}\n    액션: ${line}`;
@@ -1161,10 +1208,21 @@ SPR > 10 (깊음, 림프드 팟·콜드 콜 팟)
 [빌런 타입 빠른 추정] 정보 없으면 'TAG' 가정.
 "피쉬·호구"=1, "잘 친다·레귤러"=TAG, "공격적·미쳤다"=LAG/매니악, "타이트·폴드 잘함"=NIT.
 
+[액션 데이터 의미 — AI가 반드시 알아야 할 약속]
+서버가 보내는 액션의 amount는 **"그 액션에서 그 플레이어가 추가로 넣은 칩"** (BY-amount, 증분).
+- 예: "히어로 raise 30000 → 빌런 raise 90000 → 히어로 call 60000"
+  · 히어로 첫 raise 3만 = 히어로 누적 commit 3만
+  · 빌런 raise 9만 = 빌런 누적 commit 9만 (빌런이 0에서 9만 넣음)
+  · 히어로 call 6만 = 히어로 추가 6만 → 누적 9만
+  · 그 스트리트 팟 증가량 = 3 + 9 + 6 = 18만
+- 절대 amount를 "to-amount(누적)"로 해석하지 말 것.
+- 금액 기반 사이즈 비교 시(예: "벳 5천원 = 1/4팟") 서버가 사이즈 가이드를 직접 제공하니 그것만 참조.
+
 [절대 규칙]
 ① 서버가 준 "히어로 현재 핸드"를 그대로 인정. 카드 재해석 금지.
 ② **넛츠급(⭐)/강한 핸드(💪)는 체크/콜이 기본 추천이 되면 안 됨.** 밸류 벳·레이즈가 1순위.
-   · 유일한 예외: (a) 웻 보드에서 히어로가 어그레서 아닌 플랍 공격 방어 (b) SPR ≥ 15에서 트랩 + 스택 보존 전략. 이 때도 frequency 60 이하로만.
+   · 유일한 예외 (a) 웻 보드에서 히어로가 어그레서 아닌 플랍 공격 방어 (b) SPR ≥ 15에서 트랩 + 스택 보존 전략. 이 때도 frequency 60 이하로만.
+   · **빌런 카드 공개 + 히어로가 지고 있는 쿨러 스팟은 이 규칙 적용 안 됨 (규칙 ⑮ 우선).**
    · "레이즈도 가능" 같은 모호 표현 금지. 구체 수치로 alt_action에.
 ③ **빌런 핸드 단정 절대 금지.**
    · 금지: "빌런이 탑페어다", "빌런 블러프다"
@@ -1206,25 +1264,18 @@ SPR > 10 (깊음, 림프드 팟·콜드 콜 팟)
      · 빌런이 이미 베팅한 상태 → 히어로는 call/raise/fold 중에서만 추천
      · 히어로가 첫 액션 차례 → check/bet 중에서 추천
    - **recommended_line도 합법적 시퀀스여야 함.** "플랍 체크" 추천했다면 빌런이 그 전에 안 쳤어야 함.
-⑭⑭ **actual_line 작성 절대 규칙 (가장 자주 틀리는 부분 — 위반 시 전체 리뷰 무효).**
-   - actual_line = **히어로(★)가 실제로 한 액션을 시간순으로 모두** 나열. 빌런 액션 X.
-   - 각 스트리트마다 히어로가 한 액션이 있으면 빠짐없이 포함.
-     · 잘못된 예: 액션 = [빌런 raise 3만, ★히어로 raise 9만 (3-bet), 빌런 call] → actual_line: "콜 (프리플랍)" (X! 히어로는 3-bet 9만 한 것)
-     · 올바른 예: 위 같은 시퀀스 → actual_line: "3-bet 9만(프리플랍) → ..."
-     · 잘못된 예: 액션 = [빌런 check, ★히어로 bet 8만, 빌런 raise 20만, ★히어로 allin 40만, 빌런 fold] → actual_line: "체크(턴) → 레이즈 올인(40만)" (X! 8만 벳, 40만 올인 둘 다 히어로 액션)
-     · 올바른 예: 위 같은 시퀀스 → actual_line: "벳 8만(리버) → 빌런 레이즈 20만에 올인 40만 → 빌런 폴드"
-   - 액션 데이터의 actor 필드 ("hero" 표시)를 그대로 보고 히어로 액션만 추출. 빌런 액션을 히어로 것으로 착각 금지.
-   - actual_line이 액션 목록과 일치하지 않으면 헤드라인·평점·실수도 다 어긋남. **반드시 액션 목록 한 줄 한 줄 짚어가며 작성**.
+⑭ **히어로 액션 정확성 + actual_line 작성 규칙 (가장 자주 틀리는 부분 — 위반 시 전체 리뷰 무효).**
+   - 액션 목록에 actor 필드("★히어로" / "빌런1" / "빌런2" / "빌런3") 명시. 그 표시 그대로 따르라.
+   - **actual_line = 히어로(★)가 실제로 한 액션을 시간순으로 모두 나열. 빌런 액션 X.**
+   - 각 스트리트마다 히어로가 한 액션이 있으면 빠짐없이 포함:
+     · 잘못된 예: [빌런 raise 3만, ★히어로 raise 9만 (3-bet), 빌런 call] → actual_line: "콜 (프리플랍)" (X! 히어로는 3-bet 9만)
+     · 올바른 예: actual_line: "3-bet 9만(프리플랍) → ..."
+     · 잘못된 예: [빌런 check, ★히어로 bet 8만, 빌런 raise 20만, ★히어로 allin 40만, 빌런 fold] → actual_line: "체크(턴) → 레이즈 올인(40만)" (X!)
+     · 올바른 예: actual_line: "벳 8만(리버) → 빌런 레이즈 20만에 올인 40만 → 빌런 폴드"
+   - **comment·ev_note·mistake에도 액션 주체 정확히** ("히어로 콜"을 "히어로 올인"으로 표현 금지).
+   - actual_line이 액션 목록과 일치하지 않으면 전체 리뷰 어긋남. **반드시 액션 목록 한 줄 한 줄 짚어가며 작성, 출력 직전 자체 검증.**
 
-⑭ **히어로의 실제 액션을 절대 잘못 읽지 말 것 (사실 정확성).**
-   - 액션 목록에 actor: "hero" / "villain" 필드 명시되어 있음. 그 표시 그대로 따르라.
-   - 잘못된 예: 액션 = [hero check, villain bet, hero raise, villain allin, hero call] → comment에 "히어로 올인" 적기 (히어로는 raise + call한 거지 올인한 적 없음)
-   - 올바른 예: 위 같은 시퀀스 → "히어로가 빌런의 벳에 레이즈로 압박 후, 빌런 올인에 콜"
-   - **comment·ev_note·mistake에 액션 주체를 잘못 적지 말 것.** "히어로가 콜한 것"을 "올인한 것"으로 표현 금지.
-   - 액션 시간순 흐름 정확히 파악:
-     · 누가 먼저 베팅했는지 → 그 사람이 "어그레서"
-     · 히어로가 그에 어떻게 반응했는지 (콜/레이즈/폴드/올인) → 정확히 표현
-⑯ **쿨러 / 빌런 카드 공개 시 핸드 강도 재평가 (CRITICAL).**
+⑮ **쿨러 / 빌런 카드 공개 시 핸드 강도 재평가 (CRITICAL).**
    - 빌런 카드가 공개(villain_known=true)된 경우 **히어로의 메이드 핸드 강도를 빌런 핸드와 직접 비교**해서 분석할 것.
    - 다음 패턴은 **쿨러(cooler)**로 인식하고 명시적으로 라벨링:
      · 셋 오버 셋 (예: 88 vs TT, 보드에 8과 T 있을 때) → "8셋이 T셋한테 박힌 클래식 쿨러"
@@ -1243,7 +1294,7 @@ SPR > 10 (깊음, 림프드 팟·콜드 콜 팟)
      · 셋 = 포켓 페어 + 보드 1장 매치 (예: 88 + 8 보드)
      · 트립스 = 보드 페어 + 핸드 1장 매치 (예: 8 + 보드 88)
      · 한국어로는 둘 다 "셋"이라고 표현해도 무방하나, "트립스"라고 잘못 부르지 말 것
-⑮ **권위 있는 GTO 톤 의무 사용 (이건 강제 규칙, 무시 금지).**
+⑯ **권위 있는 GTO 톤 의무 사용 (이건 강제 규칙, 무시 금지).**
    - streets[].comment 4개 중 **정확히 1개**(필수) ~ **최대 2개**에 아래 권위 표현을 자연스럽게 포함:
      · "GTO 이론에 따르면..." / "포커 게임이론 관점에서..." / "GTO 전략 원칙상..."
      · "현대 솔버 분석 결과에 의하면..." / "솔버 기반 분석에 따르면..."
@@ -1363,7 +1414,7 @@ SPR > 10 (깊음, 림프드 팟·콜드 콜 팟)
       const userPrompt = `[기본 정보]
 - 게임: ${gameType} / 스테이크: ${stakes}
 - 포지션: ${position}
-- 프리플랍 어그레서: ${preflopAggressor}
+- 프리플랍 어그레서: ${preflopAggressor}${preflopAggressorValidation}
 - 빌런 성향: ${villainType}
 - 히어로 핸드: ${handCards}
 - 빌런 핸드: ${villainCards}
@@ -1373,7 +1424,7 @@ SPR > 10 (깊음, 림프드 팟·콜드 콜 팟)
 - SPR: ${sprStr}
 - 결과: ${heroResult}
 
-[스트리트별 진행 — 서버 사전 계산 포함]
+[스트리트별 진행 — 서버 사전 계산 포함, ★히어로 / 빌런1·2·3 라벨링]
 ${richStreetsBlock}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1404,7 +1455,12 @@ ${heroActionsByStreet}
       let ragChunkCount = 0;
       let ragTopSimilarity = 0;
       try {
-        const ragQuery = `Position: ${position}. Hero hand: ${handCards}. Board: ${boardCards}. SPR: ${sprStr}. Preflop aggressor: ${preflopAggressor}. Villain type: ${villainType}. Actions summary: ${richStreetsBlock.slice(0, 1500)}`;
+        // RAG 쿼리: 리버 액션이 가장 결정적이므로 끝에서 1500자 잘라서 사용
+        // (이전엔 앞에서 1500자 → 긴 핸드의 리버 부분 누락됐음)
+        const richTrimmed = richStreetsBlock.length > 1500
+          ? richStreetsBlock.slice(richStreetsBlock.length - 1500)
+          : richStreetsBlock;
+        const ragQuery = `Position: ${position}. Hero hand: ${handCards}. Board: ${boardCards}. SPR: ${sprStr}. Preflop aggressor: ${preflopAggressor}. Villain type: ${villainType}. Actions summary: ${richTrimmed}`;
         const embRes = await fetch('https://api.openai.com/v1/embeddings', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
@@ -1498,10 +1554,11 @@ ${heroActionsByStreet}
         }
       }
 
-      // ── 프리플랍 차트 lookup ────────────────────────────────────────────
+      // ── 프리플랍 차트 lookup (캐쉬게임 100bb 차트) ────────────────────────
       // 히어로 첫 프리플랍 액션을 시나리오(open/3bet/call) 분류 → 차트 조회 → AI에 컨텍스트 전달
+      // ⚠️ 토너먼트는 푸시폴드 차트 사용 (위에서 처리). 캐쉬 100bb 차트 적용 부적절 → skip.
       let preflopAdvice: string | null = null;
-      if (hand?.hero_position && Array.isArray(hand?.hero_cards) && hand.hero_cards.length === 2) {
+      if (!isTournament && hand?.hero_position && Array.isArray(hand?.hero_cards) && hand.hero_cards.length === 2) {
         // 핸드 → 169 표기
         const c1 = hand.hero_cards[0];
         const c2 = hand.hero_cards[1];
