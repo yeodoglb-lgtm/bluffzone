@@ -1089,7 +1089,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                         style={[styles.themeBtn, cardVariant === v && styles.themeBtnActive]}
                       >
                         <Text style={[styles.themeBtnText, cardVariant === v && styles.themeBtnTextActive]}>
-                          {v === 'V1' ? '심플' : v === 'V2' ? '빌런카드' : '수익공개'}
+                          {v === 'V1' ? '심플' : v === 'V2' ? '한줄평' : '수익공개'}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -1097,20 +1097,38 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                 </View>
 
                 {/* 공유 카드 헤더 — 캡처해서 공유하기 좋게 디자인 */}
+                {(() => {
+                  // 보드에서 하이라이트할 카드 계산:
+                  //   히어로/빌런 hand의 rank가 보드에 있거나, 보드 자체가 페어/트립 → 하이라이트
+                  const heroRanks = new Set((hand.hero_cards ?? []).map(c => c.rank));
+                  const villainRanks = new Set((hand.villain_known && hand.villain_cards ? hand.villain_cards : []).map(c => c.rank));
+                  const boardArr = hand.board ?? [];
+                  const boardRankCount: Record<string, number> = {};
+                  boardArr.forEach(c => { boardRankCount[c.rank] = (boardRankCount[c.rank] || 0) + 1; });
+                  const isBoardHighlight = (rank: string) =>
+                    (heroRanks as Set<string>).has(rank) || (villainRanks as Set<string>).has(rank) || (boardRankCount[rank] ?? 0) >= 2;
+
+                  const heroWon = hand.result === 'won';
+                  const villainWon = hand.result === 'lost';
+
+                  return (
                 <View ref={shareCardRef} style={styles.reviewShareCard}>
                   <View style={styles.reviewShareHeader}>
                     <Text style={styles.reviewShareLogo}>♠ BluffZone</Text>
                     <Text style={styles.reviewShareSub}>홀덤 알파고 핸드 리뷰</Text>
                   </View>
 
-                  {/* V1·V2·V3 공통: 내 카드 + 보드 */}
+                  {/* 카드 그리드 — 내 카드 + 빌런 카드 + 보드 (하이라이트) */}
                   <View style={styles.reviewShareCardsRow}>
+                    {/* 내 카드 */}
                     {hand.hero_cards && hand.hero_cards.length > 0 && (
                       <View style={styles.reviewShareCardGroup}>
-                        <Text style={styles.reviewShareCardLabel}>내 카드</Text>
+                        <Text style={[styles.reviewShareCardLabel, heroWon && { color: '#10b981' }]}>
+                          {heroWon ? '🏆 내 카드' : '내 카드'}
+                        </Text>
                         <View style={{ flexDirection: 'row', gap: 4 }}>
                           {hand.hero_cards.map((c, i) => (
-                            <View key={i} style={styles.reviewShareCardItem}>
+                            <View key={i} style={[styles.reviewShareCardItem, heroWon && styles.reviewShareCardWinner]}>
                               <Text style={[styles.reviewShareCardText, { color: SUIT_COLORS[c.suit] }]}>
                                 {c.rank}{SUIT_SYMBOLS[c.suit]}
                               </Text>
@@ -1119,13 +1137,15 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                         </View>
                       </View>
                     )}
-                    {/* V2: 빌런 카드 (오픈된 경우만) */}
-                    {cardVariant === 'V2' && hand.villain_known && hand.villain_cards && hand.villain_cards.length > 0 && (
+                    {/* 빌런 카드 — 오픈된 경우 항상 표시 */}
+                    {hand.villain_known && hand.villain_cards && hand.villain_cards.length > 0 ? (
                       <View style={styles.reviewShareCardGroup}>
-                        <Text style={[styles.reviewShareCardLabel, { color: '#ef4444' }]}>빌런 카드</Text>
+                        <Text style={[styles.reviewShareCardLabel, villainWon && { color: '#ef4444' }]}>
+                          {villainWon ? '🏆 빌런' : '빌런'}
+                        </Text>
                         <View style={{ flexDirection: 'row', gap: 4 }}>
                           {hand.villain_cards.map((c, i) => (
-                            <View key={i} style={[styles.reviewShareCardItem, { borderColor: '#ef4444' }]}>
+                            <View key={i} style={[styles.reviewShareCardItem, villainWon && styles.reviewShareCardWinner]}>
                               <Text style={[styles.reviewShareCardText, { color: SUIT_COLORS[c.suit] }]}>
                                 {c.rank}{SUIT_SYMBOLS[c.suit]}
                               </Text>
@@ -1133,32 +1153,50 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                           ))}
                         </View>
                       </View>
-                    )}
-                    {hand.board && hand.board.length > 0 && (
+                    ) : (
                       <View style={styles.reviewShareCardGroup}>
-                        <Text style={styles.reviewShareCardLabel}>보드</Text>
+                        <Text style={styles.reviewShareCardLabel}>빌런</Text>
                         <View style={{ flexDirection: 'row', gap: 4 }}>
-                          {hand.board.map((c, i) => (
-                            <View key={i} style={styles.reviewShareCardItem}>
-                              <Text style={[styles.reviewShareCardText, { color: SUIT_COLORS[c.suit] }]}>
-                                {c.rank}{SUIT_SYMBOLS[c.suit]}
-                              </Text>
-                            </View>
-                          ))}
+                          <View style={[styles.reviewShareCardItem, { backgroundColor: '#3a3d4a' }]}>
+                            <Text style={[styles.reviewShareCardText, { color: '#888' }]}>?</Text>
+                          </View>
+                          <View style={[styles.reviewShareCardItem, { backgroundColor: '#3a3d4a' }]}>
+                            <Text style={[styles.reviewShareCardText, { color: '#888' }]}>?</Text>
+                          </View>
                         </View>
                       </View>
                     )}
                   </View>
 
+                  {/* 보드 카드 — 페어/매칭 카드 하이라이트 */}
+                  {hand.board && hand.board.length > 0 && (
+                    <View style={styles.reviewShareCardGroup}>
+                      <Text style={styles.reviewShareCardLabel}>보드</Text>
+                      <View style={{ flexDirection: 'row', gap: 4, justifyContent: 'center' }}>
+                        {hand.board.map((c, i) => {
+                          const hl = isBoardHighlight(c.rank);
+                          return (
+                            <View key={i} style={[styles.reviewShareCardItem, hl && styles.reviewShareCardHighlight]}>
+                              <Text style={[styles.reviewShareCardText, { color: SUIT_COLORS[c.suit] }]}>
+                                {c.rank}{SUIT_SYMBOLS[c.suit]}
+                              </Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* 평점 */}
                   {rating > 0 && (
                     <Text style={styles.reviewShareRating}>
                       {'⭐'.repeat(rating)}{'☆'.repeat(Math.max(0, 5 - rating))}
                     </Text>
                   )}
 
-                  {/* V2: 빌런 카드 미공개 안내 */}
-                  {cardVariant === 'V2' && !hand.villain_known && (
-                    <Text style={styles.reviewShareNote}>※ 빌런 카드 미공개</Text>
+                  {/* V2: 한 줄 평 */}
+                  {cardVariant === 'V2' && r.headline && (
+                    <Text style={styles.reviewShareHeadline}>👉 {r.headline}</Text>
                   )}
 
                   {/* V3: 결과 + 수익 */}
@@ -1182,6 +1220,8 @@ export default function HandDetailScreen({ navigation, route }: Props) {
 
                   <Text style={styles.reviewShareFooter}>bluffzone.kr</Text>
                 </View>
+                  );
+                })()}
 
                 {/* 한 줄 결론 */}
                 {r.headline && (
@@ -1743,7 +1783,17 @@ const styles = StyleSheet.create({
   reviewShareCardsRow: { flexDirection: 'row', gap: spacing.lg, marginVertical: 4 },
   reviewShareCardGroup: { alignItems: 'center', gap: 4 },
   reviewShareCardLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },
-  reviewShareCardItem: { backgroundColor: colors.surface, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4, borderWidth: 1, borderColor: colors.line, minWidth: 28, alignItems: 'center' },
+  reviewShareCardItem: { backgroundColor: colors.surface, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, borderWidth: 1, borderColor: colors.line, minWidth: 32, alignItems: 'center' },
+  reviewShareCardHighlight: { borderWidth: 2, borderColor: '#fbbf24', backgroundColor: '#fbbf2422' },
+  reviewShareCardWinner: { borderWidth: 2, borderColor: '#10b981', backgroundColor: '#10b98122' },
+  reviewShareHeadline: {
+    fontSize: fontSize.sm,
+    color: colors.text,
+    textAlign: 'center',
+    fontWeight: fontWeight.semibold,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+  },
   reviewShareCardText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold },
   reviewShareRating: { fontSize: 18, letterSpacing: 2 },
   reviewShareFooter: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },

@@ -858,10 +858,31 @@ serve(async (req) => {
       const actionsByStreet: Record<string, any[]> = {
         preflop: [], flop: [], turn: [], river: [],
       };
+      // actor 필드 정규화 — 폼에서는 한글('나' / '빌런 1')로 저장, 여기서 영어로 변환
+      // 이거 안 하면 AI가 모든 액션을 빌런 것으로 오인함 (CRITICAL BUG FIX 2026-05-05)
+      const normalizeActor = (raw: any): string => {
+        const s = String(raw ?? '').trim();
+        if (!s) return 'villain';
+        const low = s.toLowerCase();
+        if (low === 'hero' || s === '나' || s === '히어로') return 'hero';
+        if (low === 'villain' || low === 'villain1') return 'villain1';
+        if (low === 'villain2') return 'villain2';
+        if (low === 'villain3') return 'villain3';
+        // 한글 빌런 매칭: '빌런 1', '빌런1', '빌런 2', '빌런2', 또는 매장 이름 등
+        if (/빌런\s*1$/.test(s) || s === '빌런') return 'villain1';
+        if (/빌런\s*2$/.test(s)) return 'villain2';
+        if (/빌런\s*3$/.test(s)) return 'villain3';
+        // type 이름 (예: TAG, LAG 등 매장 이름) → villain_data에 매칭 시도, 일단 villain1로
+        // (multi-villain 정확도는 90% 케이스에 충분)
+        return 'villain1';
+      };
       if (Array.isArray(hand?.actions)) {
         for (const a of hand.actions) {
           const s = (a?.street ?? '').toString().toLowerCase();
-          if (actionsByStreet[s]) actionsByStreet[s].push(a);
+          if (actionsByStreet[s]) {
+            // actor 필드 정규화 후 push
+            actionsByStreet[s].push({ ...a, actor: normalizeActor(a.actor) });
+          }
         }
       }
       const boardArr: any[] = Array.isArray(hand?.board) ? hand.board : [];
