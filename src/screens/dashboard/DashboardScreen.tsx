@@ -32,6 +32,7 @@ export default function DashboardScreen() {
   const { data: hands } = useHands(1);
   const isNewUser = !hands || hands.length === 0;
   const isLoggedIn = !!session;
+  const isAdmin = profile?.role === 'admin';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -78,8 +79,27 @@ export default function DashboardScreen() {
           </Text>
         </View>
 
-        {/* 신규 유저 전용 CTA — 핸드 0개일 때만 노출 */}
-        {isNewUser && (
+        {/* 비로그인 사용자 — 마케팅 CTA (최상단) */}
+        {!isLoggedIn && (
+          <View style={styles.marketingCta}>
+            <Text style={styles.marketingEmoji}>🎁</Text>
+            <Text style={styles.marketingTitle}>지금 무료로 시작</Text>
+            <Text style={styles.marketingDesc}>
+              가입 30초 · AI 핸드 리뷰 · 푸시폴드 차트 · 뱅크롤 관리{'\n'}
+              한 앱에서 시작하세요
+            </Text>
+            <TouchableOpacity
+              style={styles.marketingButton}
+              onPress={() => navigation.navigate('Auth')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.marketingButtonText}>무료로 시작하기</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* 신규 유저 전용 CTA — 로그인 + 핸드 0개일 때 */}
+        {isLoggedIn && isNewUser && (
           <TouchableOpacity
             style={styles.firstHandCta}
             onPress={() => requireAuth(() => navigation.navigate('HandsTab', { screen: 'HandEditor', params: {} }))}
@@ -111,12 +131,12 @@ export default function DashboardScreen() {
             desc: '어려웠던 핸드를 기록하고\n플레이를 분석해보세요',
             onPress: () => navigation.navigate('HandsTab', { screen: 'HandList' }),
           },
-          {
+          ...(isAdmin ? [{
             icon: '📍',
             title: '홀덤 플레이스',
             desc: '내 주변 홀덤 클럽을\n지도에서 쉽게 찾기',
             onPress: () => navigation.navigate('PlacesTab', { screen: 'PlacesMap' }),
-          },
+          }] : []),
           {
             icon: '🎯',
             title: 'GTO 도구',
@@ -151,25 +171,6 @@ export default function DashboardScreen() {
             <Text style={styles.aiBtnSub}>당신의 홀덤 고민, 지금 바로 답해드립니다</Text>
           </View>
         </TouchableOpacity>
-
-        {/* 비로그인 사용자 — 마케팅 CTA */}
-        {!isLoggedIn && (
-          <View style={styles.marketingCta}>
-            <Text style={styles.marketingEmoji}>🎁</Text>
-            <Text style={styles.marketingTitle}>지금 무료로 시작</Text>
-            <Text style={styles.marketingDesc}>
-              가입 30초 · AI 핸드 리뷰 · 푸시폴드 차트 · 뱅크롤 관리{'\n'}
-              한 앱에서 시작하세요
-            </Text>
-            <TouchableOpacity
-              style={styles.marketingButton}
-              onPress={() => navigation.navigate('Auth')}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.marketingButtonText}>무료로 시작하기</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         {/* 모바일 PWA 설치 안내 카드 (인앱 브라우저면 Chrome 안내) */}
         <InstallPwaCard />

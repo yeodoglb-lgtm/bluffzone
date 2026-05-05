@@ -581,21 +581,24 @@ export default function HandDetailScreen({ navigation, route }: Props) {
 
   // 공유 카드 영역 ref (html2canvas 캡처 대상)
   const shareCardRef = useRef<any>(null);
+  // 공유 카드 디자인 테마 — A: 다크 주황 / B: 카지노 그린 / C: 미니멀 화이트
+  const [cardTheme, setCardTheme] = useState<'A' | 'B' | 'C'>('A');
 
   // 리뷰 결과 공유 — 카드를 PNG로 캡처해서 이미지 공유, 실패 시 텍스트 폴백
   async function handleShareReview(r: any) {
     const rating = Number(r?.rating) || 0;
     const stars = rating > 0 ? '⭐'.repeat(rating) : '';
     const headline = r?.headline ? `\n${r.headline}` : '';
-    const text = `[블러프존 AI 핸드 리뷰] ${stars}${headline}\n\n무료 핸드 리뷰: https://bluffzone.kr`;
+    const text = `[블러프존 홀덤 알파고 핸드 리뷰] ${stars}${headline}\n\n무료 핸드 리뷰: https://bluffzone.kr`;
 
     // 웹: html2canvas로 카드 캡처 → 이미지 공유
     if (Platform.OS === 'web' && shareCardRef.current) {
       try {
         const html2canvas = (await import('html2canvas')).default;
         const node: HTMLElement = shareCardRef.current;
+        const themeBg = cardTheme === 'B' ? '#0d3d2e' : cardTheme === 'C' ? '#ffffff' : '#1a1d29';
         const canvas = await html2canvas(node, {
-          backgroundColor: '#1a1d29',
+          backgroundColor: themeBg,
           scale: 2,                   // 고해상도
           useCORS: true,
           logging: false,
@@ -608,7 +611,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
           // Web Share API (파일 지원 브라우저: 모바일 Chrome/Safari)
           const navAny = navigator as any;
           if (navAny.canShare && navAny.canShare({ files: [file] })) {
-            await navAny.share({ title: '블러프존 AI 핸드 리뷰', text, files: [file] });
+            await navAny.share({ title: '블러프존 홀덤 알파고 핸드 리뷰', text, files: [file] });
             return;
           }
           // 파일 공유 미지원 → 다운로드
@@ -630,9 +633,9 @@ export default function HandDetailScreen({ navigation, route }: Props) {
     // 폴백: 텍스트 공유
     try {
       if (Platform.OS === 'web' && (navigator as any).share) {
-        await (navigator as any).share({ title: '블러프존 AI 핸드 리뷰', text });
+        await (navigator as any).share({ title: '블러프존 홀덤 알파고 핸드 리뷰', text });
       } else {
-        await Share.share({ title: '블러프존 AI 핸드 리뷰', message: text });
+        await Share.share({ title: '블러프존 홀덤 알파고 핸드 리뷰', message: text });
       }
     } catch { /* 사용자 취소 등 무시 */ }
   }
@@ -1053,11 +1056,15 @@ export default function HandDetailScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           )}
 
-          {/* 분석 중 */}
-          {hand.review_status === 'pending' && !isReviewing && (
-            <View style={styles.reviewPending}>
-              <ActivityIndicator color={colors.primary} size="small" />
-              <Text style={styles.reviewPendingText}>분석 중...</Text>
+          {/* 분석 중 — 큰 표시 + 안내 */}
+          {(hand.review_status === 'pending' || isReviewing) && (
+            <View style={styles.reviewPendingBig}>
+              <ActivityIndicator color={colors.primary} size="large" />
+              <Text style={styles.reviewPendingBigTitle}>홀덤 알파고가 분석 중입니다</Text>
+              <Text style={styles.reviewPendingBigSub}>
+                GTO 이론 + 솔버 데이터로 핸드를 분석하고 있어요{'\n'}
+                보통 10~20초 정도 걸립니다 ☕
+              </Text>
             </View>
           )}
 
@@ -1072,11 +1079,36 @@ export default function HandDetailScreen({ navigation, route }: Props) {
             const rating = Number(r.rating) || 0;
             return (
               <View style={styles.reviewResult}>
+                {/* 디자인 테마 토글 (3개) */}
+                <View style={styles.themeToggle}>
+                  <Text style={styles.themeToggleLabel}>카드 디자인</Text>
+                  <View style={styles.themeToggleBtns}>
+                    {(['A', 'B', 'C'] as const).map(t => (
+                      <TouchableOpacity
+                        key={t}
+                        onPress={() => setCardTheme(t)}
+                        style={[styles.themeBtn, cardTheme === t && styles.themeBtnActive]}
+                      >
+                        <Text style={[styles.themeBtnText, cardTheme === t && styles.themeBtnTextActive]}>
+                          {t === 'A' ? '🟠 다크' : t === 'B' ? '🟢 카지노' : '⚪ 미니멀'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
                 {/* 공유 카드 헤더 — 캡처해서 공유하기 좋게 디자인 */}
-                <View ref={shareCardRef} style={styles.reviewShareCard}>
+                <View
+                  ref={shareCardRef}
+                  style={[
+                    styles.reviewShareCard,
+                    cardTheme === 'B' && styles.reviewShareCardB,
+                    cardTheme === 'C' && styles.reviewShareCardC,
+                  ]}
+                >
                   <View style={styles.reviewShareHeader}>
-                    <Text style={styles.reviewShareLogo}>♠ BluffZone</Text>
-                    <Text style={styles.reviewShareSub}>AI 핸드 리뷰</Text>
+                    <Text style={[styles.reviewShareLogo, cardTheme === 'C' && { color: '#1a1d29' }]}>♠ BluffZone</Text>
+                    <Text style={[styles.reviewShareSub, cardTheme === 'C' && { color: '#666' }]}>홀덤 알파고 핸드 리뷰</Text>
                   </View>
                   {/* 히어로 카드 + 보드 미니 표시 */}
                   <View style={styles.reviewShareCardsRow}>
@@ -1466,6 +1498,28 @@ const styles = StyleSheet.create({
   reviewBtnText: { fontSize: fontSize.sm, color: colors.text, fontWeight: fontWeight.medium },
   reviewPending: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 8 },
   reviewPendingText: { fontSize: fontSize.sm, color: colors.textMuted },
+  reviewPendingBig: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: `${colors.primary}11`,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: `${colors.primary}55`,
+    gap: spacing.md,
+  },
+  reviewPendingBigTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+    textAlign: 'center',
+  },
+  reviewPendingBigSub: {
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: fontSize.sm * 1.6,
+  },
   reviewResult: { gap: spacing.sm, marginTop: 4 },
   streetCard: {
     backgroundColor: `${colors.primary}0D`,
@@ -1603,20 +1657,52 @@ const styles = StyleSheet.create({
   reviewShareBtnText: { fontSize: fontSize.sm, color: colors.bg, fontWeight: fontWeight.bold },
   reviewBrandFooter: { fontSize: fontSize.xs, color: colors.textMuted, textAlign: 'center', marginTop: spacing.sm, fontStyle: 'italic' },
 
-  // 공유 카드 헤더 (캡처용)
+  // 공유 카드 헤더 (캡처용) — A: 다크 주황 (기본)
   reviewShareCard: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: '#1a1d29',
     borderRadius: radius.card,
-    padding: spacing.md,
-    borderWidth: 1.5,
+    padding: spacing.lg,
+    borderWidth: 2,
     borderColor: colors.primary,
     gap: spacing.sm,
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
+  // B: 카지노 그린
+  reviewShareCardB: {
+    backgroundColor: '#0d3d2e',
+    borderColor: '#d4af37', // 골드
+  },
+  // C: 미니멀 화이트
+  reviewShareCardC: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e0e0e0',
+    borderWidth: 1,
+  },
+  // 디자인 토글
+  themeToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+    gap: spacing.sm,
+  },
+  themeToggleLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.medium },
+  themeToggleBtns: { flexDirection: 'row', gap: 4 },
+  themeBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  themeBtnActive: { borderColor: colors.primary, backgroundColor: `${colors.primary}22` },
+  themeBtnText: { fontSize: 10, color: colors.textMuted, fontWeight: fontWeight.medium },
+  themeBtnTextActive: { color: colors.primary, fontWeight: fontWeight.bold },
   reviewShareHeader: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.xs },
-  reviewShareLogo: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.primary },
-  reviewShareSub: { fontSize: fontSize.xs, color: colors.textMuted },
+  reviewShareLogo: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.primary },
+  reviewShareSub: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.semibold },
   reviewShareCardsRow: { flexDirection: 'row', gap: spacing.lg, marginVertical: 4 },
   reviewShareCardGroup: { alignItems: 'center', gap: 4 },
   reviewShareCardLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },
