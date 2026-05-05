@@ -865,6 +865,12 @@ serve(async (req) => {
       const fmtCards = (arr: any): string =>
         Array.isArray(arr) && arr.length ? arr.map(fmtCard).join(' ') : '(없음)';
 
+      // 금액 포맷터 (만원 단위) — heroActionsByStreet, richStreetsBlock에서 모두 사용
+      const fmtMoney = (n: number): string => {
+        if (n >= 10000) return `${(n / 10000).toFixed(n % 10000 === 0 ? 0 : 1)}만원`;
+        return `${n.toLocaleString()}원`;
+      };
+
       // 스트리트별 액션 그룹화 + 보드 상태 포함
       const streetOrder = ['preflop', 'flop', 'turn', 'river'];
       const actionsByStreet: Record<string, any[]> = {
@@ -1015,10 +1021,7 @@ serve(async (req) => {
 
       // ── 스트리트별 누적 팟 및 히어로/빌런 실제 벳 사이즈 ──────────────────
       // 액션 순서대로 누적 팟 추적해서 각 스트리트 진입 시점 팟을 계산
-      const fmtMoney = (n: number): string => {
-        if (n >= 10000) return `${(n / 10000).toFixed(n % 10000 === 0 ? 0 : 1)}만원`;
-        return `${n.toLocaleString()}원`;
-      };
+      // (fmtMoney는 위에서 정의됨 — TDZ 회피)
       let runningPot = 0;
       const potAtStart: Record<string, number> = { preflop: 0, flop: 0, turn: 0, river: 0 };
       const sizingInfo: Record<string, string> = { preflop: '', flop: '', turn: '', river: '' };
