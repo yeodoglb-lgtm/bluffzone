@@ -579,19 +579,62 @@ export default function HandDetailScreen({ navigation, route }: Props) {
     });
   }
 
-  // 리뷰 결과 공유 — 헤드라인 + 평점 + URL 텍스트로
+  // 공유 카드 영역 ref (html2canvas 캡처 대상)
+  const shareCardRef = useRef<any>(null);
+
+  // 리뷰 결과 공유 — 카드를 PNG로 캡처해서 이미지 공유, 실패 시 텍스트 폴백
   async function handleShareReview(r: any) {
+    const rating = Number(r?.rating) || 0;
+    const stars = rating > 0 ? '⭐'.repeat(rating) : '';
+    const headline = r?.headline ? `\n${r.headline}` : '';
+    const text = `[블러프존 AI 핸드 리뷰] ${stars}${headline}\n\n무료 핸드 리뷰: https://bluffzone.kr`;
+
+    // 웹: html2canvas로 카드 캡처 → 이미지 공유
+    if (Platform.OS === 'web' && shareCardRef.current) {
+      try {
+        const html2canvas = (await import('html2canvas')).default;
+        const node: HTMLElement = shareCardRef.current;
+        const canvas = await html2canvas(node, {
+          backgroundColor: '#1a1d29',
+          scale: 2,                   // 고해상도
+          useCORS: true,
+          logging: false,
+        });
+        const blob: Blob | null = await new Promise(resolve =>
+          canvas.toBlob(b => resolve(b), 'image/png', 0.95)
+        );
+        if (blob) {
+          const file = new File([blob], 'bluffzone-review.png', { type: 'image/png' });
+          // Web Share API (파일 지원 브라우저: 모바일 Chrome/Safari)
+          const navAny = navigator as any;
+          if (navAny.canShare && navAny.canShare({ files: [file] })) {
+            await navAny.share({ title: '블러프존 AI 핸드 리뷰', text, files: [file] });
+            return;
+          }
+          // 파일 공유 미지원 → 다운로드
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'bluffzone-review.png';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          showAlert('이미지 저장됨', '리뷰 이미지가 다운로드됐어요. 카톡·인스타에 첨부해보세요.');
+          return;
+        }
+      } catch (e) {
+        console.warn('[shareReview] 이미지 캡처 실패, 텍스트 폴백', e);
+      }
+    }
+    // 폴백: 텍스트 공유
     try {
-      const rating = Number(r?.rating) || 0;
-      const stars = rating > 0 ? '⭐'.repeat(rating) : '';
-      const headline = r?.headline ? `\n${r.headline}` : '';
-      const text = `[블러프존 AI 핸드 리뷰] ${stars}${headline}\n\n무료 핸드 리뷰: https://bluffzone.kr`;
       if (Platform.OS === 'web' && (navigator as any).share) {
         await (navigator as any).share({ title: '블러프존 AI 핸드 리뷰', text });
       } else {
         await Share.share({ title: '블러프존 AI 핸드 리뷰', message: text });
       }
-    } catch (e) { /* 사용자 취소 등 무시 */ }
+    } catch { /* 사용자 취소 등 무시 */ }
   }
 
   async function handleShare() {
@@ -1030,7 +1073,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
             return (
               <View style={styles.reviewResult}>
                 {/* 공유 카드 헤더 — 캡처해서 공유하기 좋게 디자인 */}
-                <View style={styles.reviewShareCard}>
+                <View ref={shareCardRef} style={styles.reviewShareCard}>
                   <View style={styles.reviewShareHeader}>
                     <Text style={styles.reviewShareLogo}>♠ BluffZone</Text>
                     <Text style={styles.reviewShareSub}>AI 핸드 리뷰</Text>
@@ -1081,23 +1124,36 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                   </View>
                 )}
 
-                {/* 추천 vs 실제 라인 비교 */}
+                {/* 추천 vs 실제 라인 비교 — 강화 시각화 */}
                 {(r.recommended_line || r.actual_line) && (
-                  <View style={styles.lineCompareBox}>
+                  <View style={styles.compareV2Box}>
+                    <Text style={styles.compareV2Title}>🎯 GTO 권장 vs 내 액션</Text>
                     {r.recommended_line ? (
-                      <View style={styles.lineCompareRow}>
-                        <Text style={styles.lineCompareLabelGood}>✅ 추천</Text>
-                        <Text style={styles.lineCompareValue}>{r.recommended_line}</Text>
+                      <View style={styles.compareV2Good}>
+                        <View style={styles.compareV2Header}>
+                          <Text style={styles.compareV2HeaderGood}>✅ GTO 권장</Text>
+                        </View>
+                        <Text style={styles.compareV2Text}>{r.recommended_line}</Text>
+                      </View>
+                    ) : null}
+                    {r.recommended_line && r.actual_line ? (
+                      <View style={styles.compareV2Arrow}>
+                        <Text style={styles.compareV2ArrowText}>vs</Text>
                       </View>
                     ) : null}
                     {r.actual_line ? (
-                      <View style={styles.lineCompareRow}>
-                        <Text style={styles.lineCompareLabelBad}>❌ 실제</Text>
-                        <Text style={styles.lineCompareValue}>{r.actual_line}</Text>
+                      <View style={styles.compareV2Bad}>
+                        <View style={styles.compareV2Header}>
+                          <Text style={styles.compareV2HeaderBad}>❌ 내 액션</Text>
+                        </View>
+                        <Text style={styles.compareV2Text}>{r.actual_line}</Text>
                       </View>
                     ) : null}
                     {r.ev_note ? (
-                      <Text style={styles.evNoteText}>💰 {r.ev_note}</Text>
+                      <View style={styles.compareV2EvBadge}>
+                        <Text style={styles.compareV2EvLabel}>💰 EV 영향</Text>
+                        <Text style={styles.compareV2EvValue}>{r.ev_note}</Text>
+                      </View>
                     ) : null}
                   </View>
                 )}
@@ -1568,6 +1624,73 @@ const styles = StyleSheet.create({
   reviewShareCardText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold },
   reviewShareRating: { fontSize: 18, letterSpacing: 2 },
   reviewShareFooter: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },
+
+  // GTO 권장 vs 내 액션 비교 — 강화 시각화
+  compareV2Box: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  compareV2Title: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    marginBottom: 4,
+  },
+  compareV2Good: {
+    backgroundColor: `${colors.success}15`,
+    borderWidth: 1.5,
+    borderColor: colors.success,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    gap: 4,
+  },
+  compareV2Bad: {
+    backgroundColor: `${colors.danger}15`,
+    borderWidth: 1.5,
+    borderColor: colors.danger,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    gap: 4,
+  },
+  compareV2Header: { flexDirection: 'row', alignItems: 'center' },
+  compareV2HeaderGood: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.success, letterSpacing: 0.5 },
+  compareV2HeaderBad: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.danger, letterSpacing: 0.5 },
+  compareV2Text: {
+    fontSize: fontSize.base,
+    color: colors.text,
+    fontWeight: fontWeight.medium,
+    lineHeight: fontSize.base * 1.5,
+  },
+  compareV2Arrow: { alignItems: 'center', paddingVertical: 2 },
+  compareV2ArrowText: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.bold, letterSpacing: 1 },
+  compareV2EvBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: `${colors.warning}22`,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.warning,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 4,
+    marginTop: 4,
+  },
+  compareV2EvLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.warning,
+  },
+  compareV2EvValue: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: colors.text,
+    fontWeight: fontWeight.medium,
+  },
   reviewContent: { fontSize: fontSize.sm, color: colors.text, lineHeight: 20, marginTop: spacing.sm },
   reviewedAt: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 4 },
 });
