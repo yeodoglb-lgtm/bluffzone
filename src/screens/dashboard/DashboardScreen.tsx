@@ -10,6 +10,7 @@ import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import Logo from '../../components/common/Logo';
 import InstallPwaCard from '../../components/InstallPwaCard';
 import BetaBanner from '../../components/BetaBanner';
+import WelcomeModal from '../../components/WelcomeModal';
 import { useAuthStore } from '../../store/authStore';
 import { useHands } from '../../hooks/useHands';
 import { useLoginPrompt } from '../../components/LoginPromptModal';
@@ -34,6 +35,8 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* 신규 유저 환영 모달 — 1회 자동 노출 */}
+      <WelcomeModal />
       {/* 헤더 */}
       <View style={styles.header}>
         <Logo size="sm" variant="full" />

@@ -9,13 +9,13 @@ import {
 } from 'react-native';
 import { showConfirm, showAlert } from '../../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import type { HandsStackParamList } from '../../navigation/types';
 import { SUIT_COLORS, SUIT_SYMBOLS } from '../../constants/poker';
 import type { Card, Street, Position9Max, HandAction } from '../../constants/poker';
-import { useHand, useDeleteHand, useUpdateHand } from '../../hooks/useHands';
+import { useHand, useDeleteHand, useUpdateHand, useHands } from '../../hooks/useHands';
 
 type Props = StackScreenProps<HandsStackParamList, 'HandDetail'>;
 
@@ -590,6 +590,10 @@ export default function HandDetailScreen({ navigation, route }: Props) {
   }
 
   const [isReviewing, setIsReviewing] = useState(false);
+  // 신규 유저 자동 리뷰 — 첫 핸드(리뷰 0개)일 때 자동으로 리뷰 트리거
+  // "와 자동으로 분석해주네" 즉각 임팩트 + 온보딩 가속
+  const { data: allHands } = useHands();
+  const autoReviewFiredRef = useRef(false);
 
   async function handleRequestReview(forceRefresh = false) {
     if (!hand) return;
@@ -685,6 +689,24 @@ export default function HandDetailScreen({ navigation, route }: Props) {
       setIsReviewing(false);
     }
   }
+
+  // 신규 유저 자동 리뷰 트리거 — handleRequestReview 정의 뒤에서 사용
+  useEffect(() => {
+    if (autoReviewFiredRef.current) return;
+    if (!hand || !allHands) return;
+    if (hand.review_status !== 'none') return;
+    // 다른 핸드 중 done인 게 하나도 없으면 = 신규 유저 첫 경험
+    const hasAnyReviewed = allHands.some(h => h.review_status === 'done' || h.review_status === 'pending');
+    if (hasAnyReviewed) return;
+    // 의미있는 리뷰 가능한지 검증
+    if (!hand.hero_cards || hand.hero_cards.length < 2) return;
+    if (!hand.actions || hand.actions.length === 0) return;
+    autoReviewFiredRef.current = true;
+    // 살짝 지연 후 트리거 — 화면 렌더 후 자연스럽게
+    const t = setTimeout(() => { handleRequestReview(); }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hand?.id, allHands?.length]);
 
   if (isLoading) {
     return (
