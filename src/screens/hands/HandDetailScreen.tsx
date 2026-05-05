@@ -581,8 +581,8 @@ export default function HandDetailScreen({ navigation, route }: Props) {
 
   // 공유 카드 영역 ref (html2canvas 캡처 대상)
   const shareCardRef = useRef<any>(null);
-  // 공유 카드 디자인 테마 — A: 다크 주황 / B: 카지노 그린 / C: 미니멀 화이트
-  const [cardTheme, setCardTheme] = useState<'A' | 'B' | 'C'>('A');
+  // 공유 카드 콘텐츠 변형 — V1: 심플(카드+평점) / V2: 빌런카드 포함 / V3: 결과+수익
+  const [cardVariant, setCardVariant] = useState<'V1' | 'V2' | 'V3'>('V1');
 
   // 리뷰 결과 공유 — 카드를 PNG로 캡처해서 이미지 공유, 실패 시 텍스트 폴백
   async function handleShareReview(r: any) {
@@ -596,9 +596,8 @@ export default function HandDetailScreen({ navigation, route }: Props) {
       try {
         const html2canvas = (await import('html2canvas')).default;
         const node: HTMLElement = shareCardRef.current;
-        const themeBg = cardTheme === 'B' ? '#0d3d2e' : cardTheme === 'C' ? '#ffffff' : '#1a1d29';
         const canvas = await html2canvas(node, {
-          backgroundColor: themeBg,
+          backgroundColor: '#1a1d29',
           scale: 2,                   // 고해상도
           useCORS: true,
           logging: false,
@@ -1079,18 +1078,18 @@ export default function HandDetailScreen({ navigation, route }: Props) {
             const rating = Number(r.rating) || 0;
             return (
               <View style={styles.reviewResult}>
-                {/* 디자인 테마 토글 (3개) */}
+                {/* 콘텐츠 변형 토글 (3개) */}
                 <View style={styles.themeToggle}>
-                  <Text style={styles.themeToggleLabel}>카드 디자인</Text>
+                  <Text style={styles.themeToggleLabel}>카드 종류</Text>
                   <View style={styles.themeToggleBtns}>
-                    {(['A', 'B', 'C'] as const).map(t => (
+                    {(['V1', 'V2', 'V3'] as const).map(v => (
                       <TouchableOpacity
-                        key={t}
-                        onPress={() => setCardTheme(t)}
-                        style={[styles.themeBtn, cardTheme === t && styles.themeBtnActive]}
+                        key={v}
+                        onPress={() => setCardVariant(v)}
+                        style={[styles.themeBtn, cardVariant === v && styles.themeBtnActive]}
                       >
-                        <Text style={[styles.themeBtnText, cardTheme === t && styles.themeBtnTextActive]}>
-                          {t === 'A' ? '🟠 다크' : t === 'B' ? '🟢 카지노' : '⚪ 미니멀'}
+                        <Text style={[styles.themeBtnText, cardVariant === v && styles.themeBtnTextActive]}>
+                          {v === 'V1' ? '심플' : v === 'V2' ? '빌런카드' : '수익공개'}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -1098,19 +1097,13 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                 </View>
 
                 {/* 공유 카드 헤더 — 캡처해서 공유하기 좋게 디자인 */}
-                <View
-                  ref={shareCardRef}
-                  style={[
-                    styles.reviewShareCard,
-                    cardTheme === 'B' && styles.reviewShareCardB,
-                    cardTheme === 'C' && styles.reviewShareCardC,
-                  ]}
-                >
+                <View ref={shareCardRef} style={styles.reviewShareCard}>
                   <View style={styles.reviewShareHeader}>
-                    <Text style={[styles.reviewShareLogo, cardTheme === 'C' && { color: '#1a1d29' }]}>♠ BluffZone</Text>
-                    <Text style={[styles.reviewShareSub, cardTheme === 'C' && { color: '#666' }]}>홀덤 알파고 핸드 리뷰</Text>
+                    <Text style={styles.reviewShareLogo}>♠ BluffZone</Text>
+                    <Text style={styles.reviewShareSub}>홀덤 알파고 핸드 리뷰</Text>
                   </View>
-                  {/* 히어로 카드 + 보드 미니 표시 */}
+
+                  {/* V1·V2·V3 공통: 내 카드 + 보드 */}
                   <View style={styles.reviewShareCardsRow}>
                     {hand.hero_cards && hand.hero_cards.length > 0 && (
                       <View style={styles.reviewShareCardGroup}>
@@ -1118,6 +1111,21 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                         <View style={{ flexDirection: 'row', gap: 4 }}>
                           {hand.hero_cards.map((c, i) => (
                             <View key={i} style={styles.reviewShareCardItem}>
+                              <Text style={[styles.reviewShareCardText, { color: SUIT_COLORS[c.suit] }]}>
+                                {c.rank}{SUIT_SYMBOLS[c.suit]}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                    {/* V2: 빌런 카드 (오픈된 경우만) */}
+                    {cardVariant === 'V2' && hand.villain_known && hand.villain_cards && hand.villain_cards.length > 0 && (
+                      <View style={styles.reviewShareCardGroup}>
+                        <Text style={[styles.reviewShareCardLabel, { color: '#ef4444' }]}>빌런 카드</Text>
+                        <View style={{ flexDirection: 'row', gap: 4 }}>
+                          {hand.villain_cards.map((c, i) => (
+                            <View key={i} style={[styles.reviewShareCardItem, { borderColor: '#ef4444' }]}>
                               <Text style={[styles.reviewShareCardText, { color: SUIT_COLORS[c.suit] }]}>
                                 {c.rank}{SUIT_SYMBOLS[c.suit]}
                               </Text>
@@ -1141,11 +1149,37 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                       </View>
                     )}
                   </View>
+
                   {rating > 0 && (
                     <Text style={styles.reviewShareRating}>
                       {'⭐'.repeat(rating)}{'☆'.repeat(Math.max(0, 5 - rating))}
                     </Text>
                   )}
+
+                  {/* V2: 빌런 카드 미공개 안내 */}
+                  {cardVariant === 'V2' && !hand.villain_known && (
+                    <Text style={styles.reviewShareNote}>※ 빌런 카드 미공개</Text>
+                  )}
+
+                  {/* V3: 결과 + 수익 */}
+                  {cardVariant === 'V3' && hand.result && (
+                    <View style={styles.reviewShareResult}>
+                      <Text style={styles.reviewShareResultLabel}>
+                        {hand.result === 'won' ? '🏆 승리' : hand.result === 'lost' ? '😢 패배' : hand.result === 'chopped' ? '🤝 분배' : '🚪 폴드'}
+                      </Text>
+                      {hand.hero_pl != null && (
+                        <Text
+                          style={[
+                            styles.reviewSharePl,
+                            { color: hand.hero_pl >= 0 ? '#10b981' : '#ef4444' },
+                          ]}
+                        >
+                          {hand.hero_pl >= 0 ? '+' : ''}{hand.hero_pl.toLocaleString()}원
+                        </Text>
+                      )}
+                    </View>
+                  )}
+
                   <Text style={styles.reviewShareFooter}>bluffzone.kr</Text>
                 </View>
 
@@ -1668,17 +1702,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  // B: 카지노 그린
-  reviewShareCardB: {
-    backgroundColor: '#0d3d2e',
-    borderColor: '#d4af37', // 골드
+  // V2/V3 추가 표시 영역
+  reviewShareNote: { fontSize: fontSize.xs, color: colors.textMuted, fontStyle: 'italic' },
+  reviewShareResult: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: radius.sm,
   },
-  // C: 미니멀 화이트
-  reviewShareCardC: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e0e0e0',
-    borderWidth: 1,
-  },
+  reviewShareResultLabel: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  reviewSharePl: { fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   // 디자인 토글
   themeToggle: {
     flexDirection: 'row',
