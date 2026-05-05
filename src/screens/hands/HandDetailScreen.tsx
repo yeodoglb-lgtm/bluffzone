@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Share,
+  Platform,
 } from 'react-native';
 import { showConfirm, showAlert } from '../../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -578,6 +579,21 @@ export default function HandDetailScreen({ navigation, route }: Props) {
     });
   }
 
+  // 리뷰 결과 공유 — 헤드라인 + 평점 + URL 텍스트로
+  async function handleShareReview(r: any) {
+    try {
+      const rating = Number(r?.rating) || 0;
+      const stars = rating > 0 ? '⭐'.repeat(rating) : '';
+      const headline = r?.headline ? `\n${r.headline}` : '';
+      const text = `[블러프존 AI 핸드 리뷰] ${stars}${headline}\n\n무료 핸드 리뷰: https://bluffzone.kr`;
+      if (Platform.OS === 'web' && (navigator as any).share) {
+        await (navigator as any).share({ title: '블러프존 AI 핸드 리뷰', text });
+      } else {
+        await Share.share({ title: '블러프존 AI 핸드 리뷰', message: text });
+      }
+    } catch (e) { /* 사용자 취소 등 무시 */ }
+  }
+
   async function handleShare() {
     try {
       const shareId = hand?.share_id ?? Math.random().toString(36).slice(2, 10);
@@ -1013,15 +1029,55 @@ export default function HandDetailScreen({ navigation, route }: Props) {
             const rating = Number(r.rating) || 0;
             return (
               <View style={styles.reviewResult}>
-                {/* 한 줄 결론 + 평점 */}
-                {(r.headline || rating > 0) && (
+                {/* 공유 카드 헤더 — 캡처해서 공유하기 좋게 디자인 */}
+                <View style={styles.reviewShareCard}>
+                  <View style={styles.reviewShareHeader}>
+                    <Text style={styles.reviewShareLogo}>♠ BluffZone</Text>
+                    <Text style={styles.reviewShareSub}>AI 핸드 리뷰</Text>
+                  </View>
+                  {/* 히어로 카드 + 보드 미니 표시 */}
+                  <View style={styles.reviewShareCardsRow}>
+                    {hand.hero_cards && hand.hero_cards.length > 0 && (
+                      <View style={styles.reviewShareCardGroup}>
+                        <Text style={styles.reviewShareCardLabel}>내 카드</Text>
+                        <View style={{ flexDirection: 'row', gap: 4 }}>
+                          {hand.hero_cards.map((c, i) => (
+                            <View key={i} style={styles.reviewShareCardItem}>
+                              <Text style={[styles.reviewShareCardText, { color: SUIT_COLORS[c.suit] }]}>
+                                {c.rank}{SUIT_SYMBOLS[c.suit]}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                    {hand.board && hand.board.length > 0 && (
+                      <View style={styles.reviewShareCardGroup}>
+                        <Text style={styles.reviewShareCardLabel}>보드</Text>
+                        <View style={{ flexDirection: 'row', gap: 4 }}>
+                          {hand.board.map((c, i) => (
+                            <View key={i} style={styles.reviewShareCardItem}>
+                              <Text style={[styles.reviewShareCardText, { color: SUIT_COLORS[c.suit] }]}>
+                                {c.rank}{SUIT_SYMBOLS[c.suit]}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                  {rating > 0 && (
+                    <Text style={styles.reviewShareRating}>
+                      {'⭐'.repeat(rating)}{'☆'.repeat(Math.max(0, 5 - rating))}
+                    </Text>
+                  )}
+                  <Text style={styles.reviewShareFooter}>bluffzone.kr</Text>
+                </View>
+
+                {/* 한 줄 결론 */}
+                {r.headline && (
                   <View style={styles.headlineBox}>
-                    {r.headline ? <Text style={styles.headlineText}>👉 {r.headline}</Text> : null}
-                    {rating > 0 ? (
-                      <Text style={styles.ratingText}>
-                        {'⭐'.repeat(rating)}{'☆'.repeat(Math.max(0, 5 - rating))}
-                      </Text>
-                    ) : null}
+                    <Text style={styles.headlineText}>👉 {r.headline}</Text>
                   </View>
                 )}
 
@@ -1103,15 +1159,27 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                   </View>
                 )}
 
-                {/* 재요청 버튼 — 캐시 우회하고 GPT 새로 호출 */}
-                <TouchableOpacity
-                  onPress={() => handleRequestReview(true)}
-                  disabled={isReviewing}
-                  style={styles.reviewRetryBtn}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.reviewRetryText}>다시 분석</Text>
-                </TouchableOpacity>
+                {/* 공유 + 다시 분석 버튼 — 가로 배치 */}
+                <View style={styles.reviewActionsRow}>
+                  <TouchableOpacity
+                    onPress={() => handleShareReview(r)}
+                    style={styles.reviewShareBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.reviewShareBtnText}>📤 공유</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleRequestReview(true)}
+                    disabled={isReviewing}
+                    style={styles.reviewRetryBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.reviewRetryText}>다시 분석</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.reviewBrandFooter}>
+                  💡 친구에게 공유 → bluffzone.kr 에서 무료로 사용
+                </Text>
               </View>
             );
           })()}
@@ -1472,8 +1540,34 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: colors.text,
   },
-  reviewRetryBtn: { alignSelf: 'flex-end', paddingVertical: 4, paddingHorizontal: 8 },
-  reviewRetryText: { fontSize: fontSize.xs, color: colors.textMuted },
+  reviewRetryBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.button, borderWidth: 1, borderColor: colors.line },
+  reviewRetryText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.medium },
+  reviewActionsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
+  reviewShareBtn: { flex: 1, backgroundColor: colors.primary, paddingVertical: 10, borderRadius: radius.button, alignItems: 'center' },
+  reviewShareBtnText: { fontSize: fontSize.sm, color: colors.bg, fontWeight: fontWeight.bold },
+  reviewBrandFooter: { fontSize: fontSize.xs, color: colors.textMuted, textAlign: 'center', marginTop: spacing.sm, fontStyle: 'italic' },
+
+  // 공유 카드 헤더 (캡처용)
+  reviewShareCard: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    gap: spacing.sm,
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  reviewShareHeader: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.xs },
+  reviewShareLogo: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.primary },
+  reviewShareSub: { fontSize: fontSize.xs, color: colors.textMuted },
+  reviewShareCardsRow: { flexDirection: 'row', gap: spacing.lg, marginVertical: 4 },
+  reviewShareCardGroup: { alignItems: 'center', gap: 4 },
+  reviewShareCardLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  reviewShareCardItem: { backgroundColor: colors.surface, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4, borderWidth: 1, borderColor: colors.line, minWidth: 28, alignItems: 'center' },
+  reviewShareCardText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  reviewShareRating: { fontSize: 18, letterSpacing: 2 },
+  reviewShareFooter: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },
   reviewContent: { fontSize: fontSize.sm, color: colors.text, lineHeight: 20, marginTop: spacing.sm },
   reviewedAt: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 4 },
 });
