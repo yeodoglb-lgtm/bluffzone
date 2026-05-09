@@ -676,14 +676,120 @@ serve(async (req) => {
         }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      const { messages, model = 'gpt-4o-mini', systemPrompt } = body;
+      const { messages, model = 'gpt-4o-mini' } = body;
+
+      // ── A. 강화된 GTO 코치 시스템프롬프트 ─────────────────────────────────
+      const baseSystem = `당신은 '블러프존 홀덤 알파고' — GTO 기반 한국어 포커 코치입니다.
+
+[페르소나]
+- 친근하지만 권위 있음. 두루뭉술 X, 구체 수치 O.
+- 한국어 자연스럽게. 전문용어는 괄호로 풀이.
+
+[답변 규칙]
+1. **GTO 이론 우선** — "감으로", "느낌상" 같은 표현 금지. "GTO 이론에 따르면", "솔버 분석상", "포커 게임이론 관점에서" 같은 권위 표현 자연스럽게 사용.
+2. **구체 수치** — "AKo BTN 오픈 빈도 100%", "3-bet 시 콜 75% 폴드 25%" 식. "그때그때 다름" 같은 회피 답변 금지.
+3. **포커 용어 풀이** — 처음 등장 시 괄호로: "c-bet(어그레서가 플랍에서 또 베팅)", "OOP(상대보다 먼저 액션)", "SPR(스택÷팟)".
+4. **사용자 데이터 활용** — 시스템에 [내 최근 데이터] 섹션 있으면 그것을 적극 참조. "회원님은 이번 달 +50만원..." 식.
+5. **간결 + 깊이** — 일반 질문 3~5문장, 분석 질문 5~10문장.
+6. **빌런 핸드 단정 금지** — "빌런이 탑페어다" X, "빌런 레인지에 탑페어 비중 30%" O.
+
+[블러프존 앱 안내]
+- 음성 핸드 기록 → AI 리뷰 (Claude Sonnet 4.5)
+- 뱅크롤·세션 자동 추적
+- 푸시폴드·프리플랍 차트 (GTO Hub)
+- 전국 홀덤 매장 (플레이스 메뉴)
+
+[금지]
+- 캐쉬게임 (현금) 직접 권유나 가이드 X — "회색지대"라 답변 시 "토너먼트/일반 운영" 표현으로
+- 도박 권유 X
+- 매장명·전화번호 추천 X (앱 내에서 직접 검색하라고 안내)`;
+
+      // ── B. 사용자 컨텍스트 자동 주입 ──────────────────────────────────────
+      let userContext = '';
+      try {
+        // 최근 핸드 5개
+        const { data: recentHands } = await supabase
+          .from('hands')
+          .select('played_at, hero_position, hero_cards, board, result, hero_pl, review_status, review')
+          .eq('user_id', user.id)
+          .order('played_at', { ascending: false })
+          .limit(5);
+
+        // 이번 달 세션 (수익·세션 수 요약용)
+        const now = new Date();
+        const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        const { data: monthSessions } = await supabase
+          .from('sessions')
+          .select('played_on, buy_in, cash_out, place_name_snapshot, is_tournament')
+          .eq('user_id', user.id)
+          .gte('played_on', monthStart)
+          .order('played_on', { ascending: false })
+          .limit(50);
+
+        const ctxBlocks: string[] = [];
+
+        if (recentHands && recentHands.length > 0) {
+          const fmtCard = (c: any) => c ? `${c.rank}${c.suit}` : '';
+          const lines = recentHands.map((h: any, i: number) => {
+            const cards = Array.isArray(h.hero_cards) ? h.hero_cards.map(fmtCard).join('') : '';
+            const board = Array.isArray(h.board) && h.board.length ? h.board.map(fmtCard).join(' ') : '미완료';
+            const r = h.result === 'won' ? '승' : h.result === 'lost' ? '패' : h.result === 'chopped' ? '반반' : h.result === 'folded' ? '폴드' : '-';
+            const pl = h.hero_pl != null ? (h.hero_pl >= 0 ? '+' : '') + Math.round(h.hero_pl).toLocaleString() : '';
+            const reviewed = h.review_status === 'done' ? '✓리뷰' : '';
+            return `  ${i + 1}. ${h.hero_position} ${cards} | 보드 ${board} | ${r} ${pl} ${reviewed}`;
+          });
+          ctxBlocks.push(`[최근 핸드 ${recentHands.length}개]\n${lines.join('\n')}`);
+        }
+
+        if (monthSessions && monthSessions.length > 0) {
+          const totalProfit = monthSessions.reduce((s: number, x: any) => s + (Number(x.cash_out) - Number(x.buy_in)), 0);
+          const winCount = monthSessions.filter((x: any) => Number(x.cash_out) - Number(x.buy_in) > 0).length;
+          const tourCount = monthSessions.filter((x: any) => x.is_tournament).length;
+          const places = [...new Set(monthSessions.map((x: any) => x.place_name_snapshot).filter(Boolean))].slice(0, 3);
+          ctxBlocks.push(`[이번 달 통계]\n  세션 ${monthSessions.length}회 (토너 ${tourCount}회)\n  수익: ${totalProfit >= 0 ? '+' : ''}${Math.round(totalProfit).toLocaleString()}원\n  승률: ${monthSessions.length > 0 ? Math.round((winCount / monthSessions.length) * 100) : 0}%${places.length > 0 ? `\n  자주 가는 매장: ${places.join(', ')}` : ''}`);
+        }
+
+        if (ctxBlocks.length > 0) {
+          userContext = '\n\n[내 최근 데이터 — 답변 시 적극 참조]\n' + ctxBlocks.join('\n\n');
+        }
+      } catch (e) {
+        console.warn('[chat] user context fetch failed:', e);
+      }
+
+      // ── C. RAG (마지막 user 메시지로 책 청크 검색) ────────────────────────
+      let ragContext = '';
+      try {
+        const lastUserMsg = [...messages].reverse().find((m: any) => m.role === 'user');
+        if (lastUserMsg && typeof lastUserMsg.content === 'string' && lastUserMsg.content.length > 5) {
+          const embRes = await fetch('https://api.openai.com/v1/embeddings', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'text-embedding-3-small', input: lastUserMsg.content.slice(0, 500) }),
+          });
+          if (embRes.ok) {
+            const embData = await embRes.json();
+            const queryEmbedding = embData.data[0].embedding;
+            const { data: chunks } = await supabase.rpc('match_book_chunks', {
+              query_embedding: queryEmbedding,
+              match_count: 3,
+            });
+            if (chunks && chunks.length > 0) {
+              ragContext = '\n\n[전문 자료 참고 — 책·저자 이름 노출 X, 권위 표현으로 인용]\n' +
+                chunks.map((c: any, i: number) =>
+                  `[자료 ${i + 1}] ${c.content.slice(0, 800)}`
+                ).join('\n\n');
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[chat] RAG retrieval failed:', e);
+      }
+
+      const finalSystem = baseSystem + userContext + ragContext;
 
       // OpenAI chat/completions 형식으로 변환 (role: system/user/assistant)
       const openaiMessages = [
-        {
-          role: 'system',
-          content: systemPrompt ?? '당신은 블러프존AI입니다. 홀덤 전략, 핸드 분석, 뱅크롤 관리에 전문화된 포커 코치입니다. 한국어로 답변하세요.',
-        },
+        { role: 'system', content: finalSystem },
         ...messages.map((m: { role: string; content: string }) => ({
           role: m.role,
           content: m.content,

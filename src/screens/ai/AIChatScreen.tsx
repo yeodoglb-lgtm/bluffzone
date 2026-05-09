@@ -23,13 +23,17 @@ import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
 
 type Props = StackScreenProps<RootStackParamList, 'AIChat'>;
 
-const SYSTEM_PROMPT =
-  '당신은 블러프존 포커 코치입니다. 한국어로 답변하세요. 포커 전략, 핸드 분석, 멘탈에 대해 전문적으로 조언합니다.';
+// 시스템프롬프트는 서버측 강화 버전 사용 (클라이언트는 안 보냄 → 서버 default 적용)
+const SYSTEM_PROMPT = undefined;
 
+// 6개 빠른 질문 — 내 데이터 활용형 + 일반 GTO + 멘탈 다양화
 const EXAMPLE_QUESTIONS = [
-  '프리플랍 AKo BTN에서 어떻게?',
-  '팟 오즈 계산 방법',
-  '틸트 관리 팁',
+  '이번 달 내 통계 어때?',
+  '최근 핸드 짧게 분석',
+  'AKs BTN 프리플랍 가이드',
+  '팟 오즈 / 임플라이드 오즈',
+  '푸시폴드 12bb 빠른 가이드',
+  '틸트 관리 / 멘탈 팁',
 ];
 
 function MessageBubble({ message }: { message: ChatMessage }) {
@@ -217,6 +221,28 @@ export default function AIChatScreen({ navigation }: Props) {
           />
         )}
 
+        {/* 빠른 질문 칩 (대화 중에도 가로 스크롤) — 빈 화면일 땐 큰 그리드 우선 */}
+        {!isEmpty && !isStreaming && (
+          <View style={styles.quickChipsWrap}>
+            <FlatList
+              data={EXAMPLE_QUESTIONS}
+              keyExtractor={(q) => q}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.quickChipsContent}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.quickChip}
+                  onPress={() => handleSend(item)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={styles.quickChipText}>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        )}
+
         <View style={styles.inputArea}>
           <TextInput
             style={styles.textInput}
@@ -362,6 +388,24 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: fontWeight.medium,
   },
+
+  quickChipsWrap: {
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  quickChipsContent: { paddingHorizontal: spacing.base, gap: spacing.xs },
+  quickChip: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    marginRight: 6,
+  },
+  quickChipText: { fontSize: fontSize.xs, color: colors.text, fontWeight: fontWeight.medium },
 
   inputArea: {
     flexDirection: 'row',
