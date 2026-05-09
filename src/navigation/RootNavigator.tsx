@@ -2,7 +2,7 @@ import { useNavigationContainerRef, NavigationContainer } from '@react-navigatio
 import type { LinkingOptions } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View, Text, StyleSheet, BackHandler, Platform, ToastAndroid } from 'react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { useAuthStore } from '../store/authStore';
 import { colors } from '../theme';
