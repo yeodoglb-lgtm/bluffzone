@@ -223,27 +223,6 @@ export default function BankrollStatsScreen() {
       .slice(0, 5);
   }, [sessions]);
 
-  // Stakes별 ROI (캐쉬만, 스테이크 표기 있는 세션)
-  const stakeStats = useMemo(() => {
-    const map = new Map<string, { sessions: number; profit: number; hours: number }>();
-    sessions.forEach(s => {
-      if (s.is_tournament) return;
-      const stake = (s.stakes ?? '').trim();
-      if (!stake) return;
-      const prev = map.get(stake) ?? { sessions: 0, profit: 0, hours: 0 };
-      let hours = 0;
-      if (s.started_at && s.ended_at) {
-        hours = Math.max(0, (new Date(s.ended_at).getTime() - new Date(s.started_at).getTime()) / 3600000);
-      }
-      map.set(stake, {
-        sessions: prev.sessions + 1,
-        profit: prev.profit + Number(s.net_profit),
-        hours: prev.hours + hours,
-      });
-    });
-    return Array.from(map.entries())
-      .sort((a, b) => b[1].profit - a[1].profit);
-  }, [sessions]);
 
   const totalColor =
     stats.totalProfit > 0
@@ -486,35 +465,6 @@ export default function BankrollStatsScreen() {
                     <Text style={[styles.breakdownCell, styles.breakdownNum]}>{d.sessions}회</Text>
                     <Text style={[styles.breakdownCell, styles.breakdownNum, { color: c }]}>
                       {formatProfit(d.profit, currency)}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {/* Stakes별 시간당 수익 (캐쉬만) */}
-          {stakeStats.length > 0 && (
-            <View style={styles.breakdownCard}>
-              <Text style={styles.sectionTitle}>스테이크별 수익 (캐쉬)</Text>
-              <View style={styles.breakdownHeader}>
-                <Text style={[styles.breakdownCell, styles.breakdownLabelHeader]}>스테이크</Text>
-                <Text style={[styles.breakdownCell, styles.breakdownNumHeader]}>세션</Text>
-                <Text style={[styles.breakdownCell, styles.breakdownNumHeader]}>합계</Text>
-                <Text style={[styles.breakdownCell, styles.breakdownNumHeader]}>시간당</Text>
-              </View>
-              {stakeStats.map(([stake, d]) => {
-                const c = d.profit > 0 ? colors.primary : d.profit < 0 ? colors.danger : colors.textMuted;
-                const hourly = d.hours > 0 ? d.profit / d.hours : null;
-                return (
-                  <View key={stake} style={styles.breakdownRow}>
-                    <Text style={[styles.breakdownCell, styles.breakdownLabel]} numberOfLines={1}>{stake}</Text>
-                    <Text style={[styles.breakdownCell, styles.breakdownNum]}>{d.sessions}회</Text>
-                    <Text style={[styles.breakdownCell, styles.breakdownNum, { color: c }]}>
-                      {formatProfit(d.profit, currency)}
-                    </Text>
-                    <Text style={[styles.breakdownCell, styles.breakdownNum, { color: c, fontSize: 11 }]}>
-                      {hourly != null ? formatProfit(hourly, currency) + '/h' : '-'}
                     </Text>
                   </View>
                 );
