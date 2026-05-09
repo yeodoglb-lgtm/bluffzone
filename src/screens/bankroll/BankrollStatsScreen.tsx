@@ -147,6 +147,90 @@ export default function BankrollStatsScreen() {
     return Array.from(map.entries()).sort((a, b) => b[1].profit - a[1].profit);
   }, [sessions]);
 
+  // 베스트 / 워스트 세션
+  const bestSession = useMemo(() => {
+    if (sessions.length === 0) return null;
+    return sessions.reduce((best, s) =>
+      Number(s.net_profit) > Number(best.net_profit) ? s : best
+    );
+  }, [sessions]);
+  const worstSession = useMemo(() => {
+    if (sessions.length === 0) return null;
+    return sessions.reduce((worst, s) =>
+      Number(s.net_profit) < Number(worst.net_profit) ? s : worst
+    );
+  }, [sessions]);
+
+  // 요일별 수익
+  const weekdayStats = useMemo(() => {
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    const stats = days.map(d => ({ day: d, profit: 0, count: 0 }));
+    sessions.forEach(s => {
+      const d = new Date(s.played_on).getDay();
+      stats[d].profit += Number(s.net_profit);
+      stats[d].count += 1;
+    });
+    return stats;
+  }, [sessions]);
+
+  // 연승 / 연패 (최근 세션부터 역순)
+  const streak = useMemo(() => {
+    if (sessions.length === 0) return null;
+    // 날짜 역순 정렬
+    const sorted = [...sessions].sort((a, b) =>
+      (b.started_at ?? b.played_on).localeCompare(a.started_at ?? a.played_on)
+    );
+    const first = Number(sorted[0].net_profit);
+    if (first === 0) return null;
+    const isWin = first > 0;
+    let count = 0;
+    for (const s of sorted) {
+      const p = Number(s.net_profit);
+      if (isWin && p > 0) count++;
+      else if (!isWin && p < 0) count++;
+      else break;
+    }
+    return { isWin, count };
+  }, [sessions]);
+
+  // 장소별 수익 top 5
+  const placeStats = useMemo(() => {
+    const map = new Map<string, { sessions: number; profit: number }>();
+    sessions.forEach(s => {
+      const name = s.place_name_snapshot ?? '(미기재)';
+      const prev = map.get(name) ?? { sessions: 0, profit: 0 };
+      map.set(name, {
+        sessions: prev.sessions + 1,
+        profit: prev.profit + Number(s.net_profit),
+      });
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => b[1].profit - a[1].profit)
+      .slice(0, 5);
+  }, [sessions]);
+
+  // Stakes별 ROI (캐쉬만, 스테이크 표기 있는 세션)
+  const stakeStats = useMemo(() => {
+    const map = new Map<string, { sessions: number; profit: number; hours: number }>();
+    sessions.forEach(s => {
+      if (s.is_tournament) return;
+      const stake = (s.stakes ?? '').trim();
+      if (!stake) return;
+      const prev = map.get(stake) ?? { sessions: 0, profit: 0, hours: 0 };
+      let hours = 0;
+      if (s.started_at && s.ended_at) {
+        hours = Math.max(0, (new Date(s.ended_at).getTime() - new Date(s.started_at).getTime()) / 3600000);
+      }
+      map.set(stake, {
+        sessions: prev.sessions + 1,
+        profit: prev.profit + Number(s.net_profit),
+        hours: prev.hours + hours,
+      });
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => b[1].profit - a[1].profit);
+  }, [sessions]);
+
   const totalColor =
     stats.totalProfit > 0
       ? colors.primary
@@ -251,6 +335,45 @@ export default function BankrollStatsScreen() {
             </View>
           </View>
 
+          {/* 연승/연패 streak */}
+          {streak && (
+            <View style={[styles.streakCard, { backgroundColor: streak.isWin ? `${colors.primary}15` : `${colors.danger}15`, borderColor: streak.isWin ? colors.primary : colors.danger }]}>
+              <Text style={styles.streakEmoji}>{streak.isWin ? '🔥' : '🥶'}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.streakTitle, { color: streak.isWin ? colors.primary : colors.danger }]}>
+                  {streak.count}세션 {streak.isWin ? '연승' : '연패'} 중
+                </Text>
+                <Text style={styles.streakSub}>
+                  {streak.isWin ? '집중력 유지하세요' : '잠시 쉬어가는 것도 방법'}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* 베스트/워스트 세션 */}
+          {bestSession && worstSession && bestSession.id !== worstSession.id && (
+            <View style={styles.bwRow}>
+              <View style={[styles.bwCard, { borderColor: colors.primary }]}>
+                <Text style={styles.bwLabel}>🏆 베스트 세션</Text>
+                <Text style={[styles.bwValue, { color: colors.primary }]}>
+                  {formatProfit(Number(bestSession.net_profit), currency)}
+                </Text>
+                <Text style={styles.bwSub} numberOfLines={1}>
+                  {dayjs(bestSession.played_on).format('M/D')} · {bestSession.place_name_snapshot ?? '(미기재)'}
+                </Text>
+              </View>
+              <View style={[styles.bwCard, { borderColor: colors.danger }]}>
+                <Text style={styles.bwLabel}>🥲 워스트 세션</Text>
+                <Text style={[styles.bwValue, { color: colors.danger }]}>
+                  {formatProfit(Number(worstSession.net_profit), currency)}
+                </Text>
+                <Text style={styles.bwSub} numberOfLines={1}>
+                  {dayjs(worstSession.played_on).format('M/D')} · {worstSession.place_name_snapshot ?? '(미기재)'}
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Line Chart */}
           {chartData.length >= 2 ? (
             <View style={styles.chartCard}>
@@ -290,6 +413,94 @@ export default function BankrollStatsScreen() {
                     <Text style={[styles.breakdownCell, styles.breakdownNum]}>{data.sessions}회</Text>
                     <Text style={[styles.breakdownCell, styles.breakdownNum, { color: pColor }]}>
                       {formatProfit(data.profit, currency)}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {/* 요일별 수익 — 패턴 분석 */}
+          {sessions.length >= 3 && weekdayStats.some(d => d.count > 0) && (
+            <View style={styles.breakdownCard}>
+              <Text style={styles.sectionTitle}>요일별 수익</Text>
+              {(() => {
+                const max = Math.max(...weekdayStats.map(d => Math.abs(d.profit)), 1);
+                return (
+                  <View style={styles.weekdayRow}>
+                    {weekdayStats.map(d => {
+                      const barH = (Math.abs(d.profit) / max) * 60;
+                      const positive = d.profit >= 0;
+                      return (
+                        <View key={d.day} style={styles.weekdayCol}>
+                          <Text style={[styles.weekdayProfit, { color: positive ? colors.primary : colors.danger }]}>
+                            {d.count > 0 ? (d.profit >= 0 ? '+' : '') + (d.profit / 10000).toFixed(0) + '만' : '-'}
+                          </Text>
+                          <View style={styles.weekdayBarWrap}>
+                            {d.count > 0 && (
+                              <View style={[styles.weekdayBar, {
+                                height: Math.max(2, barH),
+                                backgroundColor: positive ? colors.primary : colors.danger,
+                              }]} />
+                            )}
+                          </View>
+                          <Text style={styles.weekdayLabel}>{d.day}</Text>
+                          <Text style={styles.weekdayCount}>{d.count}회</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                );
+              })()}
+            </View>
+          )}
+
+          {/* Top 5 장소별 수익 */}
+          {placeStats.length > 1 && (
+            <View style={styles.breakdownCard}>
+              <Text style={styles.sectionTitle}>장소별 수익 (Top 5)</Text>
+              <View style={styles.breakdownHeader}>
+                <Text style={[styles.breakdownCell, styles.breakdownLabelHeader, { flex: 2 }]}>장소</Text>
+                <Text style={[styles.breakdownCell, styles.breakdownNumHeader]}>세션</Text>
+                <Text style={[styles.breakdownCell, styles.breakdownNumHeader]}>합계</Text>
+              </View>
+              {placeStats.map(([name, d]) => {
+                const c = d.profit > 0 ? colors.primary : d.profit < 0 ? colors.danger : colors.textMuted;
+                return (
+                  <View key={name} style={styles.breakdownRow}>
+                    <Text style={[styles.breakdownCell, styles.breakdownLabel, { flex: 2 }]} numberOfLines={1}>{name}</Text>
+                    <Text style={[styles.breakdownCell, styles.breakdownNum]}>{d.sessions}회</Text>
+                    <Text style={[styles.breakdownCell, styles.breakdownNum, { color: c }]}>
+                      {formatProfit(d.profit, currency)}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Stakes별 시간당 수익 (캐쉬만) */}
+          {stakeStats.length > 0 && (
+            <View style={styles.breakdownCard}>
+              <Text style={styles.sectionTitle}>스테이크별 수익 (캐쉬)</Text>
+              <View style={styles.breakdownHeader}>
+                <Text style={[styles.breakdownCell, styles.breakdownLabelHeader]}>스테이크</Text>
+                <Text style={[styles.breakdownCell, styles.breakdownNumHeader]}>세션</Text>
+                <Text style={[styles.breakdownCell, styles.breakdownNumHeader]}>합계</Text>
+                <Text style={[styles.breakdownCell, styles.breakdownNumHeader]}>시간당</Text>
+              </View>
+              {stakeStats.map(([stake, d]) => {
+                const c = d.profit > 0 ? colors.primary : d.profit < 0 ? colors.danger : colors.textMuted;
+                const hourly = d.hours > 0 ? d.profit / d.hours : null;
+                return (
+                  <View key={stake} style={styles.breakdownRow}>
+                    <Text style={[styles.breakdownCell, styles.breakdownLabel]} numberOfLines={1}>{stake}</Text>
+                    <Text style={[styles.breakdownCell, styles.breakdownNum]}>{d.sessions}회</Text>
+                    <Text style={[styles.breakdownCell, styles.breakdownNum, { color: c }]}>
+                      {formatProfit(d.profit, currency)}
+                    </Text>
+                    <Text style={[styles.breakdownCell, styles.breakdownNum, { color: c, fontSize: 11 }]}>
+                      {hourly != null ? formatProfit(hourly, currency) + '/h' : '-'}
                     </Text>
                   </View>
                 );
@@ -410,4 +621,40 @@ const styles = StyleSheet.create({
   breakdownNum: { fontSize: fontSize.sm, color: colors.text, textAlign: 'right' },
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl },
   emptyText: { fontSize: fontSize.base, color: colors.textMuted },
+
+  // 연승 streak 카드
+  streakCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.base,
+    borderRadius: radius.card,
+    borderWidth: 1.5,
+  },
+  streakEmoji: { fontSize: 32 },
+  streakTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  streakSub: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+
+  // 베스트 / 워스트 카드
+  bwRow: { flexDirection: 'row', gap: spacing.sm },
+  bwCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    borderWidth: 1.5,
+    gap: 4,
+  },
+  bwLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.medium },
+  bwValue: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  bwSub: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+
+  // 요일별 차트
+  weekdayRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 4, paddingTop: spacing.sm },
+  weekdayCol: { flex: 1, alignItems: 'center', gap: 2 },
+  weekdayProfit: { fontSize: 9, fontWeight: fontWeight.semibold },
+  weekdayBarWrap: { height: 60, justifyContent: 'flex-end' },
+  weekdayBar: { width: 16, borderRadius: 2, minHeight: 2 },
+  weekdayLabel: { fontSize: fontSize.xs, color: colors.text, fontWeight: fontWeight.medium, marginTop: 2 },
+  weekdayCount: { fontSize: 9, color: colors.textMuted },
 });

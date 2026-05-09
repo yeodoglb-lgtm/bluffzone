@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { StackScreenProps } from '@react-navigation/stack';
@@ -118,6 +119,10 @@ export default function HandListScreen({ navigation }: Props) {
   const [filterUid, setFilterUid] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState<PageSize>(10);
   const [page, setPage] = useState(0);
+  // 검색·필터 state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [resultFilter, setResultFilter] = useState<'all' | 'won' | 'lost' | 'chopped' | 'folded'>('all');
+  const [showFilters, setShowFilters] = useState(false);
   const { requireAuth } = useLoginPrompt();
 
   // 어드민이면 전체 유저 핸드, 일반 유저면 본인 핸드만
@@ -131,13 +136,35 @@ export default function HandListScreen({ navigation }: Props) {
   // 어드민: userNameMap 으로 display_name 주입 + 유저 필터링
   const allHands = useMemo<HandWithUser[]>(() => {
     const raw = (isAdmin ? adminHands : myHands) ?? [];
-    const withNames: HandWithUser[] = raw.map(h => ({
+    let withNames: HandWithUser[] = raw.map(h => ({
       ...h,
       display_name: isAdmin ? (userNameMap[h.user_id] ?? null) : null,
     }));
-    if (!isAdmin || filterUid === null) return withNames;
-    return withNames.filter(h => h.user_id === filterUid);
-  }, [isAdmin, adminHands, myHands, filterUid, userNameMap]);
+    if (isAdmin && filterUid !== null) {
+      withNames = withNames.filter(h => h.user_id === filterUid);
+    }
+    // 검색어 필터 — 카드/포지션/노트
+    const q = searchQuery.trim().toUpperCase();
+    if (q) {
+      withNames = withNames.filter(h => {
+        // 카드 매칭 (예: "AKS", "JJ")
+        const cardStr = (h.hero_cards ?? []).map(c => c.rank).join('');
+        if (cardStr.toUpperCase().includes(q.replace(/[^A-Z0-9]/g, ''))) return true;
+        // 포지션
+        if ((h.hero_position ?? '').toUpperCase().includes(q)) return true;
+        if ((h.villain_position ?? '').toUpperCase().includes(q)) return true;
+        // 스테이크 / 노트
+        if ((h.stakes ?? '').toUpperCase().includes(q)) return true;
+        if ((h.note ?? '').toUpperCase().includes(q)) return true;
+        return false;
+      });
+    }
+    // 결과 필터
+    if (resultFilter !== 'all') {
+      withNames = withNames.filter(h => h.result === resultFilter);
+    }
+    return withNames;
+  }, [isAdmin, adminHands, myHands, filterUid, userNameMap, searchQuery, resultFilter]);
 
   const totalPages = Math.max(1, Math.ceil(allHands.length / pageSize));
   const safePage = Math.min(page, totalPages - 1);
@@ -173,6 +200,59 @@ export default function HandListScreen({ navigation }: Props) {
 
       {/* 어드민 유저 필터 */}
       <AdminUserFilter selectedUid={filterUid} onChange={setFilterUid} />
+
+      {/* 검색바 + 필터 토글 */}
+      {!isLoading && (myHands?.length ?? 0) + (adminHands?.length ?? 0) > 0 && (
+        <View style={styles.searchSection}>
+          <View style={styles.searchRow}>
+            <View style={styles.searchInputWrap}>
+              <Text style={styles.searchIcon}>🔍</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="카드(AK), 포지션(BTN), 메모..."
+                placeholderTextColor={colors.textMuted}
+                value={searchQuery}
+                onChangeText={(t) => { setSearchQuery(t); setPage(0); }}
+                clearButtonMode="while-editing"
+              />
+              {!!searchQuery && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Text style={styles.searchClear}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity
+              style={[styles.filterBtn, (resultFilter !== 'all' || showFilters) && styles.filterBtnActive]}
+              onPress={() => setShowFilters(v => !v)}
+            >
+              <Text style={[styles.filterBtnText, (resultFilter !== 'all' || showFilters) && styles.filterBtnTextActive]}>
+                필터{resultFilter !== 'all' ? ' ●' : ''}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {showFilters && (
+            <View style={styles.filterChipsRow}>
+              {([
+                { key: 'all', label: '전체' },
+                { key: 'won', label: '승' },
+                { key: 'lost', label: '패' },
+                { key: 'chopped', label: '반반' },
+                { key: 'folded', label: '폴드' },
+              ] as const).map(f => (
+                <TouchableOpacity
+                  key={f.key}
+                  style={[styles.filterChip, resultFilter === f.key && styles.filterChipActive]}
+                  onPress={() => { setResultFilter(f.key); setPage(0); }}
+                >
+                  <Text style={[styles.filterChipText, resultFilter === f.key && styles.filterChipTextActive]}>
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
 
       {/* 페이지 크기 선택 + 총 개수 */}
       {!isLoading && allHands.length > 0 && (
@@ -414,4 +494,34 @@ const styles = StyleSheet.create({
   pageBtnDisabled: { opacity: 0.35 },
   pageBtnText: { fontSize: fontSize.sm, color: colors.text, fontWeight: fontWeight.medium },
   pageIndicator: { fontSize: fontSize.sm, color: colors.text, fontWeight: fontWeight.bold },
+
+  // 검색·필터
+  searchSection: { paddingHorizontal: spacing.base, paddingTop: spacing.sm, gap: spacing.sm },
+  searchRow: { flexDirection: 'row', gap: spacing.sm },
+  searchInputWrap: {
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.surface, borderRadius: radius.sm,
+    borderWidth: 1, borderColor: colors.line,
+    paddingHorizontal: spacing.sm,
+  },
+  searchIcon: { fontSize: fontSize.sm, marginRight: 6 },
+  searchInput: { flex: 1, paddingVertical: spacing.sm, fontSize: fontSize.sm, color: colors.text },
+  searchClear: { fontSize: fontSize.sm, color: colors.textMuted, paddingHorizontal: 6 },
+  filterBtn: {
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line,
+    backgroundColor: colors.surface, justifyContent: 'center',
+  },
+  filterBtnActive: { borderColor: colors.primary, backgroundColor: `${colors.primary}11` },
+  filterBtnText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.medium },
+  filterBtnTextActive: { color: colors.primary, fontWeight: fontWeight.bold },
+  filterChipsRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  filterChip: {
+    paddingHorizontal: spacing.sm, paddingVertical: 6,
+    borderRadius: radius.full, borderWidth: 1, borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  filterChipText: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.medium },
+  filterChipTextActive: { color: colors.bg, fontWeight: fontWeight.bold },
 });
