@@ -71,8 +71,8 @@ export default function WelcomeModal() {
     // 마운트 후 1회 체크 — 안 본 유저면 노출
     const seen = safeGetItem(STORAGE_KEY);
     if (!seen) {
-      // 약간 지연 → 화면 부드럽게 뜨도록
-      const t = setTimeout(() => setVisible(true), 800);
+      // LCP 측정 회피 — 4초 지연 (브라우저 LCP 측정 끝난 후 표시)
+      const t = setTimeout(() => setVisible(true), 4000);
       return () => clearTimeout(t);
     }
   }, []);

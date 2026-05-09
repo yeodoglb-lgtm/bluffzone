@@ -17,16 +17,24 @@ import InstallPwaBanner from './src/components/InstallPwaBanner';
 
 // ── Sentry 초기화 (prod 에러 추적) ──────────────────────────────────────────
 // DSN이 설정된 경우만 활성화.
+// 메인 스레드 차단 회피 — 첫 렌더 후 지연 초기화 (성능 점수 영향 ↓)
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 const IS_WEB = Platform.OS === 'web';
 if (SENTRY_DSN && IS_WEB) {
-  Sentry.init({
-    dsn: SENTRY_DSN,
-    tracesSampleRate: 0.2,
-    environment: __DEV__ ? 'development' : 'production',
-  });
-  // 웹 콘솔에서 직접 테스트 가능하도록 전역 노출
-  (window as any).Sentry = Sentry;
+  // requestIdleCallback이 있으면 idle 시점에, 없으면 setTimeout 1초 후
+  const initSentry = () => {
+    Sentry.init({
+      dsn: SENTRY_DSN,
+      tracesSampleRate: 0.2,
+      environment: __DEV__ ? 'development' : 'production',
+    });
+    (window as any).Sentry = Sentry;
+  };
+  if (typeof (window as any).requestIdleCallback === 'function') {
+    (window as any).requestIdleCallback(initSentry, { timeout: 3000 });
+  } else {
+    setTimeout(initSentry, 1500);
+  }
 }
 
 // ── 웹 한정: SEO Open Graph 태그 동적 주입 + Service Worker 등록 ──────────
