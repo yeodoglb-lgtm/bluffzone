@@ -1696,6 +1696,77 @@ ${heroActionsByStreet}
         }
       }
 
+      // Anthropic 스트리밍 호출 — 진행 상황을 SSE로 클라이언트에 forward
+      async function callClaudeStreaming(
+        ctrl: ReadableStreamDefaultController<Uint8Array>,
+        enc: TextEncoder,
+      ): Promise<{ json: any | null; inputTokens: number; outputTokens: number; raw: string }> {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': ANTHROPIC_API_KEY!,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-5',
+            max_tokens: 1500,
+            temperature: 0.4,
+            stream: true,
+            system: finalSystemPrompt + '\n\n⚠️ 출력은 JSON 객체 1개만. 다른 텍스트, 마크다운 코드블록, 설명 일절 금지.',
+            messages: [{ role: 'user', content: userPrompt }],
+          }),
+        });
+        if (!res.ok || !res.body) {
+          const errText = await res.text();
+          throw new Error(`Anthropic API error: ${errText}`);
+        }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulated = '';
+        let inputTokens = 0;
+        let outputTokens = 0;
+        let chunkCounter = 0;
+        let buf = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop() ?? '';
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const json = line.slice(6).trim();
+            if (!json || json === '[DONE]') continue;
+            try {
+              const ev = JSON.parse(json);
+              if (ev.type === 'content_block_delta' && ev.delta?.text) {
+                accumulated += ev.delta.text;
+                chunkCounter++;
+                // 5청크마다 클라이언트에 진행 상황 알림
+                if (chunkCounter % 5 === 0) {
+                  try {
+                    ctrl.enqueue(enc.encode(`event: progress\ndata: ${JSON.stringify({ tokens: chunkCounter, chars: accumulated.length })}\n\n`));
+                  } catch { /* 클라이언트 disconnect */ }
+                }
+              } else if (ev.type === 'message_start') {
+                inputTokens = ev.message?.usage?.input_tokens ?? 0;
+              } else if (ev.type === 'message_delta' && ev.usage) {
+                outputTokens = ev.usage.output_tokens ?? outputTokens;
+              }
+            } catch { /* malformed event 무시 */ }
+          }
+        }
+        // 최종 JSON 파싱
+        let parsed: any | null = null;
+        try { parsed = JSON.parse(accumulated); }
+        catch {
+          const m = accumulated.match(/\{[\s\S]*\}/);
+          if (m) { try { parsed = JSON.parse(m[0]); } catch { /* fall */ } }
+        }
+        return { json: parsed, inputTokens, outputTokens, raw: accumulated };
+      }
+
       async function callOpenAi(): Promise<{
         json: any | null;
         inputTokens: number;
@@ -1740,7 +1811,64 @@ ${heroActionsByStreet}
       // ANTHROPIC_API_KEY 등록되어 있으면 Claude, 없으면 GPT fallback
       const callGpt = USE_CLAUDE ? callClaude : callOpenAi;
 
-      // 1차 호출
+      // ── 스트리밍 응답 분기 ────────────────────────────────────────────────
+      // 클라이언트가 stream:true 보내고 + Claude 사용 가능하면 SSE로 스트리밍
+      const useStreaming = body.stream === true && USE_CLAUDE;
+      if (useStreaming) {
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream<Uint8Array>({
+          async start(controller) {
+            try {
+              controller.enqueue(encoder.encode(`event: progress\ndata: ${JSON.stringify({ tokens: 0, status: 'AI 분석 시작' })}\n\n`));
+              let result = await callClaudeStreaming(controller, encoder);
+              let totalInput = result.inputTokens;
+              let totalOutput = result.outputTokens;
+              if (!result.json) {
+                console.warn('[hand-review-gpt] streaming JSON parse failed, retrying non-streaming');
+                const retry = await callClaude();
+                totalInput += retry.inputTokens;
+                totalOutput += retry.outputTokens;
+                result = retry;
+              }
+              if (!result.json) {
+                controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ error: 'JSON 파싱 실패' })}\n\n`));
+                controller.close();
+                return;
+              }
+              const reviewJson = result.json;
+              reviewJson._rag = {
+                used: ragChunkCount > 0,
+                chunks: ragChunkCount,
+                top_similarity: Number(ragTopSimilarity.toFixed(4)),
+              };
+              // 사용량 + 캐시 저장 (스트림 close 후 background)
+              recordUsage(supabase, user.id, 'hand-review', reviewModel, totalInput, totalOutput).catch(() => {});
+              supabase.from('hand_review_cache').insert({
+                cache_key: cacheKey, result: reviewJson, hit_count: 1,
+              }).then(() => {}, () => {});
+              controller.enqueue(encoder.encode(`event: complete\ndata: ${JSON.stringify(reviewJson)}\n\n`));
+              controller.close();
+            } catch (e) {
+              console.error('[hand-review-gpt] streaming error:', e);
+              try {
+                controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ error: String(e) })}\n\n`));
+                controller.close();
+              } catch { /* already closed */ }
+            }
+          },
+        });
+        return new Response(stream, {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no',
+          },
+        });
+      }
+
+      // 1차 호출 (비스트리밍)
       let result = await callGpt();
       let totalInput = result.inputTokens;
       let totalOutput = result.outputTokens;

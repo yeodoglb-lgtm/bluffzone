@@ -652,6 +652,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
   }
 
   const [isReviewing, setIsReviewing] = useState(false);
+  const [reviewProgress, setReviewProgress] = useState<{ tokens: number; chars: number } | null>(null);
   // 신규 유저 자동 리뷰 — 첫 핸드(리뷰 0개)일 때 자동으로 리뷰 트리거
   // "와 자동으로 분석해주네" 즉각 임팩트 + 온보딩 가속
   const { data: allHands } = useHands();
@@ -660,6 +661,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
   async function handleRequestReview(forceRefresh = false) {
     if (!hand) return;
     setIsReviewing(true);
+    setReviewProgress(null);
     try {
       await updateHand.mutateAsync({ id: handId, data: { review_status: 'pending' } });
 
@@ -723,7 +725,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: safeStringify({ hand: handPayload, force_refresh: forceRefresh }),
+          body: safeStringify({ hand: handPayload, force_refresh: forceRefresh, stream: true }),
         }
       );
 
@@ -734,7 +736,52 @@ export default function HandDetailScreen({ navigation, route }: Props) {
         throw new Error(`리뷰 요청 실패: ${detail}`);
       }
 
-      const review = await res.json();
+      // 응답 형식 분기 — SSE 스트림 vs JSON
+      const contentType = res.headers.get('content-type') ?? '';
+      let review: any;
+
+      if (contentType.includes('text/event-stream') && res.body) {
+        // 스트리밍 — SSE 이벤트 파싱
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        let completed = false;
+        let errorMsg: string | null = null;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const events = buf.split('\n\n');
+          buf = events.pop() ?? '';
+          for (const ev of events) {
+            const lines = ev.split('\n');
+            let eventType = 'message';
+            let dataStr = '';
+            for (const line of lines) {
+              if (line.startsWith('event:')) eventType = line.slice(6).trim();
+              else if (line.startsWith('data:')) dataStr = line.slice(5).trim();
+            }
+            if (!dataStr) continue;
+            try {
+              const data = JSON.parse(dataStr);
+              if (eventType === 'progress') {
+                setReviewProgress({ tokens: data.tokens ?? 0, chars: data.chars ?? 0 });
+              } else if (eventType === 'complete') {
+                review = data;
+                completed = true;
+              } else if (eventType === 'error') {
+                errorMsg = data.error ?? '리뷰 생성 실패';
+              }
+            } catch (e) {
+              console.warn('[review-stream] bad event:', ev);
+            }
+          }
+        }
+        if (errorMsg) throw new Error(errorMsg);
+        if (!completed || !review) throw new Error('스트림이 끊어졌습니다 — 다시 시도해주세요');
+      } else {
+        review = await res.json();
+      }
       await updateHand.mutateAsync({
         id: handId,
         data: {
@@ -749,6 +796,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
       showAlert('오류', e.message ?? '리뷰 요청에 실패했습니다.');
     } finally {
       setIsReviewing(false);
+      setReviewProgress(null);
     }
   }
 
@@ -1056,7 +1104,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           )}
 
-          {/* 분석 중 — 큰 표시 + 안내 */}
+          {/* 분석 중 — 큰 표시 + 안내 + 실시간 진행률 */}
           {(hand.review_status === 'pending' || isReviewing) && (
             <View style={styles.reviewPendingBig}>
               <ActivityIndicator color={colors.primary} size="large" />
@@ -1065,6 +1113,11 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                 GTO 이론 + 솔버 데이터로 핸드를 분석하고 있어요{'\n'}
                 보통 10~20초 정도 걸립니다 ☕
               </Text>
+              {reviewProgress && reviewProgress.chars > 0 && (
+                <Text style={styles.reviewProgressText}>
+                  ✍️ {reviewProgress.chars}자 생성 중...
+                </Text>
+              )}
             </View>
           )}
 
@@ -1618,6 +1671,12 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     lineHeight: fontSize.sm * 1.6,
+  },
+  reviewProgressText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: fontWeight.semibold,
+    fontFamily: 'monospace',
   },
   reviewResult: { gap: spacing.sm, marginTop: 4 },
   streetCard: {
