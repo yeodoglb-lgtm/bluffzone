@@ -10,7 +10,6 @@
 
 import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, fontSize, fontWeight, radius } from '../theme';
 import { useHands } from '../hooks/useHands';
 import { useSessionsByRange } from '../hooks/useSessions';
