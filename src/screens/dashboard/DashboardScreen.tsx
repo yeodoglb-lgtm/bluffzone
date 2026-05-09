@@ -11,6 +11,8 @@ import Logo from '../../components/common/Logo';
 import InstallPwaCard from '../../components/InstallPwaCard';
 import BetaBanner from '../../components/BetaBanner';
 import WelcomeModal from '../../components/WelcomeModal';
+import OnboardingChecklist from '../../components/OnboardingChecklist';
+import NotificationPermissionPrompt from '../../components/NotificationPermissionPrompt';
 import { useAuthStore } from '../../store/authStore';
 import { useHands } from '../../hooks/useHands';
 import { useLoginPrompt } from '../../components/LoginPromptModal';
@@ -37,6 +39,8 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* 신규 유저 환영 모달 — 1회 자동 노출 */}
       <WelcomeModal />
+      {/* PWA 설치된 유저에게 알림 권한 요청 — 1회 */}
+      <NotificationPermissionPrompt />
       {/* 헤더 */}
       <View style={styles.header}>
         <Logo size="sm" variant="full" />
@@ -95,6 +99,14 @@ export default function DashboardScreen() {
               <Text style={styles.marketingButtonText}>무료로 시작하기</Text>
             </TouchableOpacity>
           </View>
+        )}
+
+        {/* 온보딩 체크리스트 — 로그인 유저 중 3단계 미완료자에게 노출 */}
+        {isLoggedIn && (
+          <OnboardingChecklist
+            onNavigateHand={() => navigation.navigate('HandsTab', { screen: 'HandList' })}
+            onNavigateBankroll={() => navigation.navigate('BankrollTab', { screen: 'BankrollCalendar' })}
+          />
         )}
 
         {/* 신규 유저 전용 CTA — 로그인 + 핸드 0개일 때 */}
