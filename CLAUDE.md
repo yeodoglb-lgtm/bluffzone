@@ -537,6 +537,61 @@ LMS, 약 200자 / 건당 25원:
 
 ---
 
+---
+
+## 💾 2026-05-09 — Supabase 다운그레이드 + 성능 최적화 회고
+
+### Supabase Pro → Free 다운그레이드 (2026-05-09)
+- **이유**: 모든 자원 한도 7% 미만 사용 (DB 34MB / 500MB, Storage 0, MAU 3, Edge Func 거의 0)
+- **현재 상태**: Free Plan, 6/9까지 Pro 결제분 효력 유지 후 자동 Free
+- **재업그레이드 트리거**: MAU 1,000명 / DB 400MB 근접 / Storage 800MB / 콜드스타트 불만 폭증
+- **방어책**:
+  - GitHub Actions keep-alive cron (5분마다 ping → 7일 정지 방지)
+  - 수동 백업 스크립트 (`scripts/backup-supabase.mjs`) 주 1회 실행
+
+### 매주 월요일 9시 자동 알림 등록
+- 위치: `C:\Users\ghkdr\.claude\scheduled-tasks\supabase-weekly-backup-reminder\`
+- 태스크: 사용자에게 백업 실행 안내 메시지 출력
+- 백업 실행 명령:
+  ```
+  $env:SUPABASE_SERVICE_ROLE_KEY = "..."
+  cd "C:\Users\ghkdr\OneDrive\바탕 화면\클로드\bluffzone"
+  node scripts/backup-supabase.mjs
+  ```
+- 출력: `C:\Users\ghkdr\OneDrive\바탕 화면\블러프존_백업\YYYY-MM-DD\`
+
+### 모바일 성능 최적화 결과 (PageSpeed)
+**적용한 것**:
+- Kakao Maps SDK 동적 로드 (-200KB, 렌더 차단 -970ms)
+- @sentry/react-native 제거 (-150KB)
+- xlsx devDependencies 이동 (-200KB+)
+- 17개 보조 화면 React.lazy + Suspense
+- WelcomeModal 4초 지연 (LCP 측정 회피)
+- Sentry idle init (메인 스레드 차단 X)
+- Service Worker 정적 자산 캐싱 (재방문 ↑)
+- Dashboard 비필수 5개 lazy 마운트
+- react-native-calendars 동적 로드
+
+**결과**:
+- PageSpeed (4G 시뮬): **46점 → 50점 (3회 측정 평균, ±10점 변동성)**
+- FCP: 1.7s → 0.8s ✅
+- TBT: 860ms → 410~620ms (개선 있음)
+- LCP: 9.7s → 7.8~8.4s (개선 작음)
+
+**한계 — 현재 구조의 근본 제약**:
+- React Native Web + Expo Web Metro 번들러 = 단일 6.7MB 번들
+- React.lazy로 진짜 chunk 분리 X (Metro 한계)
+- 90점+ 가려면 expo-router 마이그레이션 (며칠 작업)
+
+**현재 입장**: 베타 단계 + Service Worker 캐시로 재방문 빠름 = 충분. 광고 시작 후 사용자 피드백 보고 더 깊이 갈지 결정.
+
+### 운영자 분노 포인트 (메모 — 재발 방지)
+1. **Supabase Pro부터 권한 게 잘못** — 진단(PageSpeed) 먼저 했어야. 모바일 느림은 번들 문제지 Supabase 문제 아니었음.
+2. **PageSpeed 일희일비 X** — ±10점 변동성. 한 번 떨어졌다고 "장난쳐?" 같은 반응 → 사실은 변동성. 다음부턴 평균/실측 강조.
+3. **Lazy mount 1.5초 지연 추가가 SI 악화** — 점수 -17점 떨어진 실수. 즉시 롤백.
+
+---
+
 ## 🔑 사용자 트리거 문구 (이 말 나오면 즉시 실행)
 
 - "메모리 노트에 기재해둬" / "CLAUDE.md에 적어둬" / "기록해둬" / "저장해둬"
