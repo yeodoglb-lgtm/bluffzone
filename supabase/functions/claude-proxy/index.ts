@@ -1449,55 +1449,52 @@ ${heroActionsByStreet}
 위 정보를 근거로 각 스트리트 추천 액션을 스키마대로 JSON으로만 반환해라.
 출력 직전 마지막 자체 검증: actual_line의 각 액션이 [★히어로 실제 액션] 블록과 100% 일치하는지 확인. 다르면 다시 작성.`;
 
-      // ── RAG: Play Optimal Poker 1, 2 책에서 이 핸드와 관련 청크 검색 ─────
-      // 1) 핸드를 짧은 영어 쿼리로 요약 (책이 영어라 영어 매칭이 정확)
-      // 2) text-embedding-3-small로 임베딩
-      // 3) match_book_chunks RPC로 상위 5개 청크 검색
-      // 4) systemPrompt에 권위 있는 GTO 톤으로 자료 주입
-      let ragContext = '';
-      let ragChunkCount = 0;
-      let ragTopSimilarity = 0;
-      try {
-        // RAG 쿼리: 리버 액션이 가장 결정적이므로 끝에서 1500자 잘라서 사용
-        // (이전엔 앞에서 1500자 → 긴 핸드의 리버 부분 누락됐음)
-        const richTrimmed = richStreetsBlock.length > 1500
-          ? richStreetsBlock.slice(richStreetsBlock.length - 1500)
-          : richStreetsBlock;
-        const ragQuery = `Position: ${position}. Hero hand: ${handCards}. Board: ${boardCards}. SPR: ${sprStr}. Preflop aggressor: ${preflopAggressor}. Villain type: ${villainType}. Actions summary: ${richTrimmed}`;
-        const embRes = await fetch('https://api.openai.com/v1/embeddings', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: 'text-embedding-3-small', input: ragQuery }),
-        });
-        if (embRes.ok) {
-          const embData = await embRes.json();
-          const queryEmbedding = embData.data[0].embedding;
-          const { data: chunks } = await supabase.rpc('match_book_chunks', {
-            query_embedding: queryEmbedding,
-            match_count: 5,
+      // ═══════════════════════════════════════════════════════════════════
+      // 병렬 작업 — RAG + 푸시폴드 + 프리플랍 차트 lookup을 동시 실행
+      // (이전엔 직렬 → 약 2~3초 단축)
+      // ═══════════════════════════════════════════════════════════════════
+      type RagResult = { context: string; chunkCount: number; topSimilarity: number };
+      // ── 1) RAG ─────────────────────────────────────────────────────────
+      const ragTask = async (): Promise<RagResult> => {
+        let context = '', chunkCount = 0, topSimilarity = 0;
+        try {
+          const richTrimmed = richStreetsBlock.length > 1500
+            ? richStreetsBlock.slice(richStreetsBlock.length - 1500)
+            : richStreetsBlock;
+          const ragQuery = `Position: ${position}. Hero hand: ${handCards}. Board: ${boardCards}. SPR: ${sprStr}. Preflop aggressor: ${preflopAggressor}. Villain type: ${villainType}. Actions summary: ${richTrimmed}`;
+          const embRes = await fetch('https://api.openai.com/v1/embeddings', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'text-embedding-3-small', input: ragQuery }),
           });
-          if (chunks && chunks.length > 0) {
-            ragChunkCount = chunks.length;
-            ragTopSimilarity = chunks[0]?.similarity ?? 0;
-            console.log(`[hand-review-gpt] RAG: ${chunks.length} chunks retrieved, top similarity ${(ragTopSimilarity * 100).toFixed(1)}%`);
-            ragContext = '\n\n[전문 참고 자료 — 분석에 활용]\n' +
-              '아래는 이 핸드와 관련된 GTO·포커 이론 자료입니다. 답변 작성 시 이 내용을 적극 반영·인용하세요.\n' +
-              '⚠️ 특정 책·저자 이름 절대 언급 금지 (원천 자료명 X). 권위 표현 사용 규칙은 절대 규칙 ⑮ 참조.\n' +
-              '원문이 영어니 한국어로 자연스럽게 의역. 직역 금지.\n\n' +
-              chunks.map((c: any, i: number) =>
-                `[자료 #${i + 1}] (관련도 ${(c.similarity * 100).toFixed(1)}%)\n${c.content}`
-              ).join('\n\n---\n\n');
+          if (embRes.ok) {
+            const embData = await embRes.json();
+            const queryEmbedding = embData.data[0].embedding;
+            const { data: chunks } = await supabase.rpc('match_book_chunks', {
+              query_embedding: queryEmbedding,
+              match_count: 5,
+            });
+            if (chunks && chunks.length > 0) {
+              chunkCount = chunks.length;
+              topSimilarity = chunks[0]?.similarity ?? 0;
+              context = '\n\n[전문 참고 자료 — 분석에 활용]\n' +
+                '아래는 이 핸드와 관련된 GTO·포커 이론 자료입니다. 답변 작성 시 이 내용을 적극 반영·인용하세요.\n' +
+                '⚠️ 특정 책·저자 이름 절대 언급 금지 (원천 자료명 X). 권위 표현 사용 규칙은 절대 규칙 ⑮ 참조.\n' +
+                '원문이 영어니 한국어로 자연스럽게 의역. 직역 금지.\n\n' +
+                chunks.map((c: any, i: number) =>
+                  `[자료 #${i + 1}] (관련도 ${(c.similarity * 100).toFixed(1)}%)\n${c.content}`
+                ).join('\n\n---\n\n');
+            }
           }
+        } catch (e) {
+          console.warn('[hand-review-gpt] RAG retrieval failed:', e);
         }
-      } catch (e) {
-        // RAG 실패해도 기존 시스템 프롬프트만으로 진행 (graceful degradation)
-        console.warn('[hand-review-gpt] RAG retrieval failed:', e);
-      }
+        return { context, chunkCount, topSimilarity };
+      };
 
-      // ── 토너 컨텍스트 빌드 (분기) ─────────────────────────────────────────
+      // ── 2) 토너 컨텍스트 빌드 (sync 부분) ──────────────────────────────
       // 토너 핸드면 ICM/푸시폴드 가이드 주입. 단스택(≤25bb)이면 차트 lookup도 추가.
       let tournamentContext = '';
-      let pushfoldAdvice: string | null = null;
       if (isTournament) {
         tournamentContext = '\n\n████████████████████████████████████████████████\n' +
           '🏆 토너먼트 핸드 — 절대 우선 규칙 (다른 모든 규칙보다 우선)\n' +
@@ -1513,9 +1510,15 @@ ${heroActionsByStreet}
           (effStackBb != null ? `📊 유효 스택 BB 환산: **${effStackBb}bb** ${effStackBb <= 15 ? '(매우 단스택, 푸시폴드 필수)' : effStackBb <= 25 ? '(단스택, 푸시폴드 영역)' : effStackBb <= 50 ? '(미디엄)' : '(딥)'}\n` : '') +
           '⚠️ tip 필드에 반드시 토너 관련 직관 1개 포함 (예: "12bb 단스택은 푸시·폴드 결정만 단순화", "ICM 버블 압박상 …")\n' +
           '████████████████████████████████████████████████\n';
+      }
 
-        // 푸시폴드 차트 lookup (히어로 핸드 + 포지션 + ≤25bb 일 때)
-        if (effStackBb != null && effStackBb <= 25 && hand?.hero_position && Array.isArray(hand?.hero_cards) && hand.hero_cards.length === 2) {
+      // ── 3) 푸시폴드 차트 lookup (async, 토너 + ≤25bb 일 때만) ───────────
+      const pushfoldTask = async (): Promise<string | null> => {
+        if (!isTournament) return null;
+        if (effStackBb == null || effStackBb > 25) return null;
+        if (!hand?.hero_position || !Array.isArray(hand?.hero_cards) || hand.hero_cards.length !== 2) return null;
+        // 본문은 기존 로직 그대로 (await 가능)
+        if (true) {
           // 핸드를 169핸드 표기로 변환 (예: AhKs → AKs, AhKd → AKo, 9c9d → 99)
           const c1 = hand.hero_cards[0];
           const c2 = hand.hero_cards[1];
@@ -1544,7 +1547,7 @@ ${heroActionsByStreet}
               .eq('hand', handLabel)
               .maybeSingle();
             if (pfRow?.action) {
-              pushfoldAdvice = `\n\n[푸시폴드 차트 권고 — 추천 액션 결정 우선 기준]\n` +
+              const advice = `\n\n[푸시폴드 차트 권고 — 추천 액션 결정 우선 기준]\n` +
                 `히어로 ${hand.hero_position} ${closestStack}bb ${handLabel} → **Nash 차트상 ${pfRow.action.toUpperCase()}**\n` +
                 `🔴 추천 액션 결정 규칙:\n` +
                 `1. 차트가 PUSH면 streets.preflop.action = "raise"(올인) 권장이 기본. ICM 압박은 comment에서 언급하되 추천을 뒤집지 말 것.\n` +
@@ -1552,16 +1555,19 @@ ${heroActionsByStreet}
                 `3. 예외 (차트 무시 가능): 명확한 버블 직전(상위 N명 입상에서 N+1명 남음) 또는 칩리더 상황에서만. 그 외는 차트 따라가기.\n` +
                 `4. 추천 액션과 comment 톤 모순 금지 — "보수적 접근 필요" 같은 표현 쓰면 추천도 fold여야 함.`;
               console.log(`[hand-review-gpt] Pushfold lookup: ${hand.hero_position} ${closestStack}bb ${handLabel} = ${pfRow.action}`);
+              return advice;
             }
           }
         }
-      }
+        return null;
+      };
 
-      // ── 프리플랍 차트 lookup (캐쉬게임 100bb 차트) ────────────────────────
+      // ── 4) 프리플랍 차트 lookup (캐쉬게임 100bb, async) ─────────────────
       // 히어로 첫 프리플랍 액션을 시나리오(open/3bet/call) 분류 → 차트 조회 → AI에 컨텍스트 전달
       // ⚠️ 토너먼트는 푸시폴드 차트 사용 (위에서 처리). 캐쉬 100bb 차트 적용 부적절 → skip.
-      let preflopAdvice: string | null = null;
-      if (!isTournament && hand?.hero_position && Array.isArray(hand?.hero_cards) && hand.hero_cards.length === 2) {
+      const preflopTask = async (): Promise<string | null> => {
+        let preflopAdvice: string | null = null;
+        if (!isTournament && hand?.hero_position && Array.isArray(hand?.hero_cards) && hand.hero_cards.length === 2) {
         // 핸드 → 169 표기
         const c1 = hand.hero_cards[0];
         const c2 = hand.hero_cards[1];
@@ -1625,7 +1631,21 @@ ${heroActionsByStreet}
             }
           }
         }
-      }
+        }
+        return preflopAdvice;
+      };
+
+      // ═══ 3개 작업 병렬 실행 ═════════════════════════════════════════════
+      const parallelStart = Date.now();
+      const [ragResult, pushfoldAdvice, preflopAdvice] = await Promise.all([
+        ragTask(),
+        pushfoldTask(),
+        preflopTask(),
+      ]);
+      console.log(`[hand-review-gpt] 병렬 작업 완료 (${Date.now() - parallelStart}ms): RAG=${ragResult.chunkCount} chunks, pushfold=${pushfoldAdvice ? 'hit' : 'none'}, preflop=${preflopAdvice ? 'hit' : 'none'}`);
+      const ragContext = ragResult.context;
+      const ragChunkCount = ragResult.chunkCount;
+      const ragTopSimilarity = ragResult.topSimilarity;
 
       // 토너 컨텍스트는 systemPrompt **맨 앞**에 배치 (우선순위 높임)
       // 일반 RAG는 뒤에 추가 (참고 자료)
