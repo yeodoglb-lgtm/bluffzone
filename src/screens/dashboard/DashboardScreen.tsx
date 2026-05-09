@@ -32,7 +32,6 @@ export default function DashboardScreen() {
   const { data: hands } = useHands(1);
   const isNewUser = !hands || hands.length === 0;
   const isLoggedIn = !!session;
-  const isAdmin = profile?.role === 'admin';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
