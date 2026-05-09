@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -38,22 +38,13 @@ export default function DashboardScreen() {
   const isNewUser = !hands || hands.length === 0;
   const isLoggedIn = !!session;
 
-  // 비필수 컴포넌트 지연 마운트 — LCP 측정 후 1초 뒤 표시 → 점수 ↑
-  const [mountSecondary, setMountSecondary] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setMountSecondary(true), 1500);
-    return () => clearTimeout(t);
-  }, []);
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* 비필수 컴포넌트 — 첫 렌더 후 1.5초 지연 + Suspense */}
-      {mountSecondary && (
-        <Suspense fallback={null}>
-          <WelcomeModal />
-          <NotificationPermissionPrompt />
-        </Suspense>
-      )}
+      {/* lazy import는 유지 (chunk 분리), 지연 마운트는 제거 (Speed Index 악화) */}
+      <Suspense fallback={null}>
+        <WelcomeModal />
+        <NotificationPermissionPrompt />
+      </Suspense>
       {/* 헤더 */}
       <View style={styles.header}>
         <Logo size="sm" variant="full" />
@@ -114,8 +105,8 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* 온보딩 체크리스트 — 로그인 유저 중 3단계 미완료자에게 노출 (지연 마운트) */}
-        {isLoggedIn && mountSecondary && (
+        {/* 온보딩 체크리스트 — 로그인 유저 중 3단계 미완료자에게 노출 */}
+        {isLoggedIn && (
           <Suspense fallback={null}>
             <OnboardingChecklist
               onNavigateHand={() => navigation.navigate('HandsTab', { screen: 'HandList' })}
@@ -198,13 +189,11 @@ export default function DashboardScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* 모바일 PWA 설치 안내 + 베타 배너 — 지연 마운트 (LCP 후) */}
-        {mountSecondary && (
-          <Suspense fallback={null}>
-            <InstallPwaCard />
-            <BetaBanner />
-          </Suspense>
-        )}
+        {/* 모바일 PWA 설치 안내 + 베타 배너 */}
+        <Suspense fallback={null}>
+          <InstallPwaCard />
+          <BetaBanner />
+        </Suspense>
       </ScrollView>
     </SafeAreaView>
   );
