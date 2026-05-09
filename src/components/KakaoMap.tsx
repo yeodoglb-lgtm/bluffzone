@@ -56,13 +56,27 @@ export default function KakaoMap({
     );
   }
 
+  // SDK 동적 로드 — index.html에서 제거하고 컴포넌트 마운트 시점에만 다운로드
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.kakao?.maps) return; // 이미 로드됨
+    // 중복 로드 방지: 기존 script 태그 체크
+    const existing = document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]');
+    if (existing) return;
+    const script = document.createElement('script');
+    script.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=1c42d577c0b7dc9f62da99bea9dc57f5&autoload=false&libraries=clusterer';
+    script.async = true;
+    script.onerror = () => console.warn('[KakaoMap] SDK 로드 실패');
+    document.head.appendChild(script);
+  }, []);
+
   // 지도 초기화 — SDK 로드 대기 후 실행
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     let cancelled = false;
     let pollCount = 0;
-    const maxPolls = 50; // 5초 (100ms × 50)
+    const maxPolls = 100; // 10초 (100ms × 100) — 동적 로드라 시간 더 줌
 
     function tryInit() {
       if (cancelled) return;
@@ -71,7 +85,7 @@ export default function KakaoMap({
         if (pollCount++ < maxPolls) {
           setTimeout(tryInit, 100);
         } else {
-          console.warn('[KakaoMap] SDK 로드 시간 초과 (5초)');
+          console.warn('[KakaoMap] SDK 로드 시간 초과 (10초)');
         }
         return;
       }

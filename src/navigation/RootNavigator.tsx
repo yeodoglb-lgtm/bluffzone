@@ -8,16 +8,43 @@ import { useAuthStore } from '../store/authStore';
 import { colors } from '../theme';
 import type { RootStackParamList } from './types';
 
+import React, { Suspense } from 'react';
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import PreviewHomeScreen from '../screens/preview/PreviewHomeScreen';
 import MainTabNavigator from './MainTabNavigator';
 import { LoginPromptProvider } from '../components/LoginPromptModal';
-import AIChatScreen from '../screens/ai/AIChatScreen';
-import TermsScreen from '../screens/auth/TermsScreen';
-import PrivacyScreen from '../screens/auth/PrivacyScreen';
-import FeedbackScreen from '../screens/feedback/FeedbackScreen';
-import MyFeedbackListScreen from '../screens/feedback/MyFeedbackListScreen';
-import AdminFeedbackScreen from '../screens/admin/AdminFeedbackScreen';
+
+// 보조 화면들은 lazy load — 메인 번들에서 분리
+const AIChatScreen = React.lazy(() => import('../screens/ai/AIChatScreen'));
+const TermsScreen = React.lazy(() => import('../screens/auth/TermsScreen'));
+const PrivacyScreen = React.lazy(() => import('../screens/auth/PrivacyScreen'));
+const FeedbackScreen = React.lazy(() => import('../screens/feedback/FeedbackScreen'));
+const MyFeedbackListScreen = React.lazy(() => import('../screens/feedback/MyFeedbackListScreen'));
+const AdminFeedbackScreen = React.lazy(() => import('../screens/admin/AdminFeedbackScreen'));
+
+// Suspense fallback
+function LazyFallback() {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
+      <ActivityIndicator color={colors.primary} size="large" />
+    </View>
+  );
+}
+function withSuspense<P extends object>(Component: React.ComponentType<P>) {
+  const Wrapped = (props: P) => (
+    <Suspense fallback={<LazyFallback />}>
+      <Component {...props} />
+    </Suspense>
+  );
+  Wrapped.displayName = `Lazy(${(Component as any).displayName ?? 'Screen'})`;
+  return Wrapped;
+}
+const AIChatScreenLazy = withSuspense(AIChatScreen);
+const TermsScreenLazy = withSuspense(TermsScreen);
+const PrivacyScreenLazy = withSuspense(PrivacyScreen);
+const FeedbackScreenLazy = withSuspense(FeedbackScreen);
+const MyFeedbackListScreenLazy = withSuspense(MyFeedbackListScreen);
+const AdminFeedbackScreenLazy = withSuspense(AdminFeedbackScreen);
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -137,22 +164,22 @@ export default function RootNavigator() {
               <Stack.Screen name="Main" component={MainTabNavigator} options={{ title: '블러프존 - 홀덤 핸드 매니저' }} />
               <Stack.Screen
                 name="AIChat"
-                component={AIChatScreen}
+                component={AIChatScreenLazy}
                 options={{ ...modalOptions, title: '블러프존 홀덤 알파고' }}
               />
-              <Stack.Screen name="Terms" component={TermsScreen} options={{ title: '이용약관 - 블러프존' }} />
-              <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: '개인정보처리방침 - 블러프존' }} />
-              <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: '의견 보내기 - 블러프존' }} />
-              <Stack.Screen name="MyFeedback" component={MyFeedbackListScreen} options={{ title: '내 의견 이력 - 블러프존' }} />
-              <Stack.Screen name="AdminFeedback" component={AdminFeedbackScreen} options={{ title: '어드민 - 블러프존' }} />
+              <Stack.Screen name="Terms" component={TermsScreenLazy} options={{ title: '이용약관 - 블러프존' }} />
+              <Stack.Screen name="Privacy" component={PrivacyScreenLazy} options={{ title: '개인정보처리방침 - 블러프존' }} />
+              <Stack.Screen name="Feedback" component={FeedbackScreenLazy} options={{ title: '의견 보내기 - 블러프존' }} />
+              <Stack.Screen name="MyFeedback" component={MyFeedbackListScreenLazy} options={{ title: '내 의견 이력 - 블러프존' }} />
+              <Stack.Screen name="AdminFeedback" component={AdminFeedbackScreenLazy} options={{ title: '어드민 - 블러프존' }} />
             </>
           ) : (
             <>
               <Stack.Screen name="Home" component={PreviewHomeScreen} options={{ title: '블러프존 - 홀덤 핸드 매니저' }} />
               <Stack.Screen name="Main" component={MainTabNavigator} options={{ title: '블러프존 - 홀덤 핸드 매니저' }} />
               <Stack.Screen name="Auth" component={WelcomeScreen} options={{ title: '로그인 / 가입 - 블러프존' }} />
-              <Stack.Screen name="Terms" component={TermsScreen} options={{ title: '이용약관 - 블러프존' }} />
-              <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: '개인정보처리방침 - 블러프존' }} />
+              <Stack.Screen name="Terms" component={TermsScreenLazy} options={{ title: '이용약관 - 블러프존' }} />
+              <Stack.Screen name="Privacy" component={PrivacyScreenLazy} options={{ title: '개인정보처리방침 - 블러프존' }} />
             </>
           )}
         </Stack.Navigator>

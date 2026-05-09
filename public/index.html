@@ -55,8 +55,8 @@
       gtag('config', 'AW-18131936789');
     </script>
 
-    <!-- Kakao Maps JavaScript SDK (autoload=false → 필요할 때 kakao.maps.load 호출) -->
-    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=1c42d577c0b7dc9f62da99bea9dc57f5&autoload=false&libraries=clusterer"></script>
+    <!-- Kakao Maps SDK는 src/components/KakaoMap.tsx에서 동적 로드 (렌더 차단 회피) -->
+    <!-- 플레이스 화면 들어갈 때만 다운로드됨 → 첫 페이지 로드 200KB+ 절감 -->
 
     <!-- JSON-LD 구조화 데이터 (Google이 사이트 정체 빠르게 인식) -->
     <script type="application/ld+json">

@@ -1,3 +1,5 @@
+import React, { Suspense } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import {
@@ -20,27 +22,58 @@ import type {
   PlacesStackParamList,
 } from './types';
 
-// ── 화면 imports ──────────────────────────────────────────────────────────────
+// ── 1차 화면 (탭 루트) — 즉시 로드 ─────────────────────────────────────────
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
-import GtoHubScreen from '../screens/gto/GtoHubScreen';
-import PushfoldChartScreen from '../screens/gto/PushfoldChartScreen';
-import PreflopChartScreen from '../screens/gto/PreflopChartScreen';
-
 import BankrollCalendarScreen from '../screens/bankroll/BankrollCalendarScreen';
-import DayDetailScreen from '../screens/bankroll/DayDetailScreen';
-import SessionDetailScreen from '../screens/bankroll/SessionDetailScreen';
-import SessionFormScreen from '../screens/bankroll/SessionFormScreen';
-import BankrollStatsScreen from '../screens/bankroll/BankrollStatsScreen';
-
 import HandListScreen from '../screens/hands/HandListScreen';
-import HandEditorScreen from '../screens/hands/HandEditorScreen';
-import HandDetailScreen from '../screens/hands/HandDetailScreen';
-
 import PlacesMapScreen from '../screens/places/PlacesMapScreen';
-import PlaceDetailScreen from '../screens/places/PlaceDetailScreen';
-
 import SettingsScreen from '../screens/settings/SettingsScreen';
-import AdminScreen from '../screens/admin/AdminScreen';
+
+// ── 2차 화면 (서브 라우트) — lazy load (방문 시 별도 chunk 다운로드) ────────
+const GtoHubScreen = React.lazy(() => import('../screens/gto/GtoHubScreen'));
+const PushfoldChartScreen = React.lazy(() => import('../screens/gto/PushfoldChartScreen'));
+const PreflopChartScreen = React.lazy(() => import('../screens/gto/PreflopChartScreen'));
+const DayDetailScreen = React.lazy(() => import('../screens/bankroll/DayDetailScreen'));
+const SessionDetailScreen = React.lazy(() => import('../screens/bankroll/SessionDetailScreen'));
+const SessionFormScreen = React.lazy(() => import('../screens/bankroll/SessionFormScreen'));
+const BankrollStatsScreen = React.lazy(() => import('../screens/bankroll/BankrollStatsScreen'));
+const HandEditorScreen = React.lazy(() => import('../screens/hands/HandEditorScreen'));
+const HandDetailScreen = React.lazy(() => import('../screens/hands/HandDetailScreen'));
+const PlaceDetailScreen = React.lazy(() => import('../screens/places/PlaceDetailScreen'));
+const AdminScreen = React.lazy(() => import('../screens/admin/AdminScreen'));
+
+// Suspense fallback (로딩 표시)
+function LazyFallback() {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
+      <ActivityIndicator color={colors.primary} size="large" />
+    </View>
+  );
+}
+
+// 라우트 컴포넌트를 Suspense로 감싸는 헬퍼
+function withSuspense<P extends object>(Component: React.ComponentType<P>) {
+  const Wrapped = (props: P) => (
+    <Suspense fallback={<LazyFallback />}>
+      <Component {...props} />
+    </Suspense>
+  );
+  Wrapped.displayName = `Lazy(${(Component as any).displayName ?? 'Screen'})`;
+  return Wrapped;
+}
+
+// 각 lazy 화면을 Suspense로 한 번 감쌈
+const GtoHubScreenLazy = withSuspense(GtoHubScreen);
+const PushfoldChartScreenLazy = withSuspense(PushfoldChartScreen);
+const PreflopChartScreenLazy = withSuspense(PreflopChartScreen);
+const DayDetailScreenLazy = withSuspense(DayDetailScreen);
+const SessionDetailScreenLazy = withSuspense(SessionDetailScreen);
+const SessionFormScreenLazy = withSuspense(SessionFormScreen);
+const BankrollStatsScreenLazy = withSuspense(BankrollStatsScreen);
+const HandEditorScreenLazy = withSuspense(HandEditorScreen);
+const HandDetailScreenLazy = withSuspense(HandDetailScreen);
+const PlaceDetailScreenLazy = withSuspense(PlaceDetailScreen);
+const AdminScreenLazy = withSuspense(AdminScreen);
 
 // ── 네비게이터 인스턴스 ────────────────────────────────────────────────────────
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -56,9 +89,9 @@ function DashboardNavigator() {
   return (
     <DashboardStack.Navigator screenOptions={stackOptions}>
       <DashboardStack.Screen name="Dashboard" component={DashboardScreen} options={{ title: '블러프존 - 홀덤 핸드 매니저' }} />
-      <DashboardStack.Screen name="GtoHub" component={GtoHubScreen} options={{ title: 'GTO 도구 - 블러프존' }} />
-      <DashboardStack.Screen name="PushfoldChart" component={PushfoldChartScreen} options={{ title: '푸시폴드 차트 - 블러프존' }} />
-      <DashboardStack.Screen name="PreflopChart" component={PreflopChartScreen} options={{ title: '프리플랍 차트 - 블러프존' }} />
+      <DashboardStack.Screen name="GtoHub" component={GtoHubScreenLazy} options={{ title: 'GTO 도구 - 블러프존' }} />
+      <DashboardStack.Screen name="PushfoldChart" component={PushfoldChartScreenLazy} options={{ title: '푸시폴드 차트 - 블러프존' }} />
+      <DashboardStack.Screen name="PreflopChart" component={PreflopChartScreenLazy} options={{ title: '프리플랍 차트 - 블러프존' }} />
     </DashboardStack.Navigator>
   );
 }
@@ -67,10 +100,10 @@ function BankrollNavigator() {
   return (
     <BankrollStack.Navigator screenOptions={stackOptions}>
       <BankrollStack.Screen name="BankrollCalendar" component={BankrollCalendarScreen} options={{ title: '뱅크롤 관리 - 블러프존' }} />
-      <BankrollStack.Screen name="DayDetail" component={DayDetailScreen} options={{ title: '일별 세션 - 블러프존' }} />
-      <BankrollStack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: '세션 상세 - 블러프존' }} />
-      <BankrollStack.Screen name="SessionForm" component={SessionFormScreen} options={{ title: '세션 입력 - 블러프존' }} />
-      <BankrollStack.Screen name="BankrollStats" component={BankrollStatsScreen} options={{ title: '뱅크롤 통계 - 블러프존' }} />
+      <BankrollStack.Screen name="DayDetail" component={DayDetailScreenLazy} options={{ title: '일별 세션 - 블러프존' }} />
+      <BankrollStack.Screen name="SessionDetail" component={SessionDetailScreenLazy} options={{ title: '세션 상세 - 블러프존' }} />
+      <BankrollStack.Screen name="SessionForm" component={SessionFormScreenLazy} options={{ title: '세션 입력 - 블러프존' }} />
+      <BankrollStack.Screen name="BankrollStats" component={BankrollStatsScreenLazy} options={{ title: '뱅크롤 통계 - 블러프존' }} />
     </BankrollStack.Navigator>
   );
 }
@@ -79,11 +112,11 @@ function HandsNavigator() {
   return (
     <HandsStack.Navigator screenOptions={stackOptions}>
       <HandsStack.Screen name="HandList" component={HandListScreen} options={{ title: '핸드 기록 - 블러프존' }} />
-      <HandsStack.Screen name="HandEditor" component={HandEditorScreen} options={{ title: '핸드 입력 - 블러프존' }} />
-      <HandsStack.Screen name="HandDetail" component={HandDetailScreen} options={{ title: '핸드 상세 - 블러프존' }} />
-      <HandsStack.Screen name="GtoHub" component={GtoHubScreen} options={{ title: 'GTO 도구 - 블러프존' }} />
-      <HandsStack.Screen name="PushfoldChart" component={PushfoldChartScreen} options={{ title: '푸시폴드 차트 - 블러프존' }} />
-      <HandsStack.Screen name="PreflopChart" component={PreflopChartScreen} options={{ title: '프리플랍 차트 - 블러프존' }} />
+      <HandsStack.Screen name="HandEditor" component={HandEditorScreenLazy} options={{ title: '핸드 입력 - 블러프존' }} />
+      <HandsStack.Screen name="HandDetail" component={HandDetailScreenLazy} options={{ title: '핸드 상세 - 블러프존' }} />
+      <HandsStack.Screen name="GtoHub" component={GtoHubScreenLazy} options={{ title: 'GTO 도구 - 블러프존' }} />
+      <HandsStack.Screen name="PushfoldChart" component={PushfoldChartScreenLazy} options={{ title: '푸시폴드 차트 - 블러프존' }} />
+      <HandsStack.Screen name="PreflopChart" component={PreflopChartScreenLazy} options={{ title: '프리플랍 차트 - 블러프존' }} />
     </HandsStack.Navigator>
   );
 }
@@ -92,7 +125,7 @@ function PlacesNavigator() {
   return (
     <PlacesStack.Navigator screenOptions={stackOptions}>
       <PlacesStack.Screen name="PlacesMap" component={PlacesMapScreen} options={{ title: '홀덤 펍 검색 - 블러프존' }} />
-      <PlacesStack.Screen name="PlaceDetail" component={PlaceDetailScreen} options={{ title: '장소 상세 - 블러프존' }} />
+      <PlacesStack.Screen name="PlaceDetail" component={PlaceDetailScreenLazy} options={{ title: '장소 상세 - 블러프존' }} />
     </PlacesStack.Navigator>
   );
 }
@@ -182,7 +215,7 @@ export default function MainTabNavigator() {
       {isAdmin && (
         <Tab.Screen
           name="AdminTab"
-          component={AdminScreen}
+          component={AdminScreenLazy}
           options={{
             tabBarLabel: '어드민',
             tabBarIcon: ({ color, size }) => (
