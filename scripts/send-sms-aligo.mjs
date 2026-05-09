@@ -5,9 +5,11 @@
 //      $env:ALIGO_API_KEY = "발급받은_API_키"
 //      $env:ALIGO_USER_ID = "알리고_아이디"
 //      $env:ALIGO_SENDER  = "발신번호 (010-XXXX-XXXX 본인폰)"
-//   2. 테스트 모드 (5건만 발송):
+//   2. 본인 폰 1건 테스트 (가장 안전):
+//      node scripts/send-sms-aligo.mjs --self
+//   3. 마스터 첫 5건 테스트:
 //      node scripts/send-sms-aligo.mjs --test
-//   3. 본 발송 (980건):
+//   4. 본 발송 (980건):
 //      node scripts/send-sms-aligo.mjs --go
 //
 // 알리고 LMS 단가 25원/건 → 980건 ≈ 24,500원
@@ -28,11 +30,12 @@ if (!API_KEY || !USER_ID || !SENDER) {
   process.exit(1);
 }
 
+const isSelf = process.argv.includes('--self');
 const isTest = process.argv.includes('--test');
 const isGo   = process.argv.includes('--go');
 
-if (!isTest && !isGo) {
-  console.error('사용법: node scripts/send-sms-aligo.mjs [--test | --go]');
+if (!isSelf && !isTest && !isGo) {
+  console.error('사용법: node scripts/send-sms-aligo.mjs [--self | --test | --go]');
   process.exit(1);
 }
 
@@ -42,12 +45,15 @@ const MSG_TEMPLATE = `[블러프존 매장 등록 안내]
 안녕하세요, 사장님!
 홀덤 매니저 앱 '블러프존(bluffzone.kr)'입니다.
 
-저희 앱 유저분들께 전국 홀덤 플레이스를
+저희 앱은 음성 핸드 기록, AI 핸드 리뷰,
+뱅크롤 관리, 통계 분석 등 홀덤 유저의
+실력 향상을 돕는 도구입니다.
+또한 전국 홀덤 매장을 유저분들께
 무료로 소개해드리고 있습니다.
 
-귀 매장 등록을 원하시면 아래 링크에서
+귀 매장의 무료 등록을 원하시면 아래 링크(구글폼)에서
 정보 입력 + 매장 사진 업로드 부탁드립니다.
-👉 https://forms.gle/eiAJR4W2AhazaxkW7
+→ https://forms.gle/eiAJR4W2AhazaxkW7
 
 소요 시간: 약 1~2분
 문의·수신거부: 본 번호로 회신
@@ -92,11 +98,26 @@ for (let i = 1; i < lines.length; i++) {
   }
 }
 
-const sendList = isTest ? targets.slice(0, TEST_LIMIT) : targets;
+let sendList;
+if (isSelf) {
+  // 본인 폰 1건만 — 발신번호 그대로 수신번호로 사용
+  const selfPhone = SENDER.replace(/-/g, '');
+  sendList = [{ phone: selfPhone, name: '본인_테스트' }];
+} else if (isTest) {
+  sendList = targets.slice(0, TEST_LIMIT);
+} else {
+  sendList = [...targets];
+  // --with-self: 마지막에 본인 폰 1건 추가 (전체 발송 완료 시점 확인용)
+  if (process.argv.includes('--with-self')) {
+    const selfPhone = SENDER.replace(/-/g, '');
+    sendList.push({ phone: selfPhone, name: '본인_타이밍체크_마지막' });
+  }
+}
 
+const modeLabel = isSelf ? '본인폰 테스트' : (isTest ? '마스터 5건 테스트' : '본 발송');
 console.log(`\n[알리고 LMS 발송]`);
 console.log(`발신번호: ${SENDER}`);
-console.log(`대상: ${sendList.length}건 (${isTest ? '테스트' : '본 발송'})`);
+console.log(`대상: ${sendList.length}건 (${modeLabel})`);
 console.log(`예상 비용: 약 ${(sendList.length * 25).toLocaleString()}원`);
 console.log(`예상 소요: 약 ${Math.ceil(sendList.length * RATE_LIMIT_MS / 60000)}분\n`);
 

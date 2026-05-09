@@ -131,12 +131,12 @@ export default function DashboardScreen() {
             desc: '어려웠던 핸드를 기록하고\n플레이를 분석해보세요',
             onPress: () => navigation.navigate('HandsTab', { screen: 'HandList' }),
           },
-          ...(isAdmin ? [{
+          {
             icon: '📍',
             title: '홀덤 플레이스',
             desc: '내 주변 홀덤 클럽을\n지도에서 쉽게 찾기',
             onPress: () => navigation.navigate('PlacesTab', { screen: 'PlacesMap' }),
-          }] : []),
+          },
           {
             icon: '🎯',
             title: 'GTO 도구',
