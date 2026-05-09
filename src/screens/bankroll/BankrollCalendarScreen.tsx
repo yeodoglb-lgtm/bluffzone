@@ -4,7 +4,7 @@ import {
   ActivityIndicator, Modal, Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Calendar } from 'react-native-calendars';
+import LazyCalendar from '../../components/LazyCalendar';
 import type { DateData } from 'react-native-calendars';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -274,7 +274,7 @@ export default function BankrollCalendarScreen() {
         {isLoading ? (
           <View style={styles.loading}><ActivityIndicator color={colors.primary} /></View>
         ) : (
-          <Calendar
+          <LazyCalendar
             current={calCurrent}
             onDayPress={handleDayPress}
             onMonthChange={handleMonthChange}
@@ -289,7 +289,7 @@ export default function BankrollCalendarScreen() {
               arrowColor: colors.primary,
               monthTextColor: colors.text,
             }}
-            dayComponent={({ date, state }) => {
+            dayComponent={({ date, state }: { date: DateData; state: string }) => {
               if (!date) return null;
               const ds = dayStats[date.dateString];
               const isToday = date.dateString === today();

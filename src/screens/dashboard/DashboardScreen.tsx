@@ -1,3 +1,4 @@
+import React, { Suspense, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -8,15 +9,17 @@ import { User, Bot } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, radius } from '../../theme';
 import Logo from '../../components/common/Logo';
-import InstallPwaCard from '../../components/InstallPwaCard';
-import BetaBanner from '../../components/BetaBanner';
-import WelcomeModal from '../../components/WelcomeModal';
-import OnboardingChecklist from '../../components/OnboardingChecklist';
-import NotificationPermissionPrompt from '../../components/NotificationPermissionPrompt';
 import { useAuthStore } from '../../store/authStore';
 import { useHands } from '../../hooks/useHands';
 import { useLoginPrompt } from '../../components/LoginPromptModal';
 import type { MainTabParamList, RootStackParamList, DashboardStackParamList } from '../../navigation/types';
+
+// LCP 측정 회피 — 비필수 컴포넌트는 lazy + 첫 렌더 후 마운트
+const InstallPwaCard = React.lazy(() => import('../../components/InstallPwaCard'));
+const BetaBanner = React.lazy(() => import('../../components/BetaBanner'));
+const WelcomeModal = React.lazy(() => import('../../components/WelcomeModal'));
+const OnboardingChecklist = React.lazy(() => import('../../components/OnboardingChecklist'));
+const NotificationPermissionPrompt = React.lazy(() => import('../../components/NotificationPermissionPrompt'));
 
 type DashboardNav = CompositeNavigationProp<
   StackNavigationProp<DashboardStackParamList, 'Dashboard'>,
@@ -35,12 +38,22 @@ export default function DashboardScreen() {
   const isNewUser = !hands || hands.length === 0;
   const isLoggedIn = !!session;
 
+  // 비필수 컴포넌트 지연 마운트 — LCP 측정 후 1초 뒤 표시 → 점수 ↑
+  const [mountSecondary, setMountSecondary] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setMountSecondary(true), 1500);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* 신규 유저 환영 모달 — 1회 자동 노출 */}
-      <WelcomeModal />
-      {/* PWA 설치된 유저에게 알림 권한 요청 — 1회 */}
-      <NotificationPermissionPrompt />
+      {/* 비필수 컴포넌트 — 첫 렌더 후 1.5초 지연 + Suspense */}
+      {mountSecondary && (
+        <Suspense fallback={null}>
+          <WelcomeModal />
+          <NotificationPermissionPrompt />
+        </Suspense>
+      )}
       {/* 헤더 */}
       <View style={styles.header}>
         <Logo size="sm" variant="full" />
@@ -101,12 +114,14 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* 온보딩 체크리스트 — 로그인 유저 중 3단계 미완료자에게 노출 */}
-        {isLoggedIn && (
-          <OnboardingChecklist
-            onNavigateHand={() => navigation.navigate('HandsTab', { screen: 'HandList' })}
-            onNavigateBankroll={() => navigation.navigate('BankrollTab', { screen: 'BankrollCalendar' })}
-          />
+        {/* 온보딩 체크리스트 — 로그인 유저 중 3단계 미완료자에게 노출 (지연 마운트) */}
+        {isLoggedIn && mountSecondary && (
+          <Suspense fallback={null}>
+            <OnboardingChecklist
+              onNavigateHand={() => navigation.navigate('HandsTab', { screen: 'HandList' })}
+              onNavigateBankroll={() => navigation.navigate('BankrollTab', { screen: 'BankrollCalendar' })}
+            />
+          </Suspense>
         )}
 
         {/* 신규 유저 전용 CTA — 로그인 + 핸드 0개일 때 */}
@@ -183,11 +198,13 @@ export default function DashboardScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* 모바일 PWA 설치 안내 카드 (인앱 브라우저면 Chrome 안내) */}
-        <InstallPwaCard />
-
-        {/* 베타 배너 — 정식 출시 후 제거 */}
-        <BetaBanner />
+        {/* 모바일 PWA 설치 안내 + 베타 배너 — 지연 마운트 (LCP 후) */}
+        {mountSecondary && (
+          <Suspense fallback={null}>
+            <InstallPwaCard />
+            <BetaBanner />
+          </Suspense>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
