@@ -1,4 +1,7 @@
 import { useState, useMemo } from 'react';
+import { useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
+import type { BankrollStackParamList } from '../../navigation/types';
 import {
   View,
   Text,
@@ -103,11 +106,22 @@ function formatRangeLabel(tab: TabKey, start: string, end: string): string {
 }
 
 export default function BankrollStatsScreen() {
+  const route = useRoute<RouteProp<BankrollStackParamList, 'BankrollStats'>>();
+  const params = route.params;
   const { currency } = useSettingsStore();
   const { profile } = useAuthStore();
   const isAdmin = profile?.role === 'admin';
   const [activeTab, setActiveTab] = useState<TabKey>('month');
-  const [offset, setOffset] = useState(0);
+  // 캘린더에서 year/month 넘기면 그 달의 offset으로 초기화 (현재 달 기준 - N개월)
+  const initialOffset = useMemo(() => {
+    if (params?.year != null && params?.month != null) {
+      const base = dayjs(today());
+      const target = dayjs(`${params.year}-${String(params.month).padStart(2, '0')}-01`);
+      return target.diff(base.startOf('month'), 'month');
+    }
+    return 0;
+  }, [params?.year, params?.month]);
+  const [offset, setOffset] = useState(initialOffset);
   const [filterUid, setFilterUid] = useState<string | null>(null);
 
   const { start, end } = useMemo(() => getRangeForTab(activeTab, offset), [activeTab, offset]);

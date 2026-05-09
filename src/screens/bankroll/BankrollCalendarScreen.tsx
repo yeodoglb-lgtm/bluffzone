@@ -120,7 +120,7 @@ export default function BankrollCalendarScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>뱅크롤</Text>
-        <TouchableOpacity style={styles.statsBtn} onPress={() => navigation.navigate('BankrollStats')}>
+        <TouchableOpacity style={styles.statsBtn} onPress={() => navigation.navigate('BankrollStats', { year, month })}>
           <BarChart2 color={colors.primary} size={22} />
         </TouchableOpacity>
       </View>

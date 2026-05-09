@@ -26,7 +26,7 @@ export type BankrollStackParamList = {
   DayDetail: { date: string };
   SessionDetail: { sessionId: string };
   SessionForm: { sessionId?: string; date?: string };
-  BankrollStats: undefined;
+  BankrollStats: { year?: number; month?: number } | undefined;
 };
 
 // ── Hands Stack ────────────────────────────────────────────────────────────────
