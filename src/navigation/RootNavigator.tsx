@@ -196,7 +196,7 @@ function LoadingScreen() {
       <ActivityIndicator color={colors.primary} size="large" />
       <Text style={styles.loadingText}>서버 연결 중...</Text>
       <Text style={styles.loadingHint}>
-        첫 접속 시 서버를 깨우는 데 잠시 걸릴 수 있어요{'\n'}10초 정도 기다려주세요
+        첫 접속 시 서버 접속에 다소 시간이 걸릴 수 있어요{'\n'}10초 정도 기다려주세요
       </Text>
     </View>
   );
