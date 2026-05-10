@@ -42,7 +42,7 @@ export async function loadMessages(chatId: string): Promise<StoredMessage[]> {
     .eq('chat_id', chatId)
     .order('created_at', { ascending: true });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message ?? String(error));
   return (data ?? []).map(m => ({
     id: m.id as string,
     role: m.role as ChatMessage['role'],
@@ -60,7 +60,7 @@ export async function saveMessage(
   const { error } = await supabase
     .from('ai_messages')
     .insert({ chat_id: chatId, role, content });
-  if (error) throw error;
+  if (error) throw new Error(error.message ?? String(error));
 }
 
 /** 채팅 초기화 (모든 메시지 삭제) */
@@ -69,5 +69,5 @@ export async function clearMessages(chatId: string): Promise<void> {
     .from('ai_messages')
     .delete()
     .eq('chat_id', chatId);
-  if (error) throw error;
+  if (error) throw new Error(error.message ?? String(error));
 }

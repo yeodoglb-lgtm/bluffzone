@@ -16,7 +16,7 @@ export async function fetchPlaces(search?: string): Promise<Place[]> {
   }
 
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) throw new Error(error.message ?? String(error));
   return (data ?? []) as Place[];
 }
 
@@ -39,6 +39,6 @@ export async function fetchFeaturedPlaces(): Promise<Place[]> {
     .eq('featured', true)
     .order('name', { ascending: true });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message ?? String(error));
   return (data ?? []) as Place[];
 }

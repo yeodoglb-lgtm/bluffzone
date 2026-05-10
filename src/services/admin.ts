@@ -49,7 +49,7 @@ export async function fetchAdminUsers(): Promise<AdminUserStat[]> {
     .select('id, display_name, role, created_at')
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message ?? String(error));
   if (!profiles || profiles.length === 0) return [];
 
   // 핸드/세션 수 집계

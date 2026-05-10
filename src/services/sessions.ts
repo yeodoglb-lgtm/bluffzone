@@ -25,7 +25,7 @@ export async function fetchSessionsByMonth(
     if (userId) query = query.eq('user_id', userId);
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) throw new Error(error.message ?? String(error));
     return (data ?? []) as SessionWithProfit[];
   })());
 }
@@ -45,7 +45,7 @@ export async function fetchSessionsByDate(
     if (userId) query = query.eq('user_id', userId);
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) throw new Error(error.message ?? String(error));
     return (data ?? []) as SessionWithProfit[];
   })());
 }
@@ -67,7 +67,7 @@ export async function fetchSessionsByRange(
     if (userId) query = query.eq('user_id', userId);
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) throw new Error(error.message ?? String(error));
     return (data ?? []) as SessionWithProfit[];
   })());
 }
@@ -98,7 +98,7 @@ export async function createSession(input: SessionInput): Promise<Session> {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message ?? String(error));
   return data as Session;
 }
 
@@ -114,14 +114,14 @@ export async function updateSession(
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message ?? String(error));
   return data as Session;
 }
 
 // ── 세션 삭제 ─────────────────────────────────────────────────────────────────
 export async function deleteSession(id: string): Promise<void> {
   const { error } = await supabase.from('sessions').delete().eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message ?? String(error));
 }
 
 // ── 어드민: 유저 프로필 맵 조회 (uid → display_name) ──────────────────────────

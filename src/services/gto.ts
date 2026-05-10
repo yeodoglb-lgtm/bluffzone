@@ -25,7 +25,7 @@ export async function fetchPushfoldChart(
       .select('position, stack_bb, hand, action')
       .eq('position', position)
       .eq('stack_bb', stackBb);
-    if (error) throw error;
+    if (error) throw new Error(error.message ?? String(error));
     return (data ?? []) as PushfoldEntry[];
   })());
 }
@@ -77,7 +77,7 @@ export async function fetchPreflopChart(
       .select('position, scenario, hand, action, frequency')
       .eq('position', position)
       .eq('scenario', scenario);
-    if (error) throw error;
+    if (error) throw new Error(error.message ?? String(error));
     return (data ?? []) as PreflopEntry[];
   })());
 }

@@ -54,7 +54,7 @@ export async function fetchAllHandsAdmin(limit = 200): Promise<Hand[]> {
       .select('*')
       .order('played_at', { ascending: false })
       .limit(limit);
-    if (error) throw error;
+    if (error) throw new Error(error.message ?? String(error));
     return (data ?? []) as Hand[];
   })());
 }
@@ -66,7 +66,7 @@ export async function fetchHands(limit = 50, offset = 0): Promise<Hand[]> {
       .select('*')
       .order('played_at', { ascending: false })
       .range(offset, offset + limit - 1);
-    if (error) throw error;
+    if (error) throw new Error(error.message ?? String(error));
     return (data ?? []) as Hand[];
   })());
 }
@@ -90,7 +90,7 @@ export async function createHand(input: HandInsert): Promise<Hand> {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message ?? String(error));
   return data as Hand;
 }
 
@@ -102,11 +102,11 @@ export async function updateHand(id: string, input: Partial<HandInsert>): Promis
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message ?? String(error));
   return data as Hand;
 }
 
 export async function deleteHand(id: string): Promise<void> {
   const { error } = await supabase.from('hands').delete().eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message ?? String(error));
 }

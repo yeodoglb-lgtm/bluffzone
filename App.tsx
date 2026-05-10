@@ -27,6 +27,22 @@ if (SENTRY_DSN && IS_WEB) {
       dsn: SENTRY_DSN,
       tracesSampleRate: 0.2,
       environment: __DEV__ ? 'development' : 'production',
+      // 이벤트 전송 전 후처리 — non-Error promise rejection 정리
+      beforeSend(event, hint) {
+        // "Object captured as promise rejection" 케이스 — 원본 값을 보고 Error로 변환
+        const original: any = hint?.originalException;
+        if (original && typeof original === 'object' && !(original instanceof Error)) {
+          // Supabase PostgrestError 같은 케이스 — 메시지/코드 추출해서 적절한 메시지로 보강
+          const msg = original.message ?? original.code ?? JSON.stringify(original).slice(0, 200);
+          if (event.exception?.values?.[0]) {
+            event.exception.values[0].type = original.code ?? original.name ?? 'PromiseRejection';
+            event.exception.values[0].value = msg;
+          }
+          // Supabase 일반 권한·인증 에러는 노이즈 → 드롭
+          if (original.code === 'PGRST116' || msg.includes('JWT')) return null;
+        }
+        return event;
+      },
     });
     (window as any).Sentry = Sentry;
   };

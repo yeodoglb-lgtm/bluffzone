@@ -52,7 +52,7 @@ export async function submitFeedback(input: FeedbackInput): Promise<Feedback> {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message ?? String(error));
     return data as Feedback;
   })());
 }
@@ -66,7 +66,7 @@ export async function fetchMyFeedback(limit = 50): Promise<Feedback[]> {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error) throw error;
+    if (error) throw new Error(error.message ?? String(error));
     return (data ?? []) as Feedback[];
   })());
 }
@@ -80,7 +80,7 @@ export async function fetchAllFeedbackAdmin(limit = 200): Promise<Feedback[]> {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error) throw error;
+    if (error) throw new Error(error.message ?? String(error));
     return (data ?? []) as Feedback[];
   })());
 }
@@ -99,7 +99,7 @@ export async function updateFeedbackStatus(
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message ?? String(error));
     return data as Feedback;
   })());
 }
