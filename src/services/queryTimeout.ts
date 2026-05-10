@@ -11,7 +11,7 @@
 //     })(), 15000);
 //   }
 
-export function withTimeout<T>(promise: Promise<T>, ms: number = 30000): Promise<T> {
+export function withTimeout<T>(promise: Promise<T>, ms: number = 5000): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<T>((_, reject) => {
     timeoutId = setTimeout(() => {
