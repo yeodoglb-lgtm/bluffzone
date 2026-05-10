@@ -554,14 +554,20 @@ GitHub Actions cron이 5분 간격을 throttle해서 1~3시간 간격으로 실�
 
 - 서비스: https://cron-job.org (무료, 월 50만 요청)
 - 등록 가입자: 운영자(님)
-- 2개 Cron 등록 (5분마다):
+- 3개 Cron 등록 (5분마다):
   1. **BluffZone Supabase Keep Alive** — REST API GET 호출 (apikey 헤더)
      - URL: `https://chxcayaehgwqrpjuajqx.supabase.co/rest/v1/profiles?select=id&limit=1`
   2. **BluffZone Edge Function Keep Alive** — OPTIONS preflight
      - URL: `https://chxcayaehgwqrpjuajqx.supabase.co/functions/v1/claude-proxy`
      - Headers: Origin: https://bluffzone.kr / Access-Control-Request-Method: POST
-- GitHub Actions cron은 그대로 두거나 비활성화 가능 (둘 다 돌려도 무해)
-- 효과: Free 티어에서도 콜드스타트 거의 사라짐 (5분마다 강제 warm)
+  3. **BluffZone Auth Keep Alive** — Auth 서비스 (별도라 따로 깨워야 함)
+     - URL: `https://chxcayaehgwqrpjuajqx.supabase.co/auth/v1/settings`
+     - Headers: apikey
+- GitHub Actions cron은 비활성화 (cron-job.org가 더 신뢰성 높음)
+- 효과:
+  - 어제 (cron 미작동): 10~15초
+  - 3개 cron 추가 후: **3~4초** (4배 빠름)
+- queryTimeout 15초 → 30초로 변경 (콜드스타트 깨어나는 동안 충분히 대기)
 
 ### 매주 월요일 9시 자동 알림 등록
 - 위치: `C:\Users\ghkdr\.claude\scheduled-tasks\supabase-weekly-backup-reminder\`
