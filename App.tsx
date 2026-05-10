@@ -103,6 +103,44 @@ function AppContent() {
   );
 }
 
+// 청크 로드 실패 자동 복구 — 배포 직후 옛 HTML이 사라진 청크 요청 시 자동 새로고침
+// (React.lazy + Suspense 사용으로 발생하는 'Loading module' 에러 해결)
+if (IS_WEB && typeof window !== 'undefined') {
+  const RELOAD_FLAG = 'bz.chunkReloadAt';
+  window.addEventListener('error', (event: any) => {
+    const msg = String(event?.message ?? '');
+    const target = event?.target as HTMLElement | null;
+    const isChunkError =
+      msg.includes('Loading chunk') ||
+      msg.includes('Loading module') ||
+      msg.includes('Failed to fetch dynamically imported module') ||
+      (target?.tagName === 'SCRIPT' && (target as HTMLScriptElement).src?.includes('/_expo/static/'));
+    if (!isChunkError) return;
+    // 1분 안에 한 번만 재시도 (무한 루프 방지)
+    const last = Number(sessionStorage.getItem(RELOAD_FLAG) ?? 0);
+    if (Date.now() - last < 60_000) return;
+    sessionStorage.setItem(RELOAD_FLAG, String(Date.now()));
+    console.warn('[chunk-reload] 청크 로드 실패 → 자동 새로고침');
+    window.location.reload();
+  }, true);
+  // unhandledrejection (React.lazy import() 실패) 도 같이
+  window.addEventListener('unhandledrejection', (event: any) => {
+    const reason = event?.reason;
+    const msg = String(reason?.message ?? reason ?? '');
+    if (
+      msg.includes('Loading chunk') ||
+      msg.includes('Loading module') ||
+      msg.includes('Failed to fetch dynamically imported module')
+    ) {
+      const last = Number(sessionStorage.getItem(RELOAD_FLAG) ?? 0);
+      if (Date.now() - last < 60_000) return;
+      sessionStorage.setItem(RELOAD_FLAG, String(Date.now()));
+      console.warn('[chunk-reload] dynamic import 실패 → 자동 새로고침');
+      window.location.reload();
+    }
+  });
+}
+
 function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
