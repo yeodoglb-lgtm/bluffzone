@@ -549,6 +549,20 @@ LMS, 약 200자 / 건당 25원:
   - GitHub Actions keep-alive cron (5분마다 ping → 7일 정지 방지)
   - 수동 백업 스크립트 (`scripts/backup-supabase.mjs`) 주 1회 실행
 
+### cron-job.org 외부 cron (2026-05-10 셋업)
+GitHub Actions cron이 5분 간격을 throttle해서 1~3시간 간격으로 실행 → 콜드스타트 빈발 → 외부 cron 서비스 도입.
+
+- 서비스: https://cron-job.org (무료, 월 50만 요청)
+- 등록 가입자: 운영자(님)
+- 2개 Cron 등록 (5분마다):
+  1. **BluffZone Supabase Keep Alive** — REST API GET 호출 (apikey 헤더)
+     - URL: `https://chxcayaehgwqrpjuajqx.supabase.co/rest/v1/profiles?select=id&limit=1`
+  2. **BluffZone Edge Function Keep Alive** — OPTIONS preflight
+     - URL: `https://chxcayaehgwqrpjuajqx.supabase.co/functions/v1/claude-proxy`
+     - Headers: Origin: https://bluffzone.kr / Access-Control-Request-Method: POST
+- GitHub Actions cron은 그대로 두거나 비활성화 가능 (둘 다 돌려도 무해)
+- 효과: Free 티어에서도 콜드스타트 거의 사라짐 (5분마다 강제 warm)
+
 ### 매주 월요일 9시 자동 알림 등록
 - 위치: `C:\Users\ghkdr\.claude\scheduled-tasks\supabase-weekly-backup-reminder\`
 - 태스크: 사용자에게 백업 실행 안내 메시지 출력
