@@ -61,9 +61,13 @@ export async function fetchAllHandsAdmin(limit = 200): Promise<Hand[]> {
 
 export async function fetchHands(limit = 50, offset = 0): Promise<Hand[]> {
   return withTimeout((async () => {
+    // 현재 유저 ID 명시 — 데모 핸드(is_public=true) RLS 통과로 섞이는 거 차단
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
     const { data, error } = await supabase
       .from('hands')
       .select('*')
+      .eq('user_id', user.id)
       .order('played_at', { ascending: false })
       .range(offset, offset + limit - 1);
     if (error) throw new Error(error.message ?? String(error));
