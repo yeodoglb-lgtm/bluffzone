@@ -333,29 +333,26 @@ export default function HandListScreen({ navigation }: Props) {
               <Text style={styles.demoSectionLabel}>👇 클릭해서 AI 분석 결과 미리보기</Text>
               <TouchableOpacity
                 style={styles.demoCard}
-                onPress={() => navigation.push('HandDetail', { handId: '8ce0d17d-675e-4a58-a177-e1bb61b2c176' })}
+                onPress={() => navigation.push('HandDetail', { handId: '1b2a27c7-08a4-49f7-ae98-449e4f22741e' })}
                 activeOpacity={0.75}
               >
                 <View style={styles.cardLeft}>
                   <View style={styles.cardRow}>
                     <View style={styles.cardBadge}>
-                      <Text style={[styles.cardText, { color: '#ef4444' }]}>Q♥</Text>
+                      <Text style={[styles.cardText, { color: '#22c55e' }]}>9♠</Text>
                     </View>
                     <View style={styles.cardBadge}>
-                      <Text style={[styles.cardText, { color: '#ef4444' }]}>T♥</Text>
+                      <Text style={[styles.cardText, { color: '#22c55e' }]}>T♣</Text>
                     </View>
                   </View>
                 </View>
                 <View style={styles.cardMid}>
-                  <Text style={styles.dateText}>5월 1일</Text>
-                  <Text style={styles.posText}>BTN vs CO</Text>
+                  <Text style={styles.dateText}>5월 8일</Text>
+                  <Text style={styles.posText}>BTN vs MP</Text>
                   <Text style={styles.gameText}>NLH · 1k/2k</Text>
                 </View>
                 <View style={styles.cardRight}>
-                  <View style={[styles.resultBadge, { borderColor: colors.primary }]}>
-                    <Text style={[styles.resultLabel, { color: colors.primary }]}>승</Text>
-                  </View>
-                  <Text style={[styles.plText, { color: colors.primary }]}>+86,500</Text>
+                  <Text style={[styles.plText, { color: colors.primary, fontSize: fontSize.xs }]}>클릭 →</Text>
                 </View>
                 {/* 가운데 회색 "예시" 워터마크 */}
                 <View pointerEvents="none" style={styles.demoWatermarkOverlay}>
