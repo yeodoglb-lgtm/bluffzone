@@ -339,10 +339,10 @@ export default function HandListScreen({ navigation }: Props) {
                 <View style={styles.cardLeft}>
                   <View style={styles.cardRow}>
                     <View style={styles.cardBadge}>
-                      <Text style={[styles.cardText, { color: '#22c55e' }]}>9♠</Text>
+                      <Text style={[styles.cardText, { color: '#EAB308' }]}>9♠</Text>
                     </View>
                     <View style={styles.cardBadge}>
-                      <Text style={[styles.cardText, { color: '#22c55e' }]}>T♣</Text>
+                      <Text style={[styles.cardText, { color: '#22C55E' }]}>T♣</Text>
                     </View>
                   </View>
                 </View>
