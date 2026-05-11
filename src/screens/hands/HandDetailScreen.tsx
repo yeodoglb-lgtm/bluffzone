@@ -448,8 +448,6 @@ function HandTableView({
           )}
         </View>
 
-        {/* 딜러 */}
-        <View style={tv.dealerChip}><Text style={tv.dealerText}>D</Text></View>
 
         {/* 시트 */}
         {SEAT_DEFS.map(({ pos, cx, cy, dir }) => {

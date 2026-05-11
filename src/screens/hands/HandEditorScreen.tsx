@@ -915,8 +915,6 @@ function PokerTableEditor({
             )}
           </TouchableOpacity>
 
-          {/* 딜러 칩 */}
-          <View style={ts.dealerChip}><Text style={ts.dealerText}>D</Text></View>
 
           {/* 시트 — 카드 영역·포지션칩 독립 TouchableOpacity */}
           {SEAT_DEFS.map(({ pos, cx, cy, dir }) => {
