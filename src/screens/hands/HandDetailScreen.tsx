@@ -17,6 +17,7 @@ import type { HandsStackParamList } from '../../navigation/types';
 import { SUIT_COLORS, SUIT_SYMBOLS } from '../../constants/poker';
 import type { Card, Street, Position9Max, HandAction } from '../../constants/poker';
 import { useHand, useDeleteHand, useUpdateHand, useHands } from '../../hooks/useHands';
+import { useAuthStore } from '../../store/authStore';
 import { findBestFiveIndices, isInBestFive } from '../../utils/handEval';
 
 type Props = StackScreenProps<HandsStackParamList, 'HandDetail'>;
@@ -855,23 +856,32 @@ export default function HandDetailScreen({ navigation, route }: Props) {
 
   const hasTableData = hand.hero_position || villainData.length > 0;
 
+  // 데모 핸드(공개 + 본인 소유 아님) → 편집/삭제 버튼 숨김
+  const currentUserId = useAuthStore.getState().session?.user?.id;
+  const isOwner = currentUserId === hand.user_id;
+  const isDemoView = !isOwner && (hand as any).is_public === true;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>핸드 상세</Text>
+        <Text style={styles.headerTitle}>{isDemoView ? '예시 핸드' : '핸드 상세'}</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={() => navigation.push('HandEditor', { handId })} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>편집</Text>
-          </TouchableOpacity>
+          {!isDemoView && (
+            <TouchableOpacity onPress={() => navigation.push('HandEditor', { handId })} style={styles.headerBtn}>
+              <Text style={styles.headerBtnText}>편집</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={handleShare} style={styles.headerBtn}>
             <Text style={styles.headerBtnText}>공유</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleDelete} style={styles.headerBtn}>
-            <Text style={[styles.headerBtnText, { color: colors.danger }]}>삭제</Text>
-          </TouchableOpacity>
+          {!isDemoView && (
+            <TouchableOpacity onPress={handleDelete} style={styles.headerBtn}>
+              <Text style={[styles.headerBtnText, { color: colors.danger }]}>삭제</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 

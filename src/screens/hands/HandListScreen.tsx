@@ -329,6 +329,21 @@ export default function HandListScreen({ navigation }: Props) {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
+              {/* 데모 핸드 — 신규 유저가 분석 결과 미리 체험 */}
+              <TouchableOpacity
+                style={styles.demoCard}
+                onPress={() => navigation.push('HandDetail', { handId: '8ce0d17d-675e-4a58-a177-e1bb61b2c176' })}
+                activeOpacity={0.85}
+              >
+                <View style={styles.demoBadge}>
+                  <Text style={styles.demoBadgeText}>🎬 예시 핸드</Text>
+                </View>
+                <Text style={styles.demoTitle}>BTN QhTh vs CO — 클릭해서 분석 결과 미리보기</Text>
+                <Text style={styles.demoSub}>
+                  AI가 어떻게 핸드를 분석하는지 확인해보세요
+                </Text>
+              </TouchableOpacity>
+
               <Text style={styles.emptyEmoji}>🃏</Text>
               <Text style={styles.emptyTitle}>아직 기록된 핸드가 없습니다</Text>
               <Text style={styles.emptySub}>
@@ -524,4 +539,26 @@ const styles = StyleSheet.create({
   filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   filterChipText: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.medium },
   filterChipTextActive: { color: colors.bg, fontWeight: fontWeight.bold },
+
+  // 데모 핸드 카드 (빈 상태 위에 노출)
+  demoCard: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    gap: 6,
+  },
+  demoBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    backgroundColor: `${colors.primary}22`,
+    borderRadius: radius.full,
+  },
+  demoBadgeText: { fontSize: fontSize.xs, color: colors.primary, fontWeight: fontWeight.bold },
+  demoTitle: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.text, marginTop: 4 },
+  demoSub: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
 });
