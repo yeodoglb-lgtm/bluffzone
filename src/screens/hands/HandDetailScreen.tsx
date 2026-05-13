@@ -659,6 +659,12 @@ export default function HandDetailScreen({ navigation, route }: Props) {
 
   async function handleRequestReview(forceRefresh = false) {
     if (!hand) return;
+    // 본인 소유 핸드만 리뷰 트리거 가능 (데모 핸드 등 차단)
+    const uid = useAuthStore.getState().session?.user?.id;
+    if (!uid || uid !== hand.user_id) {
+      console.warn('[review] 본인 소유 아닌 핸드는 리뷰 요청 불가');
+      return;
+    }
     setIsReviewing(true);
     setReviewProgress(null);
     try {
@@ -804,6 +810,10 @@ export default function HandDetailScreen({ navigation, route }: Props) {
     if (autoReviewFiredRef.current) return;
     if (!hand || !allHands) return;
     if (hand.review_status !== 'none') return;
+    // 본인 소유 핸드가 아니면 (데모 핸드 등) 자동 리뷰 X
+    // RLS UPDATE 차단 → 'Cannot coerce' 에러 방지
+    const uid = useAuthStore.getState().session?.user?.id;
+    if (!uid || uid !== hand.user_id) return;
     // 다른 핸드 중 done인 게 하나도 없으면 = 신규 유저 첫 경험
     const hasAnyReviewed = allHands.some(h => h.review_status === 'done' || h.review_status === 'pending');
     if (hasAnyReviewed) return;
@@ -1407,7 +1417,7 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                   </View>
                 )}
 
-                {/* 공유 + 다시 분석 버튼 — 가로 배치 */}
+                {/* 공유 + 다시 분석 버튼 — 가로 배치 (데모 핸드는 '다시 분석' 숨김) */}
                 <View style={styles.reviewActionsRow}>
                   <TouchableOpacity
                     onPress={() => handleShareReview(r)}
@@ -1416,14 +1426,16 @@ export default function HandDetailScreen({ navigation, route }: Props) {
                   >
                     <Text style={styles.reviewShareBtnText}>📤 공유</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleRequestReview(true)}
-                    disabled={isReviewing}
-                    style={styles.reviewRetryBtn}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.reviewRetryText}>다시 분석</Text>
-                  </TouchableOpacity>
+                  {!isDemoView && (
+                    <TouchableOpacity
+                      onPress={() => handleRequestReview(true)}
+                      disabled={isReviewing}
+                      style={styles.reviewRetryBtn}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.reviewRetryText}>다시 분석</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <Text style={styles.reviewBrandFooter}>
                   💡 친구에게 공유 → bluffzone.kr 에서 무료로 사용
