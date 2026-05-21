@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -65,6 +66,16 @@ export default function AdminScreen() {
   const qc = useQueryClient();
 
   const isLoading = overviewLoading || usersLoading;
+
+  // 유저 목록 페이지네이션 (10명/페이지)
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(1, Math.ceil((users?.length ?? 0) / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pagedUsers = useMemo(
+    () => (users ?? []).slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE),
+    [users, safePage]
+  );
 
   function handleRefresh() {
     qc.invalidateQueries({ queryKey: ['admin'] });
@@ -161,8 +172,8 @@ export default function AdminScreen() {
                 <Text style={[s.userStat, s.thText]}>세션</Text>
                 <Text style={[s.userDate, s.thText]}>가입일</Text>
               </View>
-              {/* 유저 행 */}
-              {(users ?? []).map((u, i) => (
+              {/* 유저 행 (페이지네이션 적용) */}
+              {pagedUsers.map((u, i) => (
                 <UserRow key={u.id} user={u} index={i} />
               ))}
               {(users ?? []).length === 0 && (
@@ -170,6 +181,36 @@ export default function AdminScreen() {
                   <Text style={s.emptyText}>유저가 없습니다</Text>
                 </View>
               )}
+            </View>
+          )}
+          {/* 페이지 번호 네비게이션 */}
+          {(users?.length ?? 0) > PAGE_SIZE && (
+            <View style={s.pagination}>
+              <TouchableOpacity
+                style={[s.pageBtn, safePage === 0 && s.pageBtnDisabled]}
+                onPress={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={safePage === 0}
+              >
+                <Text style={s.pageBtnText}>‹</Text>
+              </TouchableOpacity>
+              {Array.from({ length: totalPages }, (_, i) => i).map((i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={[s.pageNumBtn, safePage === i && s.pageNumBtnActive]}
+                  onPress={() => setPage(i)}
+                >
+                  <Text style={[s.pageNumText, safePage === i && s.pageNumTextActive]}>
+                    {i + 1}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={[s.pageBtn, safePage === totalPages - 1 && s.pageBtnDisabled]}
+                onPress={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={safePage === totalPages - 1}
+              >
+                <Text style={s.pageBtnText}>›</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -242,4 +283,44 @@ const s = StyleSheet.create({
   userDate: { width: 72, textAlign: 'right', fontSize: 11, color: colors.textMuted },
   emptyRow: { padding: spacing.md, alignItems: 'center' },
   emptyText: { fontSize: fontSize.sm, color: colors.textMuted },
+
+  // 페이지네이션
+  pagination: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingTop: spacing.md,
+  },
+  pageBtn: {
+    minWidth: 36,
+    height: 36,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pageBtnDisabled: { opacity: 0.35 },
+  pageBtnText: { fontSize: fontSize.md, color: colors.text, fontWeight: fontWeight.bold },
+  pageNumBtn: {
+    minWidth: 36,
+    height: 36,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pageNumBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  pageNumText: { fontSize: fontSize.sm, color: colors.text, fontWeight: fontWeight.medium },
+  pageNumTextActive: { color: colors.bg, fontWeight: fontWeight.bold },
 });
