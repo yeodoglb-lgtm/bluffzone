@@ -6,6 +6,7 @@ export interface AdminOverviewStats {
   total_sessions: number;
   new_users_7d: number;
   new_hands_7d: number;
+  new_sessions_7d: number;
 }
 
 export interface AdminUserStat {
@@ -26,12 +27,14 @@ export async function fetchAdminOverview(): Promise<AdminOverviewStats> {
     { count: total_sessions },
     { count: new_users_7d },
     { count: new_hands_7d },
+    { count: new_sessions_7d },
   ] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('hands').select('*', { count: 'exact', head: true }),
     supabase.from('sessions').select('*', { count: 'exact', head: true }),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),
     supabase.from('hands').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),
+    supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),
   ]);
 
   return {
@@ -40,6 +43,7 @@ export async function fetchAdminOverview(): Promise<AdminOverviewStats> {
     total_sessions: total_sessions ?? 0,
     new_users_7d: new_users_7d ?? 0,
     new_hands_7d: new_hands_7d ?? 0,
+    new_sessions_7d: new_sessions_7d ?? 0,
   };
 }
 

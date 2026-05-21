@@ -118,25 +118,30 @@ export default function AdminScreen() {
             <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />
           ) : (
             <>
+              {/* 총 / 신규를 짝지어 3행 × 2열 */}
               <View style={s.statsGrid}>
                 <StatCard label="총 유저" value={overview?.total_users ?? 0} />
-                <StatCard label="총 핸드" value={overview?.total_hands ?? 0} />
-              </View>
-              <View style={s.statsGrid}>
-                <StatCard label="총 세션" value={overview?.total_sessions ?? 0} />
                 <StatCard
                   label="신규 유저"
                   value={overview?.new_users_7d ?? 0}
                   sub="최근 7일"
                 />
               </View>
-              <View style={[s.statsGrid, { marginTop: 0 }]}>
+              <View style={s.statsGrid}>
+                <StatCard label="총 핸드" value={overview?.total_hands ?? 0} />
                 <StatCard
                   label="신규 핸드"
                   value={overview?.new_hands_7d ?? 0}
                   sub="최근 7일"
                 />
-                <View style={[s.statCard, { backgroundColor: 'transparent', borderColor: 'transparent' }]} />
+              </View>
+              <View style={s.statsGrid}>
+                <StatCard label="총 세션" value={overview?.total_sessions ?? 0} />
+                <StatCard
+                  label="신규 세션"
+                  value={overview?.new_sessions_7d ?? 0}
+                  sub="최근 7일"
+                />
               </View>
             </>
           )}
