@@ -23,11 +23,27 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { createClient } = require('@supabase/supabase-js');
 
+// .env 파일에서 자동 로드 (env var 우선, 없으면 .env)
+function loadEnvFromFile() {
+  try {
+    const envPath = path.resolve('.env');
+    if (!fs.existsSync(envPath)) return;
+    const text = fs.readFileSync(envPath, 'utf-8');
+    for (const line of text.split('\n')) {
+      const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.+)\s*$/);
+      if (!m) continue;
+      const [, key, val] = m;
+      if (!process.env[key]) process.env[key] = val.replace(/^["']|["']$/g, '');
+    }
+  } catch { /* ignore */ }
+}
+loadEnvFromFile();
+
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!SERVICE_KEY) {
-  console.error('❌ SUPABASE_SERVICE_ROLE_KEY 환경변수 필요');
-  console.error('   PowerShell:');
-  console.error('   $env:SUPABASE_SERVICE_ROLE_KEY = "eyJ..."');
+  console.error('❌ SUPABASE_SERVICE_ROLE_KEY 없음 (.env 파일 또는 환경변수에 추가 필요)');
+  console.error('   .env 예시:');
+  console.error('   SUPABASE_SERVICE_ROLE_KEY=eyJ...');
   process.exit(1);
 }
 
