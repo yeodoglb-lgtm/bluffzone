@@ -189,7 +189,8 @@ export default function MainTabNavigator() {
           ),
         }}
       />
-      {/* 플레이스 탭 — 정식 오픈 (2026-05-09) */}
+      {/* 플레이스 탭 — 어드민 전용 (매장 등록 충분히 모일 때까지 숨김) */}
+      {isAdmin && (
       <Tab.Screen
         name="PlacesTab"
         component={PlacesNavigator}
@@ -200,6 +201,7 @@ export default function MainTabNavigator() {
           ),
         }}
       />
+      )}
       <Tab.Screen
         name="SettingsTab"
         component={SettingsScreen}
