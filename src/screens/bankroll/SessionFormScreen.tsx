@@ -67,6 +67,7 @@ export default function SessionFormScreen({ route, navigation }: Props) {
     handleSubmit,
     reset,
     watch,
+    getValues,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
@@ -124,6 +125,30 @@ export default function SessionFormScreen({ route, navigation }: Props) {
   const cashOut = watch('cash_out') ?? 0;
   // 미리보기는 실제 금액(×UNIT)으로 표시
   const netProfit = (Number(cashOut) - Number(buyIn)) * UNIT;
+
+  function handleUnitChange(next: '만원' | '천원') {
+    if (next === inputUnit) return;
+    const ratio = (inputUnit === '만원' ? 10000 : 1000) / (next === '만원' ? 10000 : 1000);
+    setValue('buy_in', Math.round((getValues('buy_in') ?? 0) * ratio * 100) / 100);
+    setValue('cash_out', Math.round((getValues('cash_out') ?? 0) * ratio * 100) / 100);
+    setInputUnit(next);
+  }
+
+  // 레이블 옆에 인라인으로 붙는 만원/천원 토글 (KRW 전용)
+  const unitToggle = isKRW ? (
+    <View style={styles.unitPill}>
+      {(['만원', '천원'] as const).map(u => (
+        <TouchableOpacity
+          key={u}
+          style={[styles.unitPillBtn, inputUnit === u && styles.unitPillBtnActive]}
+          onPress={() => handleUnitChange(u)}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.unitPillText, inputUnit === u && styles.unitPillTextActive]}>{u}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  ) : null;
   const netColor = netProfit > 0 ? colors.primary : netProfit < 0 ? colors.danger : colors.textMuted;
 
   function toTimestamp(date: string, time: string | null): string | null {
@@ -390,10 +415,13 @@ export default function SessionFormScreen({ route, navigation }: Props) {
           />
         </View>
 
-        {/* Stakes (캐시 게임만) */}
+        {/* Stakes (캐시 게임만) — 블라인드 레이블 옆에 단위 토글 */}
         {!isTournament && (
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>블라인드</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>블라인드</Text>
+              {unitToggle}
+            </View>
             <Controller
               control={control}
               name="stakes"
@@ -403,7 +431,7 @@ export default function SessionFormScreen({ route, navigation }: Props) {
                   value={value ?? ''}
                   onBlur={onBlur}
                   onChangeText={v => onChange(v || null)}
-                  placeholder="예: 1/2, 2/5 (만원)"
+                  placeholder={isKRW ? `예: 1/2, 2/5 (${inputUnit})` : '예: 1/2, 2/5'}
                   placeholderTextColor={colors.textMuted}
                 />
               )}
@@ -411,44 +439,14 @@ export default function SessionFormScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        {/* 금액 입력 단위 토글 (KRW만) */}
-        {isKRW && (
-          <View style={styles.unitToggleRow}>
-            <Text style={styles.unitToggleLabel}>입력 단위</Text>
-            <View style={styles.unitToggleBtns}>
-              {(['만원', '천원'] as const).map(u => (
-                <TouchableOpacity
-                  key={u}
-                  style={[styles.unitToggleBtn, inputUnit === u && styles.unitToggleBtnActive]}
-                  onPress={() => {
-                    if (inputUnit === u) return;
-                    // 단위 전환 시 현재 입력값 재계산
-                    const prevUnit = inputUnit === '만원' ? 10000 : 1000;
-                    const nextUnit = u === '만원' ? 10000 : 1000;
-                    const ratio = prevUnit / nextUnit;
-                    const prevBuyIn = watch('buy_in') ?? 0;
-                    const prevCashOut = watch('cash_out') ?? 0;
-                    setValue('buy_in', Math.round(prevBuyIn * ratio * 100) / 100);
-                    setValue('cash_out', Math.round(prevCashOut * ratio * 100) / 100);
-                    setInputUnit(u);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.unitToggleBtnText, inputUnit === u && styles.unitToggleBtnTextActive]}>
-                    {u}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
         {/* Buy-in / Cash-out */}
         <View style={styles.row}>
           <View style={[styles.fieldGroup, { flex: 1 }]}>
-            <Text style={styles.label}>
-              바이인 {isKRW ? <Text style={styles.unitHint}>({inputUnit})</Text> : null}
-            </Text>
+            {/* 바이인 레이블 옆에 단위 토글 (캐시·토너 공통) */}
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>바이인</Text>
+              {unitToggle}
+            </View>
             {isTournament && (
               <Text style={styles.subHint}>리바이인 금액 모두 포함 기재</Text>
             )}
@@ -472,8 +470,9 @@ export default function SessionFormScreen({ route, navigation }: Props) {
             )}
           </View>
           <View style={[styles.fieldGroup, { flex: 1 }]}>
+            {/* 아웃/상금은 바이인 단위에 자동 연동 — 별도 토글 없이 단위 표시만 */}
             <Text style={styles.label}>
-              {isTournament ? '상금' : '아웃'} {isKRW ? <Text style={styles.unitHint}>({inputUnit})</Text> : null}
+              {isTournament ? '상금' : '아웃'}{isKRW ? <Text style={styles.unitHint}> ({inputUnit})</Text> : null}
             </Text>
             {isTournament && (
               <Text style={styles.subHint}>입상 시 상금, 아니면 0</Text>
@@ -665,14 +664,12 @@ const styles = StyleSheet.create({
   },
   gameTypeBtnText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.medium },
   gameTypeBtnTextActive: { color: colors.text },
-  unitToggleRow: {
+  labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: -spacing.xs,
   },
-  unitToggleLabel: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.medium },
-  unitToggleBtns: {
+  unitPill: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
     borderRadius: radius.button,
@@ -680,13 +677,13 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     overflow: 'hidden',
   },
-  unitToggleBtn: {
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.xs,
+  unitPillBtn: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
   },
-  unitToggleBtnActive: {
+  unitPillBtnActive: {
     backgroundColor: colors.primary,
   },
-  unitToggleBtnText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.medium },
-  unitToggleBtnTextActive: { color: colors.text, fontWeight: fontWeight.bold },
+  unitPillText: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.medium },
+  unitPillTextActive: { color: colors.text, fontWeight: fontWeight.bold },
 });

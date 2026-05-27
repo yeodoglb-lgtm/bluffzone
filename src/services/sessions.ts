@@ -89,8 +89,11 @@ export async function fetchSession(id: string): Promise<SessionWithProfit | null
 export type SessionInput = Omit<Session, 'id' | 'user_id' | 'created_at'>;
 
 export async function createSession(input: SessionInput): Promise<Session> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  // getUser()는 매번 네트워크 호출 → 콜드스타트 타임아웃 시 null 반환 오류 발생
+  // getSession()은 로컬 스토리지에서 읽으므로 안정적
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) throw new Error('Not authenticated');
+  const user = session.user;
 
   const { data, error } = await supabase
     .from('sessions')
