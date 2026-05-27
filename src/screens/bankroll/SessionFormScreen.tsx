@@ -137,10 +137,15 @@ export default function SessionFormScreen({ route, navigation }: Props) {
   // 레이블 옆에 인라인으로 붙는 만원/천원 토글 (KRW 전용)
   const unitToggle = isKRW ? (
     <View style={styles.unitPill}>
-      {(['만원', '천원'] as const).map(u => (
+      {(['만원', '천원'] as const).map((u, i, arr) => (
         <TouchableOpacity
           key={u}
-          style={[styles.unitPillBtn, inputUnit === u && styles.unitPillBtnActive]}
+          style={[
+            styles.unitPillBtn,
+            i === 0 && styles.unitPillBtnFirst,
+            i === arr.length - 1 && styles.unitPillBtnLast,
+            inputUnit === u && styles.unitPillBtnActive,
+          ]}
           onPress={() => handleUnitChange(u)}
           activeOpacity={0.8}
         >
@@ -669,21 +674,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  // overflow:hidden + borderRadius 조합은 iOS Safari ScrollView에서 내용이 사라지는 렌더링 버그
+  // → 컨테이너 overflow 제거, 대신 버튼별 borderRadius로 처리
   unitPill: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
     borderRadius: radius.button,
     borderWidth: 1,
     borderColor: colors.line,
-    overflow: 'hidden',
   },
   unitPillBtn: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.surface,
+  },
+  unitPillBtnFirst: {
+    borderTopLeftRadius: radius.button - 1,
+    borderBottomLeftRadius: radius.button - 1,
+  },
+  unitPillBtnLast: {
+    borderTopRightRadius: radius.button - 1,
+    borderBottomRightRadius: radius.button - 1,
   },
   unitPillBtnActive: {
     backgroundColor: colors.primary,
   },
-  unitPillText: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.medium },
+  unitPillText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.medium },
   unitPillTextActive: { color: colors.text, fontWeight: fontWeight.bold },
 });
