@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -54,9 +54,10 @@ export default function SessionFormScreen({ route, navigation }: Props) {
   const { currency } = useSettingsStore();
   const isEdit = !!sessionId;
 
-  // KRW는 만원 단위 입력 (저장 시 ×10000, 로드 시 ÷10000)
   const isKRW = currency === 'KRW';
-  const UNIT = isKRW ? 10000 : 1;
+  // 유저가 선택한 입력 단위 (KRW일 때만 유효)
+  const [inputUnit, setInputUnit] = useState<'만원' | '천원'>('만원');
+  const UNIT = isKRW ? (inputUnit === '만원' ? 10000 : 1000) : 1;
 
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
@@ -94,6 +95,9 @@ export default function SessionFormScreen({ route, navigation }: Props) {
     if (!sessionId) return;
     fetchSession(sessionId).then(session => {
       if (!session) return;
+      // 로드 시 단위는 만원 고정 (기존 입력 기준)
+      const loadUnit = isKRW ? 10000 : 1;
+      setInputUnit('만원');
       reset({
         is_tournament: session.is_tournament ?? false,
         played_on: session.played_on,
@@ -106,14 +110,14 @@ export default function SessionFormScreen({ route, navigation }: Props) {
             ? 'Mixed'
             : (session.game_type as 'NLH' | 'PLO' | 'Mixed' | null),
         stakes: session.stakes,
-        buy_in: session.buy_in / UNIT,
-        cash_out: session.cash_out / UNIT,
+        buy_in: session.buy_in / loadUnit,
+        cash_out: session.cash_out / loadUnit,
         reentry_count: session.reentry_count ?? 0,
         finish_position: session.finish_position ?? null,
         note: session.note,
       });
     });
-  }, [sessionId, reset, UNIT]);
+  }, [sessionId, reset, isKRW]);
 
   const isTournament = watch('is_tournament');
   const buyIn = watch('buy_in') ?? 0;
@@ -407,11 +411,43 @@ export default function SessionFormScreen({ route, navigation }: Props) {
           </View>
         )}
 
+        {/* 금액 입력 단위 토글 (KRW만) */}
+        {isKRW && (
+          <View style={styles.unitToggleRow}>
+            <Text style={styles.unitToggleLabel}>입력 단위</Text>
+            <View style={styles.unitToggleBtns}>
+              {(['만원', '천원'] as const).map(u => (
+                <TouchableOpacity
+                  key={u}
+                  style={[styles.unitToggleBtn, inputUnit === u && styles.unitToggleBtnActive]}
+                  onPress={() => {
+                    if (inputUnit === u) return;
+                    // 단위 전환 시 현재 입력값 재계산
+                    const prevUnit = inputUnit === '만원' ? 10000 : 1000;
+                    const nextUnit = u === '만원' ? 10000 : 1000;
+                    const ratio = prevUnit / nextUnit;
+                    const prevBuyIn = watch('buy_in') ?? 0;
+                    const prevCashOut = watch('cash_out') ?? 0;
+                    setValue('buy_in', Math.round(prevBuyIn * ratio * 100) / 100);
+                    setValue('cash_out', Math.round(prevCashOut * ratio * 100) / 100);
+                    setInputUnit(u);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.unitToggleBtnText, inputUnit === u && styles.unitToggleBtnTextActive]}>
+                    {u}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Buy-in / Cash-out */}
         <View style={styles.row}>
           <View style={[styles.fieldGroup, { flex: 1 }]}>
             <Text style={styles.label}>
-              바이인 {isKRW ? <Text style={styles.unitHint}>(만원)</Text> : null}
+              바이인 {isKRW ? <Text style={styles.unitHint}>({inputUnit})</Text> : null}
             </Text>
             {isTournament && (
               <Text style={styles.subHint}>리바이인 금액 모두 포함 기재</Text>
@@ -425,7 +461,7 @@ export default function SessionFormScreen({ route, navigation }: Props) {
                   value={value === 0 ? '' : String(value)}
                   onBlur={onBlur}
                   onChangeText={v => onChange(v === '' ? 0 : Number(v))}
-                  placeholder={isKRW ? '예: 20' : '0'}
+                  placeholder={isKRW ? (inputUnit === '만원' ? '예: 20' : '예: 200') : '0'}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                 />
@@ -437,7 +473,7 @@ export default function SessionFormScreen({ route, navigation }: Props) {
           </View>
           <View style={[styles.fieldGroup, { flex: 1 }]}>
             <Text style={styles.label}>
-              {isTournament ? '상금' : '아웃'} {isKRW ? <Text style={styles.unitHint}>(만원)</Text> : null}
+              {isTournament ? '상금' : '아웃'} {isKRW ? <Text style={styles.unitHint}>({inputUnit})</Text> : null}
             </Text>
             {isTournament && (
               <Text style={styles.subHint}>입상 시 상금, 아니면 0</Text>
@@ -451,7 +487,7 @@ export default function SessionFormScreen({ route, navigation }: Props) {
                   value={value === 0 ? '' : String(value)}
                   onBlur={onBlur}
                   onChangeText={v => onChange(v === '' ? 0 : Number(v))}
-                  placeholder={isKRW ? '예: 23' : '0'}
+                  placeholder={isKRW ? (inputUnit === '만원' ? '예: 23' : '예: 230') : '0'}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                 />
@@ -629,4 +665,28 @@ const styles = StyleSheet.create({
   },
   gameTypeBtnText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.medium },
   gameTypeBtnTextActive: { color: colors.text },
+  unitToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: -spacing.xs,
+  },
+  unitToggleLabel: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.medium },
+  unitToggleBtns: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.line,
+    overflow: 'hidden',
+  },
+  unitToggleBtn: {
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.xs,
+  },
+  unitToggleBtnActive: {
+    backgroundColor: colors.primary,
+  },
+  unitToggleBtnText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.medium },
+  unitToggleBtnTextActive: { color: colors.text, fontWeight: fontWeight.bold },
 });
